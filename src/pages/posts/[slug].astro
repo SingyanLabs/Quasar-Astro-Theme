@@ -69,7 +69,7 @@ const themeColorRgb = hexToRgb(themeColor);
     <main class="post-detail-viewport">
       <div class="post-detail-container">
 
-        <!-- 左侧栏：去框化极简融入 -->
+        <!-- 左侧栏：固定吸顶 -->
         <aside class="left-sidebar" transition:animate="fade">
           <div class="sticky-sidebar-wrapper">
             
@@ -172,7 +172,7 @@ const themeColorRgb = hexToRgb(themeColor);
       </div>
     </main>
 
-    <!-- TOC 交互脚本：平滑滚动 + 动态跟随高亮 -->
+    <!-- TOC 目录交互脚本 -->
     <script is:inline>
       document.addEventListener('astro:page-load', () => {
         const tocLinks = document.querySelectorAll('.toc-item');
@@ -252,10 +252,10 @@ const themeColorRgb = hexToRgb(themeColor);
     color: #ffffff;
     font-family: 'Noto Sans SC', sans-serif !important;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: clip; /* 🔑 改用 clip：防 Chrome 横向溢出的同时，绝对不破坏 position: sticky */
   }
 
-  /* View Transition 标准规则 */
+  /* View Transition 标准设定 */
   ::view-transition-group(*) {
     animation-duration: 0.5s;
     animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
@@ -292,22 +292,21 @@ const themeColorRgb = hexToRgb(themeColor);
     justify-content: center;
   }
 
+  /* 🔑 Grid 容器：取消 align-items: start，让左侧栏继承全高， sticky 才能正常生效 */
   .post-detail-container {
     width: 92%;
     max-width: 102rem;
     display: grid;
     grid-template-columns: 18.5rem 1fr;
     gap: 3.5rem;
-    align-items: start;
   }
 
-  /* 左侧栏 */
+  /* 🔑 左侧栏：通过 sticky + top 牢牢锁定在屏幕上方 */
   .left-sidebar {
     width: 100%;
     min-width: 0;
     position: sticky;
     top: 5.5rem;
-    align-self: start;
     max-height: calc(100vh - 6.5rem); 
     overflow-y: auto;
     padding-right: 0.25rem;
@@ -503,7 +502,7 @@ const themeColorRgb = hexToRgb(themeColor);
   }
   .recent-item-link:hover { color: #d1d1d6; }
 
-  /* 右侧文章主体卡片：采用高质感实色暗黑背景 */
+  /* 右侧文章主体卡片 */
   .main-article-content {
     background: #0d0d0f;
     border: 0.0625rem solid rgba(255, 255, 255, 0.08);

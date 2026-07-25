@@ -1,169 +1,7 @@
 ---
 // src/pages/albums.astro
-import { SITE_CONFIG, ALBUMS_CONFIG  } from '../config';
+import { SITE_CONFIG, ALBUMS_CONFIG } from '../config';
 import Navbar from '../components/Navbar.astro';
-
-// ========================================================
-// 服务端数据同步引擎 (Astro Frontmatter)
-// ========================================================
-const shareUrl = `https://photos.app.goo.gl/${ALBUMS_CONFIG.googleSharedId}`;
-
-let photosData: any[] = [];
-let albumTitle = "{ALBUMS_CONFIG.title}";
-let errorMsg = null;
-
-try {
-  const response = await fetch(shareUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    },
-    redirect: 'follow'
-  });
-
-  if (!response.ok) {
-    throw new Error(` 服务端寻找 Google Photos 相册失败，请检查分享外链是否有效。: ${response.statusText}`);
-  }
-
-  const html = await response.text();
-
-  // ========================================================
-// Google Photos 标题同步
-// ========================================================
-  // const titleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-  // if (titleMatch && titleMatch[1]) {
-  //   albumTitle = titleMatch[1];
-  // }
-
-  const matches = html.match(/AF_initDataCallback\(\s*\{\s*key:\s*'ds:\d+'[\s\S]*?data:\s*([\s\S]*?)\}\s*\);/g);
-  
-  if (matches) {
-    for (const match of matches) {
-      if (match.includes('https://lh3.googleusercontent.com/')) {
-        const dataBlockMatch = match.match(/data:\s*([\s\S]*?)(?=\s*,\s*sideChannel|$)/);
-        if (dataBlockMatch) {
-          try {
-            let dataStr = dataBlockMatch[1].trim();
-            if (dataStr.endsWith(',')) {
-              dataStr = dataStr.slice(0, -1);
-            }
-
-            const getJson = new Function(`return ${dataStr};`);
-            const parsedData = getJson();
-
-            if (Array.isArray(parsedData)) {
-              const extracted = extractPhotosFromArray(parsedData);
-              if (extracted && extracted.length > 0) {
-                photosData = extracted;
-                break;
-              }
-            }
-          } catch (e) {
-            // 容错
-          }
-        }
-      }
-    }
-  }
-
-  if (photosData.length === 0) {
-    photosData = fallbackRegexExtract(html);
-  }
-
-} catch (err: any) {
-  errorMsg = "服务端抓取失败，当前网络环境可能无法访问 Google Photos 资源。";
-  console.error("相册抓取调试日志:", err.message);
-}
-
-function extractPhotosFromArray(arr: any[]): any[] {
-  let result: any[] = [];
-
-  function traverse(item: any) {
-    if (!item) return;
-    if (Array.isArray(item)) {
-      const isPhotoList = item.length > 0 && item.every(el => 
-        Array.isArray(el) && 
-        typeof el[0] === 'string' && 
-        el[0].length > 10 && 
-        Array.isArray(el[1]) && 
-        typeof el[1][0] === 'string' && 
-        el[1][0].startsWith('https://lh3.googleusercontent.com/')
-      );
-
-      if (isPhotoList) {
-        result = item.map((photo, index) => {
-          const id = photo[0];
-          const baseUrl = photo[1][0];
-          const width = photo[1][1] || null;
-          const height = photo[1][2] || null;
-          
-          let mediaType: 'photo' | 'video' = 'photo';
-          let videoUrl: string | null = null;
-
-          const isVideoElement = photo.some((field: any) => 
-            Array.isArray(field) && field.some(sub => typeof sub === 'string' && sub.includes('video'))
-          );
-
-          if (isVideoElement) {
-            mediaType = 'video';
-            videoUrl = `${baseUrl}=m18`;
-          }
-
-          let takenAt = null;
-          if (typeof photo[2] === 'number' && photo[2] > 1000000000000) {
-            takenAt = new Date(photo[2]).toISOString();
-          } else if (typeof photo[5] === 'number' && photo[5] > 1000000000000) {
-            takenAt = new Date(photo[5]).toISOString();
-          }
-
-          return {
-            index, id, mediaType, width, height, takenAt,
-            thumbUrl: `${baseUrl}=w800`,
-            fallbackThumbUrl: `${baseUrl}=w500`,
-            displayUrl: `${baseUrl}=w1600`,
-            fallbackDisplayUrl: `${baseUrl}=w1200`,
-            previewUrl: `${baseUrl}=w1024`,
-            fallbackPreviewUrl: `${baseUrl}=w800`,
-            originalLikeUrl: `${baseUrl}=w2400`,
-            fallbackOriginalLikeUrl: `${baseUrl}=w1600`,
-            videoUrl,
-            fallbackVideoUrl: videoUrl ? `${baseUrl}=m22` : null
-          };
-        });
-        return;
-      }
-
-      for (const sub of item) {
-        traverse(sub);
-        if (result.length > 0) return;
-      }
-    }
-  }
-
-  traverse(arr);
-  return result;
-}
-
-function fallbackRegexExtract(html: string): any[] {
-  const regex = /"(https:\/\/lh3\.googleusercontent\.com\/[A-Za-z0-9_\-]+)"/g;
-  const urls = new Set<string>();
-  let match;
-  while ((match = regex.exec(html)) !== null) {
-    const url = match[1];
-    if (!url.includes('=s') && !url.includes('=w') && url.length > 50) {
-      urls.add(url);
-    }
-  }
-
-  return Array.from(urls).map((url, index) => ({
-    index, id: `fallback-${index}`, mediaType: 'photo',
-    width: null, height: null, takenAt: null,
-    thumbUrl: `${url}=w800`, fallbackThumbUrl: `${url}=w500`,
-    displayUrl: `${url}=w1600`, fallbackDisplayUrl: `${url}=w1200`,
-    previewUrl: `${url}=w1024`, fallbackPreviewUrl: `${url}=w800`,
-    originalLikeUrl: `${url}=w2400`, fallbackOriginalLikeUrl: `${url}=w1600`,
-    videoUrl: null, fallbackVideoUrl: null
-  }));
-}
 ---
 
 <!DOCTYPE html>
@@ -172,7 +10,7 @@ function fallbackRegexExtract(html: string): any[] {
   <meta charset="utf-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>{ALBUMS_CONFIG .nav} | {SITE_CONFIG.title}</title>
+  <title>{ALBUMS_CONFIG.nav} | {SITE_CONFIG.title}</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -185,36 +23,20 @@ function fallbackRegexExtract(html: string): any[] {
   <main class="gallery-viewport" define:vars={{ themeColor: SITE_CONFIG.themeColor }}>
     
     <div class="header-section">
-      <h1 class="page-title">{ALBUMS_CONFIG .title}</h1>
-      <p class="page-subtitle">{ALBUMS_CONFIG .subtitle}</p>
+      <h1 class="page-title">{ALBUMS_CONFIG.title}</h1>
+      <p class="page-subtitle">{ALBUMS_CONFIG.subtitle}</p>
+      <p id="stats-indicator" class="stats-badge">正在同步相册图库...</p>
     </div>
 
-    <div 
-      id="album-data-store" 
-      data-photos={JSON.stringify(photosData)} 
-      data-error={errorMsg}
-      style="display: none;"
-    ></div>
-
-{errorMsg && (
-      <div class="error-card">
-        <div class="error-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 18c-.77 1.333.192 3 1.732 3z"/></svg>
-        </div>
-        <div class="error-content">
-          <h3 class="error-title">画廊同步暂缓</h3>
-          <p class="error-desc">{errorMsg}</p>
-        </div>
-      </div>
-    )}
-
-    <!-- 🔴 真正的物理隔离多列瀑布流容器 -->
+    <!-- 瀑布流容器 -->
     <div class="masonry-wrapper">
       <div id="masonry-grid" class="masonry-grid-flex"></div>
-      <div id="scroll-sentinel" class="scroll-sentinel"></div>
+      <div id="scroll-sentinel" class="scroll-sentinel">
+        <div id="loading-spinner" class="loading-spinner"></div>
+      </div>
     </div>
 
-    <!-- Lightbox 全屏模态框 -->
+    <!-- Lightbox 大图预览模态框 -->
     <div id="lightbox" class="lightbox-modal">
       <div class="lightbox-backdrop" id="lightbox-close-area"></div>
       
@@ -233,6 +55,14 @@ function fallbackRegexExtract(html: string): any[] {
           <img id="lb-base-img" class="lightbox-layer opacity-hidden" />
           <img id="lb-high-img" class="lightbox-layer opacity-hidden" />
           <div id="lb-loader" class="lightbox-loading-placeholder" style="display: none;"></div>
+          
+          <!-- 🔴 错误提示 UI -->
+          <div id="lb-error" class="lightbox-error-message" style="display: none;">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-warn" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+             </svg>
+            <p>媒体加载失败，当前网络可能无法访问资源</p>
+          </div>
         </div>
 
         <div class="lightbox-footer" id="lightbox-footer">
@@ -261,28 +91,12 @@ function fallbackRegexExtract(html: string): any[] {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
 
 <script is:inline>
-  const storeEl = document.getElementById('album-data-store');
-  const rawPhotos = storeEl && storeEl.dataset.photos ? JSON.parse(storeEl.dataset.photos) : [];
+  let cachePool = [];
+  let nextCursor = null;
+  let isLoading = false;
+  let hasMore = true;
+  let activeIndex = null;
 
-  const getTakenAtValue = (takenAt) => {
-    if (!takenAt) return Number.NEGATIVE_INFINITY;
-    const parsed = Date.parse(takenAt);
-    return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
-  };
-
-  const cachePool = [...rawPhotos].sort((left, right) => {
-    const leftTakenAt = getTakenAtValue(left.takenAt);
-    const rightTakenAt = getTakenAtValue(right.takenAt);
-    if (leftTakenAt !== rightTakenAt) return rightTakenAt - leftTakenAt;
-    if (left.index !== right.index) return left.index - right.index;
-    return left.id.localeCompare(right.id);
-  });
-
-  let renderedCount = 0;  
-  const REVEAL_BATCH = 15; 
-  let activeIndex = null;  
-
-  // 🔴 DOM 缓存池，彻底防止每次计算多列时卡片 DOM 被销毁重造
   const cardCache = [];
 
   function getColumnCount() {
@@ -292,16 +106,78 @@ function fallbackRegexExtract(html: string): any[] {
     return 1;                
   }
 
-  function initGallery() {
-    if (cachePool.length === 0) return;
-    window.dispatchEvent(new CustomEvent('sinyan-album-sync', { detail: { showing: 0, cached: cachePool.length, isBuffering: true } }));
-    setTimeout(() => {
-      revealNextBatch(); 
-      window.dispatchEvent(new CustomEvent('sinyan-album-sync', { detail: { showing: renderedCount, cached: cachePool.length, isBuffering: false } }));
-    }, 200); 
+  // 🌟 基于 WIZ 框架解密的增量异步加载引擎
+  async function fetchNextPage() {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
+    showSpinner(true);
+
+    try {
+      const params = new URLSearchParams({
+        loadedCount: String(cachePool.length)
+      });
+
+      if (nextCursor) {
+        params.set("cursor", nextCursor);
+      }
+
+      const res = await fetch(`/api/albums?${params.toString()}`);
+      
+      if (!res.ok) {
+        throw new Error("相册数据加载失败");
+      }
+
+      const data = await res.json();
+
+      if (data.photos && data.photos.length > 0) {
+        const newPhotos = data.photos;
+        nextCursor = data.nextCursor;
+
+        // 去重合并
+        const existingIds = new Set(cachePool.map(p => p.id));
+        newPhotos.forEach(p => {
+          if (!existingIds.has(p.id)) {
+            cachePool.push(p);
+          }
+        });
+
+        updateStatsIndicator();
+        renderGrid();
+
+        if (!nextCursor) {
+          hasMore = false;
+          showSpinner(false);
+          updateStatsIndicator(true);
+        }
+      } else {
+        hasMore = false;
+        showSpinner(false);
+        updateStatsIndicator(true);
+      }
+    } catch (e) {
+      console.error("加载相册失败:", e);
+      showSpinner(false);
+    } finally {
+      isLoading = false;
+    }
   }
 
-  // 🔴 采用物理隔离的分列 Flex 组装机，绝对隔绝列交叉和溢出
+  function updateStatsIndicator(isFinished = false) {
+    const indicator = document.getElementById('stats-indicator');
+    if (indicator) {
+      if (isFinished) {
+        indicator.innerText = `已加载全部照片，共 ${cachePool.length} 张`;
+      } else {
+        indicator.innerText = `已显示 ${cachePool.length} 张照片${hasMore ? ' (继续滚动加载...)' : ''}`;
+      }
+    }
+  }
+
+  function showSpinner(show) {
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) spinner.style.display = show ? 'block' : 'none';
+  }
+
   function renderGrid() {
     const gridContainer = document.getElementById('masonry-grid');
     gridContainer.innerHTML = '';
@@ -309,7 +185,6 @@ function fallbackRegexExtract(html: string): any[] {
     const colCount = getColumnCount();
     const columns = [];
 
-    // 创建纯粹隔离的列盒子
     for (let i = 0; i < colCount; i++) {
       const col = document.createElement('div');
       col.className = 'masonry-column-flex';
@@ -317,9 +192,7 @@ function fallbackRegexExtract(html: string): any[] {
       columns.push(col);
     }
 
-    // 分发卡片到对应列中
-    const visiblePhotos = cachePool.slice(0, renderedCount);
-    visiblePhotos.forEach((photo, index) => {
+    cachePool.forEach((photo, index) => {
       const targetColumn = columns[index % colCount];
       const cardEl = getOrCreateCard(photo, index);
       targetColumn.appendChild(cardEl);
@@ -332,14 +205,6 @@ function fallbackRegexExtract(html: string): any[] {
     const card = createPhotoCard(photo, index);
     cardCache[index] = card;
     return card;
-  }
-
-  function revealNextBatch() {
-    if (cachePool.length === 0 || renderedCount >= cachePool.length) return;
-    
-    renderedCount = Math.min(renderedCount + REVEAL_BATCH, cachePool.length);
-    renderGrid();
-    notifyNavbar();
   }
 
   function createPhotoCard(photo, index) {
@@ -375,10 +240,15 @@ function fallbackRegexExtract(html: string): any[] {
 
     const randomRotate = (Math.random() - 0.5) * 4; 
     
-    gsap.fromTo(cardEl, 
-      { y: 50, scale: 0.96, rotation: randomRotate, opacity: 0 }, 
-      { y: 0, scale: 1, rotation: 0, opacity: 1, duration: 1.0, ease: "power4.out", clearProps: "transform,rotation" }
-    );
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo(cardEl, 
+        { y: 50, scale: 0.96, rotation: randomRotate, opacity: 0 }, 
+        { y: 0, scale: 1, rotation: 0, opacity: 1, duration: 0.8, ease: "power4.out", clearProps: "transform,rotation" }
+      );
+    } else {
+      cardEl.style.opacity = 1;
+      cardEl.style.transform = "none";
+    }
   };
 
   window.onImageError = (imgEl, fallbackUrl) => {
@@ -388,30 +258,27 @@ function fallbackRegexExtract(html: string): any[] {
     }
   };
 
-  function notifyNavbar() {
-    window.dispatchEvent(new CustomEvent('sinyan-album-sync', { detail: { showing: renderedCount, cached: cachePool.length, isBuffering: false } }));
-  }
-
   let resizeTimeout;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => { renderGrid(); }, 150);
   });
 
+  // 滚动自动触底加载下一页 Cursor 数据
   const sentinel = document.getElementById('scroll-sentinel');
   const scrollObserver = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) revealNextBatch();
-  }, { rootMargin: '800px' });
+    if (entries[0].isIntersecting) {
+      fetchNextPage();
+    }
+  }, { rootMargin: '1000px' });
   scrollObserver.observe(sentinel);
 
-
-  // ==========================================
-  // 大图预览：防溢出引擎
-  // ==========================================
+  // Lightbox 大图预览引擎
   const lightbox = document.getElementById('lightbox');
   const lbBaseImg = document.getElementById('lb-base-img');
   const lbHighImg = document.getElementById('lb-high-img');
   const lbLoader = document.getElementById('lb-loader');
+  const lbError = document.getElementById('lb-error'); // 🔴 新增
   const frameContainer = document.querySelector('.media-frame-container');
   
   const lbIndex = document.getElementById('lightbox-index');
@@ -420,15 +287,22 @@ function fallbackRegexExtract(html: string): any[] {
   const footerDate = document.getElementById('footer-date');
   const footerLink = document.getElementById('footer-link');
 
+  let lightboxTimeout = null; // 🔴 新增：全局超时器
+
   window.openLightbox = (index) => {
     activeIndex = index;
     const photo = cachePool[index];
     if (!photo) return;
 
     frameContainer.querySelectorAll('video').forEach(v => v.remove());
+    clearTimeout(lightboxTimeout); // 重置超时器
 
     lightbox.classList.add('active');
-    gsap.fromTo('.lightbox-content', { scale: 0.95, y: 15 }, { scale: 1, y: 0, duration: 0.5, ease: "expo.out" });
+    
+    // 兼容防断网：如果 gsap 没加载出来，直接显示
+    if (typeof gsap !== 'undefined') {
+      gsap.fromTo('.lightbox-content', { scale: 0.95, y: 15 }, { scale: 1, y: 0, duration: 0.5, ease: "expo.out" });
+    }
 
     lbIndex.innerText = `#${index + 1} / ${cachePool.length}`;
     lbDate.innerText = photo.takenAt ? new Date(photo.takenAt).toLocaleDateString() : 'UNKNOWN DATE';
@@ -436,9 +310,21 @@ function fallbackRegexExtract(html: string): any[] {
     footerDate.innerText = photo.takenAt ? new Date(photo.takenAt).toLocaleString() : '未知拍摄时间';
     footerLink.href = photo.videoUrl || photo.originalLikeUrl || photo.displayUrl;
 
+    // 重置所有状态
     lbBaseImg.className = 'lightbox-layer opacity-hidden';
     lbHighImg.className = 'lightbox-layer opacity-hidden';
+    lbBaseImg.dataset.triedFallback = "false";
+    lbHighImg.dataset.triedFallback = "false";
     lbLoader.style.display = 'block';
+    lbError.style.display = 'none';
+
+    // 🔴 设置 15 秒超时强制熔断，抛出错误提示
+    lightboxTimeout = setTimeout(() => {
+      if (lbLoader.style.display === 'block') {
+        lbLoader.style.display = 'none';
+        lbError.style.display = 'flex';
+      }
+    }, 15000);
 
     if (photo.mediaType === 'video') {
       const video = document.createElement('video');
@@ -447,14 +333,22 @@ function fallbackRegexExtract(html: string): any[] {
       video.autoplay = true;
       video.playsInline = true;
       video.src = photo.videoUrl || photo.displayUrl;
-      video.oncanplay = () => { lbLoader.style.display = 'none'; };
+      
+      video.oncanplay = () => { 
+        clearTimeout(lightboxTimeout);
+        lbLoader.style.display = 'none'; 
+      };
+      
       video.onerror = () => {
         if (photo.fallbackVideoUrl && video.dataset.fallbackApplied !== "true") {
           video.dataset.fallbackApplied = "true";
           video.src = photo.fallbackVideoUrl;
           video.load();
         } else {
+          // 🔴 视频彻底失败
+          clearTimeout(lightboxTimeout);
           lbLoader.style.display = 'none';
+          lbError.style.display = 'flex';
         }
       };
       frameContainer.appendChild(video);
@@ -462,13 +356,25 @@ function fallbackRegexExtract(html: string): any[] {
       lbBaseImg.src = photo.previewUrl || photo.displayUrl;
       
       lbBaseImg.onload = () => {
+        clearTimeout(lightboxTimeout);
         lbLoader.style.display = 'none';
+        lbError.style.display = 'none';
         lbBaseImg.classList.remove('opacity-hidden');
         lbHighImg.src = photo.originalLikeUrl || photo.displayUrl;
       };
 
-      lbBaseImg.onerror = () => {
-        lbBaseImg.src = photo.fallbackPreviewUrl || photo.fallbackDisplayUrl || photo.thumbUrl;
+lbBaseImg.onerror = () => {
+        // 🔴 防死循环：已经降级过一次说明直连彻底不通，直接报错
+        if (lbBaseImg.dataset.triedFallback === "true") {
+          clearTimeout(lightboxTimeout);
+          lbLoader.style.display = 'none';
+          lbError.style.display = 'flex';
+          return;
+        }
+        lbBaseImg.dataset.triedFallback = "true";
+        // 🌟 [更改点] 这里去掉了 `|| photo.thumbUrl`
+        // 这样只要 fallbackPreviewUrl 这种原生谷歌直连失效，立刻触发报错
+        lbBaseImg.src = photo.fallbackPreviewUrl || photo.fallbackDisplayUrl;
       };
 
       lbHighImg.onload = () => {
@@ -476,20 +382,31 @@ function fallbackRegexExtract(html: string): any[] {
       };
 
       lbHighImg.onerror = () => {
+        if (lbHighImg.dataset.triedFallback === "true") return;
+        lbHighImg.dataset.triedFallback = "true";
         lbHighImg.src = photo.fallbackOriginalLikeUrl || photo.fallbackDisplayUrl;
       };
     }
   };
 
+  // 🔴 纯原生强力关闭逻辑（不依赖外置动画库，防止网络断裂导致关闭按钮失效）
   window.closeLightbox = () => {
-    gsap.to('.lightbox-content', {
-      scale: 0.95, y: 15, duration: 0.3, ease: "power2.in", onComplete: () => {
-        lightbox.classList.remove('active');
-        lbBaseImg.src = ''; 
-        lbHighImg.src = '';
-        lbLoader.style.display = 'none';
-      }
-    });
+    clearTimeout(lightboxTimeout);
+    
+    const cleanup = () => {
+      lightbox.classList.remove('active');
+      lbBaseImg.src = ''; 
+      lbHighImg.src = '';
+      lbLoader.style.display = 'none';
+      lbError.style.display = 'none';
+      frameContainer.querySelectorAll('video').forEach(v => v.remove());
+    };
+
+    if (typeof gsap !== 'undefined') {
+      gsap.to('.lightbox-content', { scale: 0.95, y: 15, duration: 0.25, ease: "power2.in", onComplete: cleanup });
+    } else {
+      cleanup(); // GSAP 没加载出来，直接物理清理
+    }
   };
 
   document.getElementById('lightbox-close-btn').addEventListener('click', closeLightbox);
@@ -503,7 +420,8 @@ function fallbackRegexExtract(html: string): any[] {
     if (e.key === 'ArrowRight' && activeIndex < cachePool.length - 1) openLightbox(activeIndex + 1);
   });
 
-  initGallery();
+  // 挂载初次加载
+  fetchNextPage();
 </script>
 
 <style>
@@ -512,7 +430,6 @@ function fallbackRegexExtract(html: string): any[] {
     padding: 0 !important;
     background-color: #030303;
     color: #ffffff;
-    /* 🔴 物理死锁横向溢出 */
     overflow-x: hidden !important; 
     width: 100% !important;
     transition: background-color 0.4s ease, color 0.4s ease;
@@ -534,52 +451,19 @@ function fallbackRegexExtract(html: string): any[] {
     -webkit-background-clip: text;
     margin-bottom: 12px;
   }
-  .page-subtitle { font-size: 0.95rem; color: #888888; line-height: 1.6; font-weight: 400; transition: color 0.4s ease; }
+  .page-subtitle { font-size: 0.95rem; color: #888888; line-height: 1.6; font-weight: 400; transition: color 0.4s ease; margin-bottom: 12px; }
 
-  /* 🔴 磨砂玻璃风格错误卡片 */
-  .error-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px 24px;
-    margin: 40px auto;
-    max-width: 600px;
-    background: rgba(255, 59, 48, 0.06); /* 极淡的红底 */
-    border: 1px solid rgba(255, 59, 48, 0.2);
-    backdrop-filter: blur(12px);
-    border-radius: 16px;
-    color: #ff453a; /* 苹果风格的警示红 */
+  .stats-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
-  .error-icon {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    opacity: 0.9;
-  }
-
-  .error-title {
-    margin: 0 0 4px 0;
-    font-size: 0.95rem;
-    font-weight: 700;
-  }
-
-  .error-desc {
-    margin: 0;
-    font-size: 0.85rem;
-    opacity: 0.8;
-    line-height: 1.4;
-  }
-
-  /* 白昼模式适配 */
-  :global(html.light-mode) .error-card {
-    background: rgba(255, 59, 48, 0.05);
-    border: 1px solid rgba(255, 59, 48, 0.15);
-    color: #d63031;
-  }
-  /* =========================================
-     🔴 终极战车：Flex 物理列隔离瀑布流 (绝对不可能溢出/重叠)
-  ========================================= */
   .masonry-wrapper { 
     position: relative; 
     width: 100%; 
@@ -597,7 +481,6 @@ function fallbackRegexExtract(html: string): any[] {
 
   .masonry-column-flex {
     flex: 1;
-    /* 🔴 列宽死锁骨骼：min-width: 0 彻底防止图片撑大列宽，物理层面切断横向撑爆网页的路径 */
     min-width: 0 !important; 
     display: flex;
     flex-direction: column;
@@ -611,7 +494,6 @@ function fallbackRegexExtract(html: string): any[] {
   .masonry-item-card {
     position: relative;
     display: block;
-    /* 🔴 填平一切大黑边：必须 100% 顶格吃满列容器的物理宽度 */
     width: 100% !important; 
     background: transparent !important; 
     border: none !important; 
@@ -628,7 +510,6 @@ function fallbackRegexExtract(html: string): any[] {
   .photo-img { 
     width: 100% !important; 
     height: auto !important; 
-    /* 🔴 自然等比，绝不裁切多余区域，且平滑无黑边拉满 */
     object-fit: cover; 
     display: block; 
     transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease; 
@@ -646,11 +527,25 @@ function fallbackRegexExtract(html: string): any[] {
     width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #ffffff; z-index: 3;
   }
   .video-badge svg { width: 14px; height: 14px; }
-  .scroll-sentinel { height: 60px; width: 100%; }
 
-  /* =========================================
-     大图预览防溢出
-  ========================================= */
+  .scroll-sentinel { 
+    height: 100px; 
+    width: 100%; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--themeColor, #ffffff);
+    border-radius: 50%;
+    animation: spin 0.85s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   .media-frame-container {
     flex-grow: 1; display: block; overflow: hidden;
     position: relative; width: 100%; height: 75vh; margin: 15px 0;
@@ -669,14 +564,7 @@ function fallbackRegexExtract(html: string): any[] {
     width: 36px; height: 36px; border: 3px solid rgba(255, 255, 255, 0.12);
     border-top-color: var(--themeColor, #ffffff); border-radius: 50%; animation: spin 0.85s cubic-bezier(0.6, 0.2, 0.2, 0.8) infinite; z-index: 5;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
 
-  #lb-base-img { z-index: 1; }
-  #lb-high-img { z-index: 2; }
-
-  /* =========================================
-     Lightbox 其他控制台 UI
-  ========================================= */
   .lightbox-modal { position: fixed; inset: 0; z-index: 9999; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
   .lightbox-modal.active { opacity: 1; pointer-events: auto; }
   .lightbox-backdrop { position: absolute; inset: 0; background: rgba(3, 3, 3, 0.65); backdrop-filter: blur(28px) saturate(220%); -webkit-backdrop-filter: blur(28px) saturate(220%); z-index: 1; }
@@ -701,12 +589,34 @@ function fallbackRegexExtract(html: string): any[] {
   .nav-btn.next { right: -40px; }
   .nav-btn svg { width: 18px; height: 18px; }
 
-  /* =========================================
-     白昼模式
-  ========================================= */
+  /* 🔴 网络断开/加载失败的错误面板样式 */
+  .lightbox-error-message {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #ff453a;
+    background: rgba(255, 59, 48, 0.08);
+    border: 1px solid rgba(255, 59, 48, 0.2);
+    border-radius: 16px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    width: fit-content;
+    height: fit-content;
+    padding: 24px 32px;
+    z-index: 10;
+  }
+  .lightbox-error-message svg { width: 32px; height: 32px; opacity: 0.9; }
+  .lightbox-error-message p { margin: 0; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.02em; }
+
   :global(html.light-mode), :global(html.light-mode body) { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
   :global(html.light-mode) .page-title { background: linear-gradient(180deg, #1d1d1f 40%, #86868b 100%); -webkit-background-clip: text;}
   :global(html.light-mode) .page-subtitle { color: #555555; }
+  :global(html.light-mode) .stats-badge { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.08); color: #555555; }
   
   :global(html.light-mode) .masonry-item-card { background: transparent !important; border: none !important; box-shadow: none !important; }
   
@@ -718,6 +628,12 @@ function fallbackRegexExtract(html: string): any[] {
   :global(html.light-mode) .footer-link:hover { background: rgba(0, 0, 0, 0.12); color: #000000; }
   :global(html.light-mode) .lightbox-close-btn, :global(html.light-mode) .nav-btn { background: rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.04); color: #1d1d1f; }
   :global(html.light-mode) .lightbox-close-btn:hover, :global(html.light-mode) .nav-btn:hover { background: rgba(0, 0, 0, 0.1); }
+  
+  :global(html.light-mode) .lightbox-error-message {
+    color: #d63031;
+    background: rgba(255, 59, 48, 0.06);
+    border-color: rgba(255, 59, 48, 0.15);
+  }
 
   @media (max-width: 1200px) { .nav-btn.prev { left: 10px; } .nav-btn.next { right: 10px; } }
   @media (max-width: 800px) { .gallery-viewport { padding-top: 100px; } .nav-btn { display: none; } }

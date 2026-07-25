@@ -83,7 +83,8 @@ export const ALBUMS_CONFIG = {
   title: "🖼️  Quasar Albums",
   subtitle: "记录生活中的美好瞬间与光影记忆",
   // 你的 Google Photos 分享链接
-  googleSharedId: "YOUR_GOOGLE_PHOTOS_SHARE_ID",
+  // googleSharedId: "YOUR_GOOGLE_PHOTOS_SHARE_ID",
+  googleSharedId: "Hj55uVT1gDPqYDu56",
 };
   
 export const ABOUT_CONFIG = {
