@@ -169,11 +169,12 @@ const themeColorRgb = hexToRgb(themeColor);
       document.addEventListener('astro:page-load', () => {
         const filterBtns = document.querySelectorAll('.filter-btn');
         const postCards = document.querySelectorAll('.post-card');
+        const isPerfDegraded = document.documentElement.classList.contains('perf-degraded');
 
+        // 分类按钮切换逻辑 (仅控制 display 和简易透明度，不干涉 View Transition)
         filterBtns.forEach((btn) => {
           btn.addEventListener('click', () => {
             const selectedCategory = btn.dataset.category;
-            const isPerfDegraded = document.documentElement.classList.contains('perf-degraded');
 
             filterBtns.forEach((b) => b.classList.remove('active'));
             btn.classList.add('active');
@@ -189,7 +190,7 @@ const themeColorRgb = hexToRgb(themeColor);
                 if (shouldShow) {
                   card.style.display = 'block';
                   if (window.gsap) {
-                    gsap.to(card, { opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.35, ease: 'power2.out' });
+                    gsap.to(card, { opacity: 1, duration: 0.25 });
                   } else {
                     card.style.opacity = '1';
                   }
@@ -197,10 +198,7 @@ const themeColorRgb = hexToRgb(themeColor);
                   if (window.gsap) {
                     gsap.to(card, {
                       opacity: 0,
-                      scale: 0.96,
-                      filter: 'blur(4px)',
-                      duration: 0.25,
-                      ease: 'power2.in',
+                      duration: 0.2,
                       onComplete: () => { card.style.display = 'none'; }
                     });
                   } else {
@@ -219,25 +217,28 @@ const themeColorRgb = hexToRgb(themeColor);
 
 <style define:vars={{ themeColor, themeColorRgb }}>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background-color: #030303; color: #ffffff; font-family: 'Noto Sans SC', sans-serif; min-height: 100vh; }
   
-  /* 🔑 修复 View Transition 溢出与黑底问题 */
+  html, body { 
+    background-color: #030303; 
+    color: #ffffff; 
+    font-family: 'Noto Sans SC', sans-serif; 
+    min-height: 100vh; 
+    overflow-x: hidden; /* 修复 Chrome 底部横向滚动条 */
+  }
+
+  /* 精简、安全的 View Transition 全局设定 */
   ::view-transition-group(*) {
-    animation-duration: 0.68s;
+    animation-duration: 0.5s;
     animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-    overflow: hidden !important;
   }
   
   ::view-transition-old(*),
   ::view-transition-new(*) {
     mix-blend-mode: normal;
     height: 100%;
-    overflow: hidden;
-    backface-visibility: hidden;
   }
 
   ::view-transition-group(card-cover-*) {
-    overflow: hidden !important;
     border-radius: 12px;
   }
 
@@ -251,11 +252,19 @@ const themeColorRgb = hexToRgb(themeColor);
   }
 
   ::view-transition-group(card-bg-*) {
-    overflow: hidden !important;
     border-radius: 16px;
   }
 
-  .posts-viewport { width: 100vw; min-height: calc(100vh - 72px); margin-top: 0; padding: 8rem 0 80px 0; display: flex; justify-content: center; }
+  /* 修复 100vw 导致的横向滚动条 */
+  .posts-viewport { 
+    width: 100%; 
+    min-height: calc(100vh - 72px); 
+    margin-top: 0; 
+    padding: 8rem 0 80px 0; 
+    display: flex; 
+    justify-content: center; 
+  }
+
   .posts-container { width: 90%; max-width: 1200px; }
   .posts-header { margin-bottom: 48px; display: flex; flex-direction: column; gap: 24px; }
   
@@ -266,22 +275,51 @@ const themeColorRgb = hexToRgb(themeColor);
   .subtitle { font-size: 1.05rem; color: #86868b; font-weight: 300; }
   
   .category-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  .filter-btn { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: #aaaaaa; font-size: 0.82rem; font-family: 'Plus Jakarta Sans', sans-serif; padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: all 0.25s ease; }
+  
+  .filter-btn { 
+    background: rgba(255, 255, 255, 0.04); 
+    border: 1px solid rgba(255, 255, 255, 0.08); 
+    color: #aaaaaa; 
+    font-size: 0.82rem; 
+    font-family: 'Plus Jakarta Sans', sans-serif; 
+    padding: 8px 16px; 
+    border-radius: 20px; 
+    cursor: pointer; 
+    transition: all 0.25s ease;
+  }
   .filter-btn:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; border-color: rgba(255, 255, 255, 0.15); }
   .filter-btn.active { background: #ffffff; color: #030303; font-weight: 700; border-color: #ffffff; }
 
   .posts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
-  .post-card { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 16px; overflow: hidden; transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease; }
+  
+  .post-card { 
+    background: rgba(255, 255, 255, 0.02); 
+    border: 1px solid rgba(255, 255, 255, 0.06); 
+    border-radius: 16px; 
+    overflow: hidden; 
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease; 
+  }
   .post-card:hover { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.2); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
   
   .card-inner-link { text-decoration: none; color: inherit; display: flex; flex-direction: column; height: 100%; }
   
-  /* 🔑 彻底干掉硬编码的 #111 黑底 */
   .card-cover-box { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: transparent !important; border-radius: 12px 12px 0 0; }
-  .card-cover-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+  
+  .card-cover-box img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); 
+  }
   .post-card:hover .card-cover-box img { transform: scale(1.05); }
   
-  .category-tag { position: absolute; top: 12px; left: 12px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; font-size: 0.72rem; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; padding: 4px 10px; border-radius: 8px; }
+  .category-tag { 
+    position: absolute; top: 12px; left: 12px; 
+    background: rgba(10, 10, 12, 0.82); 
+    border: 1px solid rgba(255, 255, 255, 0.12); 
+    color: #ffffff; font-size: 0.72rem; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; padding: 4px 10px; border-radius: 8px; 
+  }
+
   .card-content { padding: 24px; display: flex; flex-direction: column; flex: 1; }
   .card-top-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .card-top-meta .category-tag { position: static; background: rgba(255, 255, 255, 0.06); }
@@ -293,7 +331,7 @@ const themeColorRgb = hexToRgb(themeColor);
   .card-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; font-family: 'Plus Jakarta Sans', sans-serif; color: #666666; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 14px; margin-top: auto; }
   .empty-state { text-align: center; padding: 80px 0; color: #666666; }
 
-  /* 低性能模式 (perf-degraded) 强行注销 iOS 动画与 View Transitions */
+  /* 低性能模式 (perf-degraded) */
   :global(html.perf-degraded) ::view-transition-group(*),
   :global(html.perf-degraded) ::view-transition-old(*),
   :global(html.perf-degraded) ::view-transition-new(*) {
@@ -309,7 +347,6 @@ const themeColorRgb = hexToRgb(themeColor);
     transition: none !important;
     transform: none !important;
     box-shadow: none !important;
-    backdrop-filter: none !important;
   }
 
   :global(html.light-mode) body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }

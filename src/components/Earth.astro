@@ -19,8 +19,9 @@ import { EARTH_CONFIG } from '../config';
   window._isEarthTexturesLoaded = false;
   window._quasarAnimationSpeedMultiplier = 1.0;
 
-  // ── 星空著色器 ──
+  // ── 星空著色器（注入 GPU precision 声明） ──
   const starVertexShader = `
+    precision mediump float;
     attribute float aSize;
     attribute float aPhase;
     attribute float aSpeed;
@@ -35,6 +36,7 @@ import { EARTH_CONFIG } from '../config';
   `;
 
   const starFragmentShader = `
+    precision mediump float;
     varying float vTwinkle;
     void main() {
       vec2 coord = gl_PointCoord - vec2(0.5);
@@ -46,8 +48,9 @@ import { EARTH_CONFIG } from '../config';
     }
   `;
 
-  // ── 地球主體著色器 ──
+  // ── 地球主體著色器（注入 GPU precision 声明） ──
   const earthVertexShader = `
+    precision mediump float;
     varying vec2 vUv;
     varying vec3 vNormal;
     varying vec3 vWorldPosition;
@@ -60,6 +63,7 @@ import { EARTH_CONFIG } from '../config';
   `;
 
   const earthFragmentShader = `
+    precision mediump float;
     uniform sampler2D tDay;
     uniform sampler2D tNight;
     uniform sampler2D tSpecular;
@@ -121,6 +125,7 @@ import { EARTH_CONFIG } from '../config';
 
   // ── 雲層著色器 ──
   const cloudVertexShader = `
+    precision mediump float;
     varying vec2 vUv;
     varying vec3 vNormal;
     varying vec3 vWorldPosition;
@@ -133,6 +138,7 @@ import { EARTH_CONFIG } from '../config';
   `;
 
   const cloudFragmentShader = `
+    precision mediump float;
     uniform sampler2D tClouds;
     uniform vec3 uSunDirection;
     uniform vec3 uCameraPosition;
@@ -171,6 +177,7 @@ import { EARTH_CONFIG } from '../config';
 
   // ── 大氣邊緣光暈著色器 ──
   const atmosphereVertexShader = `
+    precision mediump float;
     varying vec3 vNormal;
     varying vec3 vWorldPosition;
     void main() {
@@ -181,6 +188,7 @@ import { EARTH_CONFIG } from '../config';
   `;
 
   const atmosphereFragmentShader = `
+    precision mediump float;
     varying vec3 vNormal;
     varying vec3 vWorldPosition;
     uniform vec3 uSunDirection;
@@ -230,14 +238,31 @@ import { EARTH_CONFIG } from '../config';
 
     let scene, camera, renderer, globe, clouds, atmosphere, starField, starsMaterial, controls;
     let animationFrameId;
+    let isElementVisible = true; // 🔑 视口可见性标志位
+    let frameSkipToggle = false;  // 🔑 低功耗模式跳帧标志位
+
+    // 🔑 1. 视口交叉检测（离屏自动暂停 GPU 渲染）
+    const viewportObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        isElementVisible = entry.isIntersecting;
+      });
+    }, { threshold: 0.05 });
+
+    viewportObserver.observe(container);
 
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 2500);
     camera.position.set(0, 0, 200);
 
-    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
+    // 🔑 2. 优化渲染器配置，限定 PixelRatio 为 1.5（平衡极致画质与GPU负载）
+    renderer = new THREE.WebGLRenderer({ 
+      alpha: true, 
+      antialias: true, 
+      powerPreference: "high-performance",
+      precision: "mediump" // 硬件中等精度模式
+    });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping; 
     renderer.toneMappingExposure = 1.618;
     container.appendChild(renderer.domElement);
@@ -262,7 +287,8 @@ import { EARTH_CONFIG } from '../config';
     const specMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png');
     const cloudMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png'); 
 
-    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+    // 限制各向异性过滤最高为 4x，避免低端显卡计算瓶颈
+    const maxAnisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 4);
     dayMap.anisotropy = maxAnisotropy; nightMap.anisotropy = maxAnisotropy;
     specMap.anisotropy = maxAnisotropy; cloudMap.anisotropy = maxAnisotropy;
 
@@ -359,12 +385,23 @@ import { EARTH_CONFIG } from '../config';
 
     const clock = new THREE.Clock();
     
-    // ── 幀更新迴圈 ──
+    // ── 硬件优化版帧更新循环 ──
     function animate() {
       animationFrameId = requestAnimationFrame(animate);
+
+      // 🔑 3. 离屏休眠逻辑：不在视口内时跳过 GPU 绘图
+      if (!isElementVisible) return;
+
+      const speedMult = window._quasarAnimationSpeedMultiplier || 1.0;
+
+      // 🔑 4. 低效能降级模式下的跳帧渲染（锁定 30fps，削减 GPU 功耗）
+      if (speedMult < 0.5) {
+        frameSkipToggle = !frameSkipToggle;
+        if (frameSkipToggle) return;
+      }
+
       const elapsed = clock.getElapsedTime();
       
-      const speedMult = window._quasarAnimationSpeedMultiplier || 1.0;
       globe.rotation.y += 0.0002 * speedMult; 
       clouds.rotation.y += 0.00028 * speedMult;
       
@@ -391,11 +428,9 @@ import { EARTH_CONFIG } from '../config';
       const { mode } = e.detail;
       if (mode === 'low') {
         window._quasarAnimationSpeedMultiplier = 0.15;
-        // 低效能模式裁切為 10% 數量
         starsGeometry.setDrawRange(0, Math.floor(starsCount * 0.1));
       } else {
         window._quasarAnimationSpeedMultiplier = 1.0;
-        // 高質量模式還原全量星空
         starsGeometry.setDrawRange(0, starsCount);
       }
     });
@@ -445,6 +480,7 @@ import { EARTH_CONFIG } from '../config';
     window._destroyEarthInstance = () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
+      viewportObserver.disconnect();
       themeObserver.disconnect();
       if (renderer && renderer.domElement) {
         renderer.dispose();
@@ -459,5 +495,16 @@ import { EARTH_CONFIG } from '../config';
 </script>
 
 <style>
-  #earth-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; cursor: grab; }
+  /* 🔑 5. 硬件合成图层与渲染加速声明 */
+  #earth-container { 
+    width: 100%; 
+    height: 100%; 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    z-index: 1; 
+    cursor: grab;
+    will-change: transform;
+    transform: translateZ(0); 
+  }
 </style>

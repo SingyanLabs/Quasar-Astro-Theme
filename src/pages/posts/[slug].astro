@@ -252,25 +252,22 @@ const themeColorRgb = hexToRgb(themeColor);
     color: #ffffff;
     font-family: 'Noto Sans SC', sans-serif !important;
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
-  /* 🔑 修复 View Transition 溢出与黑底问题 */
+  /* View Transition 标准规则 */
   ::view-transition-group(*) {
-    animation-duration: 0.68s;
+    animation-duration: 0.5s;
     animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-    overflow: hidden !important;
   }
   
   ::view-transition-old(*),
   ::view-transition-new(*) {
     mix-blend-mode: normal;
     height: 100%;
-    overflow: hidden;
-    backface-visibility: hidden;
   }
 
   ::view-transition-group(card-cover-*) {
-    overflow: hidden !important;
     border-radius: 12px;
   }
 
@@ -284,12 +281,11 @@ const themeColorRgb = hexToRgb(themeColor);
   }
 
   ::view-transition-group(card-bg-*) {
-    overflow: hidden !important;
     border-radius: 16px;
   }
 
   .post-detail-viewport {
-    width: 100vw;
+    width: 100%;
     margin-top: 4.5rem;
     padding: 3rem 0 6.25rem 0;
     display: flex;
@@ -507,17 +503,16 @@ const themeColorRgb = hexToRgb(themeColor);
   }
   .recent-item-link:hover { color: #d1d1d6; }
 
-  /* 右侧文章主体卡片 */
+  /* 右侧文章主体卡片：采用高质感实色暗黑背景 */
   .main-article-content {
-    background: rgba(255, 255, 255, 0.015);
-    border: 0.0625rem solid rgba(255, 255, 255, 0.07);
+    background: #0d0d0f;
+    border: 0.0625rem solid rgba(255, 255, 255, 0.08);
     border-radius: 1.25rem;
     padding: 3.8rem;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    backdrop-filter: blur(1.25rem);
-    box-shadow: 0 1.25rem 3.75rem rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1.25rem 3.75rem rgba(0, 0, 0, 0.5);
     overflow: hidden;
   }
 
@@ -539,30 +534,14 @@ const themeColorRgb = hexToRgb(themeColor);
     display: inline-block;
   }
 
-  @keyframes textElementFadeUp {
-    0% {
-      opacity: 0;
-      transform: translateY(20px);
-      filter: blur(5px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-      filter: blur(0px);
-    }
-  }
-
   .article-subtitle {
     font-size: 1.15rem;
     color: #98989d;
     font-weight: 400;
     line-height: 1.6;
     word-break: break-word;
-    opacity: 0;
-    animation: textElementFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards;
   }
 
-  /* 🔑 彻底干掉硬编码的黑底 */
   .article-cover {
     width: 100%;
     aspect-ratio: 21 / 9;
@@ -745,25 +724,7 @@ const themeColorRgb = hexToRgb(themeColor);
     background: rgba(255, 255, 255, 0.015);
   }
 
-  /* 正文元素交错渐显 */
-  .markdown-body > * {
-    opacity: 0;
-    animation: textElementFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-
-  .markdown-body > *:nth-child(1)  { animation-delay: 0.28s; }
-  .markdown-body > *:nth-child(2)  { animation-delay: 0.34s; }
-  .markdown-body > *:nth-child(3)  { animation-delay: 0.40s; }
-  .markdown-body > *:nth-child(4)  { animation-delay: 0.46s; }
-  .markdown-body > *:nth-child(5)  { animation-delay: 0.52s; }
-  .markdown-body > *:nth-child(6)  { animation-delay: 0.58s; }
-  .markdown-body > *:nth-child(7)  { animation-delay: 0.64s; }
-  .markdown-body > *:nth-child(8)  { animation-delay: 0.70s; }
-  .markdown-body > *:nth-child(9)  { animation-delay: 0.76s; }
-  .markdown-body > *:nth-child(10) { animation-delay: 0.82s; }
-  .markdown-body > *:nth-child(n+11) { animation-delay: 0.88s; }
-
-  /* 低性能模式 (perf-degraded) 全面干掉 iOS 展开动效、模糊、过渡与升入 */
+  /* 低性能模式 (perf-degraded) */
   :global(html.perf-degraded) ::view-transition-group(*),
   :global(html.perf-degraded) ::view-transition-old(*),
   :global(html.perf-degraded) ::view-transition-new(*) {
@@ -773,7 +734,6 @@ const themeColorRgb = hexToRgb(themeColor);
 
   :global(html.perf-degraded) .main-article-content {
     background: #0d0d0f !important;
-    backdrop-filter: none !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
   }
 

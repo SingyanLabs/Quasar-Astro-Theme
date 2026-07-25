@@ -622,12 +622,18 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
     font-family: 'Noto Sans SC', sans-serif !important; -webkit-font-smoothing: antialiased;
   }
 
+  /* 🔑 1. 地球背景图层：开启 GPU 硬件加速 */
   .earth-horizon-layer {
-    position: fixed; top: 72.5vh; left: 50%; transform: translateX(-50%) scale(2.0);
+    position: fixed; top: 72.5vh; left: 50%; 
+    transform: translateX(-50%) scale(2.0) translateZ(0);
+    will-change: transform;
     width: 100vw; height: 100vh; pointer-events: none; z-index: 1; opacity: 0.85;
   }
 
-  .about-cinematic-viewport { position: relative; z-index: 2; width: 100vw; height: 100vh; overflow: hidden; }
+  .about-cinematic-viewport { 
+    position: relative; z-index: 2; width: 100vw; height: 100vh; overflow: hidden; 
+    transform: translateZ(0);
+  }
   .opacity-0 { opacity: 0 !important; }
   .story-stage { position: absolute; inset: 0; width: 100vw; height: 100vh; opacity: 0; pointer-events: none; visibility: hidden; }
   .story-stage.active { opacity: 1; pointer-events: auto; visibility: visible; }
@@ -639,8 +645,11 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
   .about-avatar-img { width: 100%; height: 100%; border-radius: 25px; object-fit: cover; }
   .stage-title-large { font-size: 5.5rem; font-weight: 900; letter-spacing: -0.05em; margin: 0 0 45px 0; background: linear-gradient(180deg, #ffffff 50%, #888888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .skills-grid-wrapper { display: flex; justify-content: center; gap: 16px; width: 90%; max-width: 1200px; }
-  .unified-glass-card { flex: 1; padding: 35px 20px; border-radius: 24px; background: rgba(20, 20, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 25px 50px rgba(0, 0, 0, 0.3); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); text-align: center; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s ease, border-color 0.4s ease; }
-  .unified-glass-card:hover { transform: translateY(-8px) scale(1.03); background: rgba(30, 30, 30, 0.7); border-color: rgba(255, 255, 255, 0.2); }
+  .unified-glass-card { 
+    flex: 1; padding: 35px 20px; border-radius: 24px; background: rgba(20, 20, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 25px 50px rgba(0, 0, 0, 0.3); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); text-align: center; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s ease, border-color 0.4s ease; 
+    will-change: transform; transform: translateZ(0); -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  }
+  .unified-glass-card:hover { transform: translateY(-8px) scale(1.03) translateZ(0); background: rgba(30, 30, 30, 0.7); border-color: rgba(255, 255, 255, 0.2); }
   .card-inner-brand { font-weight: 900; font-size: 1.15rem; color: #ffffff; margin-bottom: 8px; letter-spacing: -0.02em; }
   .card-inner-sub { font-size: 0.75rem; color: #888888; letter-spacing: 0.15em; font-weight: 700; }
   .manifesto-claim { margin-top: 55px; font-size: 1.15rem; font-weight: 400; color: rgba(255, 255, 255, 0.75); }
@@ -654,6 +663,7 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
     display: flex; flex-wrap: wrap; justify-content: center; align-items: center; 
     gap: 24px 36px; max-width: 1400px; padding: 0 30px; width: 95%; 
   }
+  /* 🔑 2. 拖拽卡片：硬件合成层隔离 */
   .mosaic-drag-card { 
     position: relative; padding: 13px 20px; border-radius: 16px; 
     background: rgba(20, 20, 20, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); 
@@ -662,6 +672,7 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
     width: fit-content; cursor: grab; user-select: none; z-index: 5; 
     display: flex; flex-direction: column; gap: 4px;
     transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; 
+    will-change: transform; transform: translateZ(0); -webkit-backface-visibility: hidden; backface-visibility: hidden;
   }
   .mosaic-drag-card:hover { background: rgba(30, 30, 30, 0.75); border-color: rgba(255, 255, 255, 0.22); box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5); }
   .card-tag { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: #3b82f6; letter-spacing: 0.05em; }
@@ -669,13 +680,23 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
 
   /* 階段 3 */
   .spotlight-container { position: absolute; inset: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; pointer-events: none; z-index: 1; }
-  .spotlight { position: absolute; top: -10vh; width: 75vw; height: 115vh; background: conic-gradient(at top center, transparent 0%, transparent 43%, color-mix(in srgb, var(--page-theme-color) 4%, transparent) 46.5%, color-mix(in srgb, var(--page-theme-color) 12%, #ffffff) 50%, color-mix(in srgb, var(--page-theme-color) 4%, transparent) 53.5%, transparent 57%, transparent 100% ); filter: blur(32px); mask-image: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 92%); -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 92%); mix-blend-mode: screen; opacity: 0; transform-origin: top center; }
+  /* 🔑 3. Spotlight 滤镜及混合模式：独立合成层规避 Paint */
+  .spotlight { 
+    position: absolute; top: -10vh; width: 75vw; height: 115vh; 
+    background: conic-gradient(at top center, transparent 0%, transparent 43%, color-mix(in srgb, var(--page-theme-color) 4%, transparent) 46.5%, color-mix(in srgb, var(--page-theme-color) 12%, #ffffff) 50%, color-mix(in srgb, var(--page-theme-color) 4%, transparent) 53.5%, transparent 57%, transparent 100% ); 
+    filter: blur(32px); mask-image: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 92%); -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 92%); 
+    mix-blend-mode: screen; opacity: 0; transform-origin: top center; 
+    will-change: transform, opacity; transform: translateZ(0);
+  }
   .deepdive-content-holder { position: relative; z-index: 2; width: 90%; max-width: 1400px; text-align: center; }
   .deepdive-main-header { font-size: 2.8rem; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 8px 0; background: linear-gradient(180deg, #ffffff 50%, #888888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .deepdive-main-sub { font-size: 1rem; color: #888888; margin-bottom: 60px; }
   .deepdive-pillars-matrix { display: flex; gap: 24px; width: 100%; }
-  .pillar-glass-block { flex: 1; position: relative; padding: 40px 32px; border-radius: 24px; background: rgba(16, 16, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 50px rgba(0, 0, 0, 0.3); text-align: left; overflow: hidden; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  .pillar-glass-block:hover { transform: translateY(-8px) scale(1.02); background: rgba(30, 30, 30, 0.7); border-color: rgba(255, 255, 255, 0.15); }
+  .pillar-glass-block { 
+    flex: 1; position: relative; padding: 40px 32px; border-radius: 24px; background: rgba(16, 16, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 50px rgba(0, 0, 0, 0.3); text-align: left; overflow: hidden; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+    will-change: transform; transform: translateZ(0); -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  }
+  .pillar-glass-block:hover { transform: translateY(-8px) scale(1.02) translateZ(0); background: rgba(30, 30, 30, 0.7); border-color: rgba(255, 255, 255, 0.15); }
   .pillar-title { font-size: 1.25rem; font-weight: 700; color: #ffffff; margin: 0 0 16px 0; }
   .pillar-desc { font-size: 0.9rem; color: #aaaaaa; line-height: 1.6; margin: 0; }
 
@@ -687,9 +708,12 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
   .bento-container { 
     display: grid; grid-template-columns: 1.1fr 1.2fr 1.7fr; gap: 24px; 
     width: 90%; max-width: 1350px; height: 440px; box-sizing: border-box; 
-    align-items: stretch; will-change: auto;
+    align-items: stretch;
   }
-  .bento-card { background: rgba(20, 20, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 28px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 25px 50px rgba(0, 0, 0, 0.3); padding: 35px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; transform: translateZ(0); }
+  .bento-card { 
+    background: rgba(20, 20, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 28px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 25px 50px rgba(0, 0, 0, 0.3); padding: 35px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; 
+    transform: translateZ(0); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  }
   .bento-left { justify-content: space-between; text-align: left; }
   .bento-left-brand { display: flex; flex-direction: column; gap: 6px; }
   .bento-left-brand span { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; color: #ffffff; }
@@ -716,7 +740,7 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
     border-radius: 28px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 25px 50px rgba(0, 0, 0, 0.3);
     padding: 0 24px; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px;
-    transform: translateZ(0); -webkit-backface-visibility: hidden; backface-visibility: hidden;
+    transform: translateZ(0); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden;
   }
   
   .bento-mid-value-group { display: flex; align-items: center; gap: 14px; }
@@ -728,7 +752,13 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
   .bento-right { justify-content: center; align-items: center; position: relative; padding: 30px 35px 25px 35px; }
   .station-clock-wrapper { display: flex; align-items: center; gap: 10px; background: #080809; padding: 24px 35px; border-radius: 24px; box-shadow: inset 0 4px 30px rgba(0,0,0,0.8), 0 4px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255, 255, 255, 0.03); }
   .flap-group { display: flex; gap: 4px; }
-  .flap-card { position: relative; width: 54px; height: 84px; background: #1c1c1e; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); transform-style: preserve-3d; perspective: 300px; }
+  
+  /* 🔑 4. 翻牌时钟 3D 卡片：GPU 渲染优化 */
+  .flap-card { 
+    position: relative; width: 54px; height: 84px; background: #1c1c1e; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); 
+    transform-style: preserve-3d; perspective: 300px; 
+    will-change: transform; transform: translateZ(0); -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  }
   .card-half { position: absolute; left: 0; width: 100%; height: 42px; overflow: hidden; }
   .card-half.top { top: 0; background: #1c1c1e; border-radius: 10px 10px 0 0; border-bottom: 1px solid rgba(0, 0, 0, 0.7); }
   .card-half.bottom { bottom: 0; background: #141416; border-radius: 0 0 10px 10px; }
@@ -745,7 +775,12 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
   .progress-mini-label { font-size: 0.65rem; font-weight: 700; color: rgba(255, 255, 255, 0.25); text-transform: uppercase; letter-spacing: 0.08em; }
   .progress-percentage { font-family: 'Share Tech Mono', monospace; font-size: 1.05rem; font-weight: 700; color: var(--page-theme-color); letter-spacing: -0.01em; }
   .progress-bar-track { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; overflow: hidden; position: relative; }
-  .progress-bar-fill { height: 100%; width: 0%; background: var(--page-theme-color); box-shadow: 0 0 10px var(--page-theme-color); border-radius: 2px; }
+  
+  /* 🔑 5. 毫秒高频刷新进度条：GPU 宽度更新加速 */
+  .progress-bar-fill { 
+    height: 100%; width: 0%; background: var(--page-theme-color); box-shadow: 0 0 10px var(--page-theme-color); border-radius: 2px; 
+    will-change: width; transform: translateZ(0);
+  }
 
   /* 階段 5 */
   .tech-content-holder { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; width: 100%; }
@@ -756,8 +791,11 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
   .tech-branch-svg { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .tech-line-path { stroke: color-mix(in srgb, var(--page-theme-color) 35%, rgba(255, 255, 255, 0.12)); }
   .tech-cards-matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; width: 90%; max-width: 1200px; height: 280px; box-sizing: border-box; }
-  .tech-twin-card { border-radius: 24px; padding: 35px 32px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 50px rgba(0, 0, 0, 0.3); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); transform: translateZ(0); }
-  .tech-twin-card:hover { transform: translateY(-6px) scale(1.015); }
+  .tech-twin-card { 
+    border-radius: 24px; padding: 35px 32px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; position: relative; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 50px rgba(0, 0, 0, 0.3); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+    transform: translateZ(0); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  }
+  .tech-twin-card:hover { transform: translateY(-6px) scale(1.015) translateZ(0); }
   .tech-inner-glow { position: absolute; inset: 0; pointer-events: none; z-index: 1; opacity: 0.65; }
   .tech-card-corner-logo { position: absolute; top: 35px; right: 35px; width: 26px; height: 26px; pointer-events: none; z-index: 5; opacity: 0.3; transition: opacity 0.3s ease, transform 0.3s ease; }
   .tech-twin-card:hover .tech-card-corner-logo { opacity: 0.85; transform: scale(1.05); }
@@ -785,7 +823,11 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
   .contact-main-sub { font-size: 1rem; color: #888888; margin: 0; text-align: center; }
   .contact-layout-container { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; width: 90%; max-width: 1150px; box-sizing: border-box; align-items: center; }
   .social-links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 18px; width: 100%; }
-  .social-glass-card, .wechat-reward-card { text-decoration: none; border-radius: 22px; padding: 26px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; position: relative; background: transparent !important; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 50px rgba(0, 0, 0, 0.3); transition: border-color 0.4s ease, box-shadow 0.4s ease; }
+  
+  .social-glass-card, .wechat-reward-card { 
+    text-decoration: none; border-radius: 22px; padding: 26px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; position: relative; background: transparent !important; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 50px rgba(0, 0, 0, 0.3); transition: border-color 0.4s ease, box-shadow 0.4s ease; 
+    will-change: transform; transform: translateZ(0); -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  }
   .wechat-reward-card { border-radius: 26px; padding: 35px; gap: 18px; overflow: hidden; }
   .social-glass-card::before, .wechat-reward-card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(16, 16, 18, 0.72); backdrop-filter: blur(30px) !important; -webkit-backdrop-filter: blur(30px) !important; z-index: -1; pointer-events: none; transition: background 0.4s ease; }
   .social-glass-card:hover { border-color: color-mix(in srgb, var(--page-theme-color) 50%, rgba(255, 255, 255, 0.08)) !important; box-shadow: inset 0 0 15px color-mix(in srgb, var(--page-theme-color) 30%, transparent), 0 25px 60px rgba(0, 0, 0, 0.5); }
@@ -803,8 +845,13 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
   .qr-placeholder svg { width: 44px; height: 44px; }
   .reward-caption { position: relative; z-index: 2; font-size: 0.78rem; font-weight: 700; color: rgba(255,255,255,0.35); letter-spacing: 0.05em; }
 
-  /* 懸浮 Dock 導航島 */
-  .floating-dock-island { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; align-items: center; padding: 8px; border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(14, 14, 16, 0.78); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255,255,255,0.04); overflow: hidden; }
+  /* 🔑 6. 懸浮 Dock 導航島：GPU 定位合成加速 */
+  .floating-dock-island { 
+    position: fixed; bottom: 40px; left: 50%; 
+    transform: translateX(-50%) translateZ(0); 
+    will-change: transform;
+    z-index: 999; display: flex; align-items: center; padding: 8px; border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(14, 14, 16, 0.78); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255,255,255,0.04); overflow: hidden; 
+  }
   .dock-blur-bg { position: absolute; inset: 0; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); z-index: -1; }
   .dock-buttons-row { display: flex; gap: 4px; position: relative; z-index: 2; }
   .dock-btn { background: transparent; border: none; outline: none; display: flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 22px; cursor: pointer; color: rgba(255, 255, 255, 0.4); transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -916,7 +963,7 @@ const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / '
     .stage-title-large, .tech-card-hero-title { font-size: 3.5rem; }
     .floating-dock-island { width: 92%; padding: 4px; bottom: 20px; }
     .dock-btn { padding: 8px 12px; } .dock-btn .label { font-size: 0.7rem; }
-    .earth-horizon-layer { top: 62vh; transform: translateX(-50%) scale(1.6); }
+    .earth-horizon-layer { top: 62vh; transform: translateX(-50%) scale(1.6) translateZ(0); }
     .station-clock-wrapper { padding: 15px 20px; gap: 4px; }
     .flap-card { width: 34px; height: 54px; }
     .card-half { height: 27px; }
