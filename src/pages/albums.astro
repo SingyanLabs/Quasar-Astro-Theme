@@ -2,6 +2,7 @@
 // src/pages/albums.astro
 import { SITE_CONFIG, ALBUMS_CONFIG } from '../config';
 import Navbar from '../components/Navbar.astro';
+import { ClientRouter } from 'astro:transitions';
 ---
 
 <!DOCTYPE html>
@@ -15,6 +16,20 @@ import Navbar from '../components/Navbar.astro';
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
+
+  <ClientRouter />
+
+  <script is:inline>
+    const syncSystemTheme = () => {
+      if (localStorage.getItem('theme') === 'light') {
+        document.documentElement.classList.add('light-mode');
+      } else {
+        document.documentElement.classList.remove('light-mode');
+      }
+    };
+    syncSystemTheme();
+    document.addEventListener('astro:after-swap', syncSystemTheme);
+  </script>
 </head>
 <body>
 
@@ -25,7 +40,6 @@ import Navbar from '../components/Navbar.astro';
     <div class="header-section">
       <h1 class="page-title">{ALBUMS_CONFIG.title}</h1>
       <p class="page-subtitle">{ALBUMS_CONFIG.subtitle}</p>
-      <p id="stats-indicator" class="stats-badge">正在同步相册图库...</p>
     </div>
 
     <!-- 瀑布流容器 -->
@@ -61,7 +75,7 @@ import Navbar from '../components/Navbar.astro';
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-warn" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
              </svg>
-            <p>媒体加载失败，当前网络可能无法访问资源</p>
+            <p>资源加载失败，当前网络环境<br>可能无法访问 Google Photos</p>
           </div>
         </div>
 
@@ -96,8 +110,10 @@ import Navbar from '../components/Navbar.astro';
   let isLoading = false;
   let hasMore = true;
   let activeIndex = null;
-
   const cardCache = [];
+  
+  // 🛡️ 引入请求中断控制器
+  let fetchAbortController = null;
 
   function getColumnCount() {
     const w = window.innerWidth;
@@ -106,13 +122,65 @@ import Navbar from '../components/Navbar.astro';
     return 1;                
   }
 
-  // 🌟 基于 WIZ 框架解密的增量异步加载引擎
-  async function fetchNextPage() {
+// 🌟 驱动 Navbar 顶栏状态文本（死锁拦截：非相册页一律强行退出）
+  function updateNavbarStatus(text, showSpinner = false) {
+    const currentPath = window.location.pathname.replace(/\/$/, '');
+    
+    // 🛡️ 死锁 1：如果异步回调触发时，用户已经导航到了 /posts 或 [slug]，直接强行丢弃
+    if (currentPath !== '/albums') {
+      const albumCacheStatus = document.getElementById('album-cache-status');
+      if (albumCacheStatus) {
+        albumCacheStatus.classList.remove('active');
+        albumCacheStatus.style.setProperty('display', 'none', 'important');
+      }
+      return;
+    }
+
+    const statusTextDisplay = document.getElementById('status-text-display');
+    const albumCacheStatus = document.getElementById('album-cache-status');
+    const navSpinner = document.getElementById('nav-spinner');
+
+    if (statusTextDisplay) {
+      statusTextDisplay.innerText = text;
+    }
+
+    if (albumCacheStatus) {
+      if (text) {
+        albumCacheStatus.classList.add('active');
+        albumCacheStatus.style.removeProperty('display');
+      } else {
+        albumCacheStatus.classList.remove('active');
+        albumCacheStatus.style.setProperty('display', 'none', 'important');
+      }
+    }
+
+    if (navSpinner) {
+      if (showSpinner) {
+        navSpinner.classList.add('active');
+      } else {
+        navSpinner.classList.remove('active');
+      }
+    }
+  }
+
+async function fetchNextPage() {
+    const currentPath = window.location.pathname.replace(/\/$/, '');
+    if (currentPath !== '/albums') return;
     if (isLoading || !hasMore) return;
+
     isLoading = true;
     showSpinner(true);
 
+    if (cachePool.length === 0) {
+      updateNavbarStatus('正在同步 Google Photos 画廊 ...', true);
+    } else {
+      updateNavbarStatus(`已呈现 ${cachePool.length} 张照片&视频 (同步中...)`, true);
+    }
+
     try {
+      if (fetchAbortController) fetchAbortController.abort();
+      fetchAbortController = new AbortController();
+
       const params = new URLSearchParams({
         loadedCount: String(cachePool.length)
       });
@@ -121,10 +189,12 @@ import Navbar from '../components/Navbar.astro';
         params.set("cursor", nextCursor);
       }
 
-      const res = await fetch(`/api/albums?${params.toString()}`);
+      const res = await fetch(`/api/albums?${params.toString()}`, {
+        signal: fetchAbortController.signal
+      });
       
       if (!res.ok) {
-        throw new Error("相册数据加载失败");
+        throw new Error("画廊同步暂缓！");
       }
 
       const data = await res.json();
@@ -133,7 +203,6 @@ import Navbar from '../components/Navbar.astro';
         const newPhotos = data.photos;
         nextCursor = data.nextCursor;
 
-        // 去重合并
         const existingIds = new Set(cachePool.map(p => p.id));
         newPhotos.forEach(p => {
           if (!existingIds.has(p.id)) {
@@ -141,35 +210,31 @@ import Navbar from '../components/Navbar.astro';
           }
         });
 
-        updateStatsIndicator();
         renderGrid();
 
         if (!nextCursor) {
           hasMore = false;
           showSpinner(false);
-          updateStatsIndicator(true);
+          updateNavbarStatus(`已加载全部照片，共 ${cachePool.length} 张`, false);
+        } else {
+          updateNavbarStatus(`已呈现 ${cachePool.length} 张照片&视频`, false);
         }
       } else {
         hasMore = false;
         showSpinner(false);
-        updateStatsIndicator(true);
+        updateNavbarStatus(`已加载全部照片，共 ${cachePool.length} 张`, false);
       }
     } catch (e) {
-      console.error("加载相册失败:", e);
+      if (e.name === 'AbortError') return;
+
+      // 🛡️ 死锁 2：如果 catch 抛出时已经切到了 posts / slug 页面，不更新状态
+      if (window.location.pathname.replace(/\/$/, '') !== '/albums') return;
+
+      console.error("画廊同步暂缓！:", e);
       showSpinner(false);
+      updateNavbarStatus('画廊同步暂缓！', false);
     } finally {
       isLoading = false;
-    }
-  }
-
-  function updateStatsIndicator(isFinished = false) {
-    const indicator = document.getElementById('stats-indicator');
-    if (indicator) {
-      if (isFinished) {
-        indicator.innerText = `已加载全部照片，共 ${cachePool.length} 张`;
-      } else {
-        indicator.innerText = `已显示 ${cachePool.length} 张照片${hasMore ? ' (继续滚动加载...)' : ''}`;
-      }
     }
   }
 
@@ -180,6 +245,7 @@ import Navbar from '../components/Navbar.astro';
 
   function renderGrid() {
     const gridContainer = document.getElementById('masonry-grid');
+    if (!gridContainer) return;
     gridContainer.innerHTML = '';
     
     const colCount = getColumnCount();
@@ -238,9 +304,10 @@ import Navbar from '../components/Navbar.astro';
     if (!cardEl || cardEl.dataset.animated === "true") return;
     cardEl.dataset.animated = "true";
 
-    const randomRotate = (Math.random() - 0.5) * 4; 
+    const isPerfDegraded = document.documentElement.classList.contains('perf-degraded');
     
-    if (typeof gsap !== 'undefined') {
+    if (typeof gsap !== 'undefined' && !isPerfDegraded) {
+      const randomRotate = (Math.random() - 0.5) * 4; 
       gsap.fromTo(cardEl, 
         { y: 50, scale: 0.96, rotation: randomRotate, opacity: 0 }, 
         { y: 0, scale: 1, rotation: 0, opacity: 1, duration: 0.8, ease: "power4.out", clearProps: "transform,rotation" }
@@ -258,170 +325,200 @@ import Navbar from '../components/Navbar.astro';
     }
   };
 
-  let resizeTimeout;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => { renderGrid(); }, 150);
+  document.addEventListener('astro:before-preparation', () => {
+    // 🛡️ 离页时强行斩断 Fetch，并擦除 Navbar 状态
+    if (fetchAbortController) fetchAbortController.abort();
+    const albumCacheStatus = document.getElementById('album-cache-status');
+    if (albumCacheStatus) {
+      albumCacheStatus.classList.remove('active');
+      albumCacheStatus.style.display = 'none';
+    }
   });
 
-  // 滚动自动触底加载下一页 Cursor 数据
-  const sentinel = document.getElementById('scroll-sentinel');
-  const scrollObserver = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) {
-      fetchNextPage();
-    }
-  }, { rootMargin: '1000px' });
-  scrollObserver.observe(sentinel);
+  document.addEventListener('astro:page-load', () => {
+    const currentPath = window.location.pathname.replace(/\/$/, '');
+    if (currentPath !== '/albums') return;
 
-  // Lightbox 大图预览引擎
-  const lightbox = document.getElementById('lightbox');
-  const lbBaseImg = document.getElementById('lb-base-img');
-  const lbHighImg = document.getElementById('lb-high-img');
-  const lbLoader = document.getElementById('lb-loader');
-  const lbError = document.getElementById('lb-error'); // 🔴 新增
-  const frameContainer = document.querySelector('.media-frame-container');
-  
-  const lbIndex = document.getElementById('lightbox-index');
-  const lbDate = document.getElementById('lightbox-date');
-  const footerTitle = document.getElementById('footer-title');
-  const footerDate = document.getElementById('footer-date');
-  const footerLink = document.getElementById('footer-link');
+    cachePool = [];
+    nextCursor = null;
+    isLoading = false;
+    hasMore = true;
+    activeIndex = null;
+    cardCache.length = 0;
 
-  let lightboxTimeout = null; // 🔴 新增：全局超时器
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => { renderGrid(); }, 150);
+    });
 
-  window.openLightbox = (index) => {
-    activeIndex = index;
-    const photo = cachePool[index];
-    if (!photo) return;
-
-    frameContainer.querySelectorAll('video').forEach(v => v.remove());
-    clearTimeout(lightboxTimeout); // 重置超时器
-
-    lightbox.classList.add('active');
-    
-    // 兼容防断网：如果 gsap 没加载出来，直接显示
-    if (typeof gsap !== 'undefined') {
-      gsap.fromTo('.lightbox-content', { scale: 0.95, y: 15 }, { scale: 1, y: 0, duration: 0.5, ease: "expo.out" });
-    }
-
-    lbIndex.innerText = `#${index + 1} / ${cachePool.length}`;
-    lbDate.innerText = photo.takenAt ? new Date(photo.takenAt).toLocaleDateString() : 'UNKNOWN DATE';
-    footerTitle.innerText = photo.mediaType === 'video' ? `视频 #${index + 1}` : `图片 #${index + 1}`;
-    footerDate.innerText = photo.takenAt ? new Date(photo.takenAt).toLocaleString() : '未知拍摄时间';
-    footerLink.href = photo.videoUrl || photo.originalLikeUrl || photo.displayUrl;
-
-    // 重置所有状态
-    lbBaseImg.className = 'lightbox-layer opacity-hidden';
-    lbHighImg.className = 'lightbox-layer opacity-hidden';
-    lbBaseImg.dataset.triedFallback = "false";
-    lbHighImg.dataset.triedFallback = "false";
-    lbLoader.style.display = 'block';
-    lbError.style.display = 'none';
-
-    // 🔴 设置 15 秒超时强制熔断，抛出错误提示
-    lightboxTimeout = setTimeout(() => {
-      if (lbLoader.style.display === 'block') {
-        lbLoader.style.display = 'none';
-        lbError.style.display = 'flex';
-      }
-    }, 15000);
-
-    if (photo.mediaType === 'video') {
-      const video = document.createElement('video');
-      video.className = 'lightbox-layer';
-      video.controls = true;
-      video.autoplay = true;
-      video.playsInline = true;
-      video.src = photo.videoUrl || photo.displayUrl;
-      
-      video.oncanplay = () => { 
-        clearTimeout(lightboxTimeout);
-        lbLoader.style.display = 'none'; 
-      };
-      
-      video.onerror = () => {
-        if (photo.fallbackVideoUrl && video.dataset.fallbackApplied !== "true") {
-          video.dataset.fallbackApplied = "true";
-          video.src = photo.fallbackVideoUrl;
-          video.load();
-        } else {
-          // 🔴 视频彻底失败
-          clearTimeout(lightboxTimeout);
-          lbLoader.style.display = 'none';
-          lbError.style.display = 'flex';
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) {
+      const scrollObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          fetchNextPage();
         }
-      };
-      frameContainer.appendChild(video);
-    } else {
-      lbBaseImg.src = photo.previewUrl || photo.displayUrl;
-      
-      lbBaseImg.onload = () => {
-        clearTimeout(lightboxTimeout);
-        lbLoader.style.display = 'none';
-        lbError.style.display = 'none';
-        lbBaseImg.classList.remove('opacity-hidden');
-        lbHighImg.src = photo.originalLikeUrl || photo.displayUrl;
-      };
-
-lbBaseImg.onerror = () => {
-        // 🔴 防死循环：已经降级过一次说明直连彻底不通，直接报错
-        if (lbBaseImg.dataset.triedFallback === "true") {
-          clearTimeout(lightboxTimeout);
-          lbLoader.style.display = 'none';
-          lbError.style.display = 'flex';
-          return;
-        }
-        lbBaseImg.dataset.triedFallback = "true";
-        // 🌟 [更改点] 这里去掉了 `|| photo.thumbUrl`
-        // 这样只要 fallbackPreviewUrl 这种原生谷歌直连失效，立刻触发报错
-        lbBaseImg.src = photo.fallbackPreviewUrl || photo.fallbackDisplayUrl;
-      };
-
-      lbHighImg.onload = () => {
-        lbHighImg.classList.remove('opacity-hidden');
-      };
-
-      lbHighImg.onerror = () => {
-        if (lbHighImg.dataset.triedFallback === "true") return;
-        lbHighImg.dataset.triedFallback = "true";
-        lbHighImg.src = photo.fallbackOriginalLikeUrl || photo.fallbackDisplayUrl;
-      };
+      }, { rootMargin: '1000px' });
+      scrollObserver.observe(sentinel);
     }
-  };
 
-  // 🔴 纯原生强力关闭逻辑（不依赖外置动画库，防止网络断裂导致关闭按钮失效）
-  window.closeLightbox = () => {
-    clearTimeout(lightboxTimeout);
+    const lightbox = document.getElementById('lightbox');
+    const lbBaseImg = document.getElementById('lb-base-img');
+    const lbHighImg = document.getElementById('lb-high-img');
+    const lbLoader = document.getElementById('lb-loader');
+    const lbError = document.getElementById('lb-error');
+    const frameContainer = document.querySelector('.media-frame-container');
     
-    const cleanup = () => {
-      lightbox.classList.remove('active');
-      lbBaseImg.src = ''; 
-      lbHighImg.src = '';
-      lbLoader.style.display = 'none';
-      lbError.style.display = 'none';
+    const lbIndex = document.getElementById('lightbox-index');
+    const lbDate = document.getElementById('lightbox-date');
+    const footerTitle = document.getElementById('footer-title');
+    const footerDate = document.getElementById('footer-date');
+    const footerLink = document.getElementById('footer-link');
+
+    let lightboxTimeout = null;
+
+    window.openLightbox = (index) => {
+      activeIndex = index;
+      const photo = cachePool[index];
+      if (!photo || !lightbox || !frameContainer) return;
+
       frameContainer.querySelectorAll('video').forEach(v => v.remove());
+      clearTimeout(lightboxTimeout);
+
+      lightbox.classList.add('active');
+      
+      const isPerfDegraded = document.documentElement.classList.contains('perf-degraded');
+      
+      if (typeof gsap !== 'undefined' && !isPerfDegraded) {
+        gsap.fromTo('.lightbox-content', { scale: 0.95, y: 15 }, { scale: 1, y: 0, duration: 0.5, ease: "expo.out" });
+      } else {
+        const content = document.querySelector('.lightbox-content');
+        if (content) { content.style.transform = 'none'; content.style.opacity = '1'; }
+      }
+
+      if (lbIndex) lbIndex.innerText = `#${index + 1} / ${cachePool.length}`;
+      if (lbDate) lbDate.innerText = photo.takenAt ? new Date(photo.takenAt).toLocaleDateString() : 'UNKNOWN DATE';
+      if (footerTitle) footerTitle.innerText = photo.mediaType === 'video' ? `视频 #${index + 1}` : `图片 #${index + 1}`;
+      if (footerDate) footerDate.innerText = photo.takenAt ? new Date(photo.takenAt).toLocaleString() : '未知拍摄时间';
+      if (footerLink) footerLink.href = photo.videoUrl || photo.originalLikeUrl || photo.displayUrl;
+
+      if (lbBaseImg) lbBaseImg.className = 'lightbox-layer opacity-hidden';
+      if (lbHighImg) lbHighImg.className = 'lightbox-layer opacity-hidden';
+      if (lbBaseImg) lbBaseImg.dataset.triedFallback = "false";
+      if (lbHighImg) lbHighImg.dataset.triedFallback = "false";
+      if (lbLoader) lbLoader.style.display = 'block';
+      if (lbError) lbError.style.display = 'none';
+
+      lightboxTimeout = setTimeout(() => {
+        if (lbLoader && lbLoader.style.display === 'block') {
+          lbLoader.style.display = 'none';
+          if (lbError) lbError.style.display = 'flex';
+        }
+      }, 15000);
+
+      if (photo.mediaType === 'video') {
+        const video = document.createElement('video');
+        video.className = 'lightbox-layer';
+        video.controls = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.src = photo.videoUrl || photo.displayUrl;
+        
+        video.oncanplay = () => { 
+          clearTimeout(lightboxTimeout);
+          if (lbLoader) lbLoader.style.display = 'none'; 
+        };
+        
+        video.onerror = () => {
+          if (photo.fallbackVideoUrl && video.dataset.fallbackApplied !== "true") {
+            video.dataset.fallbackApplied = "true";
+            video.src = photo.fallbackVideoUrl;
+            video.load();
+          } else {
+            clearTimeout(lightboxTimeout);
+            if (lbLoader) lbLoader.style.display = 'none';
+            if (lbError) lbError.style.display = 'flex';
+          }
+        };
+        frameContainer.appendChild(video);
+      } else {
+        if (lbBaseImg) lbBaseImg.src = photo.previewUrl || photo.displayUrl;
+        
+        if (lbBaseImg) {
+          lbBaseImg.onload = () => {
+            clearTimeout(lightboxTimeout);
+            if (lbLoader) lbLoader.style.display = 'none';
+            if (lbError) lbError.style.display = 'none';
+            lbBaseImg.classList.remove('opacity-hidden');
+            if (lbHighImg) lbHighImg.src = photo.originalLikeUrl || photo.displayUrl;
+          };
+
+          lbBaseImg.onerror = () => {
+            if (lbBaseImg.dataset.triedFallback === "true") {
+              clearTimeout(lightboxTimeout);
+              if (lbLoader) lbLoader.style.display = 'none';
+              if (lbError) lbError.style.display = 'flex';
+              return;
+            }
+            lbBaseImg.dataset.triedFallback = "true";
+            lbBaseImg.src = photo.fallbackPreviewUrl || photo.fallbackDisplayUrl;
+          };
+        }
+
+        if (lbHighImg) {
+          lbHighImg.onload = () => {
+            lbHighImg.classList.remove('opacity-hidden');
+          };
+
+          lbHighImg.onerror = () => {
+            if (lbHighImg.dataset.triedFallback === "true") return;
+            lbHighImg.dataset.triedFallback = "true";
+            lbHighImg.src = photo.fallbackOriginalLikeUrl || photo.fallbackDisplayUrl;
+          };
+        }
+      }
     };
 
-    if (typeof gsap !== 'undefined') {
-      gsap.to('.lightbox-content', { scale: 0.95, y: 15, duration: 0.25, ease: "power2.in", onComplete: cleanup });
-    } else {
-      cleanup(); // GSAP 没加载出来，直接物理清理
-    }
-  };
+    window.closeLightbox = () => {
+      clearTimeout(lightboxTimeout);
+      
+      const cleanup = () => {
+        if (lightbox) lightbox.classList.remove('active');
+        if (lbBaseImg) lbBaseImg.src = ''; 
+        if (lbHighImg) lbHighImg.src = '';
+        if (lbLoader) lbLoader.style.display = 'none';
+        if (lbError) lbError.style.display = 'none';
+        if (frameContainer) frameContainer.querySelectorAll('video').forEach(v => v.remove());
+      };
 
-  document.getElementById('lightbox-close-btn').addEventListener('click', closeLightbox);
-  document.getElementById('lightbox-close-area').addEventListener('click', closeLightbox);
-  document.getElementById('prev-btn').addEventListener('click', () => { if (activeIndex > 0) openLightbox(activeIndex - 1); });
-  document.getElementById('next-btn').addEventListener('click', () => { if (activeIndex < cachePool.length - 1) openLightbox(activeIndex + 1); });
-  document.addEventListener('keydown', (e) => {
-    if (!lightbox.classList.contains('active')) return;
-    if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowLeft' && activeIndex > 0) openLightbox(activeIndex - 1);
-    if (e.key === 'ArrowRight' && activeIndex < cachePool.length - 1) openLightbox(activeIndex + 1);
+      const isPerfDegraded = document.documentElement.classList.contains('perf-degraded');
+
+      if (typeof gsap !== 'undefined' && !isPerfDegraded) {
+        gsap.to('.lightbox-content', { scale: 0.95, y: 15, duration: 0.25, ease: "power2.in", onComplete: cleanup });
+      } else {
+        cleanup(); 
+      }
+    };
+
+    const closeBtn = document.getElementById('lightbox-close-btn');
+    const closeArea = document.getElementById('lightbox-close-area');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+
+    if (closeBtn) closeBtn.addEventListener('click', closeLightbox);
+    if (closeArea) closeArea.addEventListener('click', closeLightbox);
+    if (prevBtn) prevBtn.addEventListener('click', () => { if (activeIndex > 0) openLightbox(activeIndex - 1); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { if (activeIndex < cachePool.length - 1) openLightbox(activeIndex + 1); });
+    
+    document.addEventListener('keydown', (e) => {
+      if (!lightbox || !lightbox.classList.contains('active')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft' && activeIndex > 0) openLightbox(activeIndex - 1);
+      if (e.key === 'ArrowRight' && activeIndex < cachePool.length - 1) openLightbox(activeIndex + 1);
+    });
+
+    fetchNextPage();
   });
-
-  // 挂载初次加载
-  fetchNextPage();
 </script>
 
 <style>
@@ -452,17 +549,6 @@ lbBaseImg.onerror = () => {
     margin-bottom: 12px;
   }
   .page-subtitle { font-size: 0.95rem; color: #888888; line-height: 1.6; font-weight: 400; transition: color 0.4s ease; margin-bottom: 12px; }
-
-  .stats-badge {
-    display: inline-block;
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-  }
 
   .masonry-wrapper { 
     position: relative; 
@@ -589,7 +675,7 @@ lbBaseImg.onerror = () => {
   .nav-btn.next { right: -40px; }
   .nav-btn svg { width: 18px; height: 18px; }
 
-  /* 🔴 网络断开/加载失败的错误面板样式 */
+  /* 🔴 错误提示 UI */
   .lightbox-error-message {
     position: absolute;
     inset: 0;
@@ -609,14 +695,15 @@ lbBaseImg.onerror = () => {
     height: fit-content;
     padding: 24px 32px;
     z-index: 10;
+    text-align: center;
   }
   .lightbox-error-message svg { width: 32px; height: 32px; opacity: 0.9; }
-  .lightbox-error-message p { margin: 0; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.02em; }
+  .lightbox-error-message p { margin: 0; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.02em; line-height: 1.5; }
 
+  /* 🌟 明亮模式适配 */
   :global(html.light-mode), :global(html.light-mode body) { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
   :global(html.light-mode) .page-title { background: linear-gradient(180deg, #1d1d1f 40%, #86868b 100%); -webkit-background-clip: text;}
   :global(html.light-mode) .page-subtitle { color: #555555; }
-  :global(html.light-mode) .stats-badge { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.08); color: #555555; }
   
   :global(html.light-mode) .masonry-item-card { background: transparent !important; border: none !important; box-shadow: none !important; }
   
@@ -633,6 +720,40 @@ lbBaseImg.onerror = () => {
     color: #d63031;
     background: rgba(255, 59, 48, 0.06);
     border-color: rgba(255, 59, 48, 0.15);
+  }
+
+  /* 🚀 低性能模式降级 */
+  :global(.perf-degraded) .lightbox-backdrop {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(10, 10, 14, 0.98) !important;
+  }
+  
+  :global(.perf-degraded) .lightbox-footer,
+  :global(.perf-degraded) .nav-btn,
+  :global(.perf-degraded) .lightbox-error-message,
+  :global(.perf-degraded) .video-badge {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #1a1a1a !important;
+    box-shadow: none !important;
+  }
+
+  :global(html.perf-degraded.light-mode) .lightbox-backdrop,
+  :global(html.light-mode.perf-degraded) .lightbox-backdrop {
+    background: rgba(245, 245, 247, 0.98) !important;
+  }
+  
+  :global(html.perf-degraded.light-mode) .lightbox-footer,
+  :global(html.perf-degraded.light-mode) .nav-btn,
+  :global(html.perf-degraded.light-mode) .lightbox-error-message,
+  :global(html.perf-degraded.light-mode) .video-badge,
+  :global(html.light-mode.perf-degraded) .lightbox-footer,
+  :global(html.light-mode.perf-degraded) .nav-btn,
+  :global(html.light-mode.perf-degraded) .lightbox-error-message,
+  :global(html.light-mode.perf-degraded) .video-badge {
+    background: #e5e5ea !important;
+    border-color: #d1d1d6 !important;
   }
 
   @media (max-width: 1200px) { .nav-btn.prev { left: 10px; } .nav-btn.next { right: 10px; } }

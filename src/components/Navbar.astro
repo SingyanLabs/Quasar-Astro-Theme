@@ -2,12 +2,17 @@
 // src/components/Navbar.astro
 import { SITE_CONFIG, NAVBAR_CONFIG } from '../config';
 import PerformanceGuard from './PerformanceGuard.astro';
+
+// 🎯 SSR 服务端精准识别当前页面类型
+const currentPath = Astro.url.pathname.replace(/\/$/, '');
+const isAlbumPage = currentPath === '/albums';
 ---
 
 <header 
   class="quasar-navbar" 
   id="quasar-navbar-element" 
   define:vars={{ themeColor: SITE_CONFIG.themeColor }}
+  data-is-album={isAlbumPage ? "true" : "false"}
   data-restored={NAVBAR_CONFIG.perfRestored}
   data-manual-degraded={NAVBAR_CONFIG.perfManualDegraded}
   data-light={NAVBAR_CONFIG.themeLight}
@@ -17,7 +22,7 @@ import PerformanceGuard from './PerformanceGuard.astro';
  <div class="liquid-glass-bg"></div>
 
  <div class="nav-container">
-   <!-- 左侧区块：Logo + 进度圆圈 + 动态章节名称 -->
+   <!-- 左侧区块：Logo + 文章章节 / 相册同步状态 -->
    <div class="nav-left">
      <a href="/" class="brand-link" id="nav-logo" title={SITE_CONFIG.title}>
        <Fragment set:html={SITE_CONFIG.logoIconPath} />
@@ -47,18 +52,21 @@ import PerformanceGuard from './PerformanceGuard.astro';
        </div>
      </div>
 
-     <div class="loading-spinner" id="nav-spinner">
-       <svg viewBox="0 0 50 50" class="spinner-svg">
-         <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" class="spinner-path"></circle>
-       </svg>
-     </div>
-     <div class="album-cache-status" id="album-cache-status">
-       <span class="status-divider">|</span>
-       <span class="status-text" id="status-text-display"></span>
+     <!-- 相册同步状态 + 加载转圈 -->
+     <div class="album-reading-info" id="album-cache-status">
+       <span class="info-divider">|</span>
+       <div class="album-spinner" id="nav-spinner">
+         <svg viewBox="0 0 50 50" class="spinner-svg">
+           <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" class="spinner-path"></circle>
+         </svg>
+       </div>
+       <div class="album-text-wrapper">
+         <span class="current-album-text" id="status-text-display"></span>
+       </div>
      </div>
    </div>
 
-   <!-- 中间内容包装层 (绝对居中解耦) -->
+   <!-- 中间内容包装层 -->
    <div class="nav-content-wrapper">
      <!-- 标签页导航 -->
      <nav class="nav-center" id="nav-center">
@@ -69,7 +77,7 @@ import PerformanceGuard from './PerformanceGuard.astro';
        ))}
      </nav>
 
-     <!-- 动态提示语面板（内嵌倒计时圆圈） -->
+     <!-- 动态提示语面板 -->
      <div class="perf-warning-notice" id="nav-perf-alert">
        <div class="countdown-circle-wrapper">
          <svg class="countdown-svg" viewBox="0 0 20 20">
@@ -87,23 +95,20 @@ import PerformanceGuard from './PerformanceGuard.astro';
      </div>
    </div>
 
-   <!-- 右侧区块（按钮排序：返回顶部 -> 搜索 -> 主题 -> 性能） -->
+   <!-- 右侧功能按钮 -->
    <div class="nav-right">
-     <!-- 返回顶部按钮 -->
      <button class="icon-btn back-to-top-btn" id="back-to-top-btn" aria-label="Back to Top" title="返回顶部">
        <svg viewBox="0 0 24 24" fill="none" class="action-icon" xmlns="http://www.w3.org/2000/svg">
          <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
        </svg>
      </button>
 
-     <!-- 1. 搜索按钮 -->
      <button class="icon-btn search-trigger" id="search-trigger-btn" aria-label="Toggle Search">
        <svg viewBox="0 0 24 24" fill="none" class="action-icon" xmlns="http://www.w3.org/2000/svg">
          <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
        </svg>
      </button>
 
-     <!-- 2. 日夜模式按钮 -->
      <button class="icon-btn theme-toggle" id="theme-toggle-btn" aria-label="Toggle Theme">
        <svg viewBox="0 0 24 24" fill="none" class="action-icon icon-sun" xmlns="http://www.w3.org/2000/svg">
          <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2.35"/>
@@ -114,7 +119,6 @@ import PerformanceGuard from './PerformanceGuard.astro';
        </svg>
      </button>
 
-     <!-- 3. 性能切换按钮 -->
      <button class="icon-btn perf-status-toggle" id="perf-toggle-btn" aria-label="Toggle Animation Quality">
        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-check" stroke-linecap="round" stroke-linejoin="round">
          <circle cx="12" cy="12" r="10"/><path d="M22 4L12 14.01l-3-3"/>
@@ -149,12 +153,26 @@ import PerformanceGuard from './PerformanceGuard.astro';
 
     const backToTopBtn = document.getElementById('back-to-top-btn');
     const articleReadingInfo = document.getElementById('article-reading-info');
+    const albumCacheStatus = document.getElementById('album-cache-status');
+    const statusTextDisplay = document.getElementById('status-text-display');
+    const navSpinner = document.getElementById('nav-spinner');
     const progressBar = document.getElementById('reading-progress-bar');
     const chapterText = document.getElementById('current-chapter-text');
     
     let isSearchOpen = false;
     let alertTimer = null;
     let lastActiveChapter = ''; 
+
+    // 🛡️ 客户端状态防御：非相册页强制死锁重置
+    const currentPath = window.location.pathname.replace(/\/$/, '');
+    if (currentPath !== '/albums') {
+      if (albumCacheStatus) {
+        albumCacheStatus.classList.remove('active');
+        albumCacheStatus.style.setProperty('display', 'none', 'important');
+      }
+      if (navSpinner) navSpinner.classList.remove('active');
+      if (statusTextDisplay) statusTextDisplay.innerText = '';
+    }
 
     function triggerNavbarNotice(msg, duration = 4000, isRedAlert = false) {
       if (perfAlertText) perfAlertText.innerText = msg;
@@ -369,29 +387,45 @@ import PerformanceGuard from './PerformanceGuard.astro';
 
  .nav-container { position: relative; z-index: 2; max-width: 90%; margin: 0 auto; height: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; }
  
- .nav-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; max-width: 35vw; }
- .brand-link { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #ffffff; transition: opacity 0.2s ease; flex-shrink: 0; }
+ /* 🎯 极紧凑防宽间距布局：Logo 与状态提示间距紧贴 */
+ .nav-left { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 40vw; }
+ .brand-link { display: flex; align-items: center; gap: 8px; margin: 0; text-decoration: none; color: #ffffff; transition: opacity 0.2s ease; flex-shrink: 0; }
  .brand-link svg, :global(.brand-link svg) { width: 22px; height: 22px; flex-shrink: 0; display: block; }
  .brand-text { font-weight: 900; font-size: 1.15rem; letter-spacing: 0.02em; white-space: nowrap; flex-shrink: 0; }
 
- .article-reading-info {
-   display: flex;
+ .article-reading-info,
+ .album-reading-info {
+   display: none !important;
    align-items: center;
-   gap: 10px;
+   gap: 6px;
    opacity: 0;
-   visibility: hidden;
-   transform: translateX(-8px);
-   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+   transform: translateX(-6px);
+   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
  }
+ 
  .article-reading-info.active {
+   display: flex !important;
    opacity: 1;
-   visibility: visible;
    transform: translateX(0);
  }
- .info-divider {
-   color: rgba(255, 255, 255, 0.15);
-   font-weight: 300;
+
+ /* 🔴 SSR 绝对物理隔离：只要不是相册页 (data-is-album="false")，彻底死封画廊提示的渲染！ */
+ :global([data-is-album="false"]) .album-reading-info {
+   display: none !important;
  }
+
+ :global([data-is-album="true"]) .album-reading-info.active {
+   display: flex !important;
+   opacity: 1;
+   transform: translateX(0);
+ }
+
+ .info-divider {
+   color: rgba(255, 255, 255, 0.18);
+   font-weight: 300;
+   margin: 0 2px;
+ }
+
  .reading-progress-circle {
    width: 18px;
    height: 18px;
@@ -417,14 +451,52 @@ import PerformanceGuard from './PerformanceGuard.astro';
    stroke-linecap: round;
    transition: stroke-dashoffset 0.1s linear;
  }
- .chapter-text-wrapper {
+
+ .album-spinner {
+   width: 0;
+   height: 16px;
+   opacity: 0;
+   transform: scale(0.5);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
+   overflow: hidden;
+   transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
+               opacity 0.25s ease, 
+               transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+ }
+ .album-spinner.active {
+   width: 16px;
+   opacity: 1;
+   transform: scale(1);
+ }
+ .album-spinner .spinner-svg {
+   width: 16px;
+   height: 16px;
+   animation: navSpinnerRotate 0.85s linear infinite;
+ }
+ 
+ .album-spinner .spinner-path {
+   stroke: var(--themeColor, #015EFB) !important;
+   stroke-linecap: round;
+   stroke-dasharray: 90, 150;
+   stroke-dashoffset: 0;
+ }
+ @keyframes navSpinnerRotate {
+   100% { transform: rotate(360deg); }
+ }
+
+ .chapter-text-wrapper,
+ .album-text-wrapper {
    display: inline-flex;
    align-items: center;
    overflow: hidden;
    height: 22px;
-   max-width: 180px;
+   max-width: 260px;
  }
- .current-chapter-text {
+ .current-chapter-text,
+ .current-album-text {
    font-size: 0.82rem;
    font-weight: 500;
    color: #cccccc;
@@ -434,13 +506,7 @@ import PerformanceGuard from './PerformanceGuard.astro';
    letter-spacing: 0.01em;
    font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
    display: inline-block;
-   will-change: transform, opacity, filter;
  }
- 
- .loading-spinner { width: 16px; height: 16px; opacity: 0; transform: scale(0.5); transition: all 0.3s ease; }
- .album-cache-status { display: flex; align-items: center; gap: 12px; opacity: 0; transform: translateX(-10px); }
- .status-divider { color: rgba(255, 255, 255, 0.15); font-weight: 300; }
- .status-text { font-family: 'Plus Jakarta Sans', monospace; font-size: 0.65rem; font-weight: 700; color: var(--themeColor); }
  
  .nav-content-wrapper { 
    position: absolute; 
@@ -493,38 +559,23 @@ import PerformanceGuard from './PerformanceGuard.astro';
    pointer-events: auto;
  }
  
- /* 🔑 硬件级加速的高质感 60/120fps 顺滑 Keyframe 定义（去除了昂贵的逐帧高斯模糊重绘） */
  @keyframes pulseWarnDark {
-   0%, 100% {
-     color: #ffffff;
-     opacity: 0.4;
-   }
-   50% {
-     color: #ff3e18;
-     opacity: 1;
-   }
+   0%, 100% { color: #ffffff; opacity: 0.4; }
+   50% { color: #ff3e18; opacity: 1; }
  }
 
  @keyframes pulseWarnLight {
-   0%, 100% {
-     color: #1d1d1f;
-     opacity: 0.35;
-   }
-   50% {
-     color: #ff3e18;
-     opacity: 1;
-   }
+   0%, 100% { color: #1d1d1f; opacity: 0.35; }
+   50% { color: #ff3e18; opacity: 1; }
  }
 
  .perf-status-toggle .icon-perf-check { display: block; }
  .perf-status-toggle .icon-perf-warn { 
    display: none;
-   /* 硬件合成加速声明 */
    will-change: color, opacity;
    transform: translateZ(0);
  }
 
- /* 深色低性能模式：白/红 GPU 加速平滑呼吸 */
  :global(.perf-degraded) .quasar-navbar .perf-status-toggle .icon-perf-check,
  .quasar-navbar.perf-degraded .perf-status-toggle .icon-perf-check { display: none; }
 
@@ -532,10 +583,9 @@ import PerformanceGuard from './PerformanceGuard.astro';
  .quasar-navbar.perf-degraded .perf-status-toggle .icon-perf-warn { 
    display: block !important; 
    animation: pulseWarnDark 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important;
-   filter: drop-shadow(0 0 6px rgba(255, 62, 24, 0.6)); /* 静态辉光，不参与帧重绘 */
+   filter: drop-shadow(0 0 6px rgba(255, 62, 24, 0.6));
  }
 
- /* 浅色低性能模式：黑/红 GPU 加速平滑呼吸 */
  :global(html.perf-degraded.light-mode) .quasar-navbar .perf-status-toggle .icon-perf-warn,
  :global(html.light-mode.perf-degraded) .quasar-navbar .perf-status-toggle .icon-perf-warn,
  :global(.light-mode) .quasar-navbar.perf-degraded .perf-status-toggle .icon-perf-warn {
@@ -548,7 +598,7 @@ import PerformanceGuard from './PerformanceGuard.astro';
  .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg) scale(0.5); }
  .nav-progress-bar { position: absolute; bottom: -1px; left: 0; height: 2px; width: 0%; background: var(--themeColor); opacity: 0; }
 
- /* 明亮模式通用样式 */
+ /* 明亮模式通用适配 */
  :global(.light-mode) body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
  :global(.light-mode) .liquid-glass-bg { 
    background: rgba(255, 255, 255, 0.78); 
@@ -562,9 +612,10 @@ import PerformanceGuard from './PerformanceGuard.astro';
  :global(.light-mode) .nav-link:hover { color: #000000; }
  :global(.light-mode) .nav-link::after { background-color: #000000; }
  
- :global(.light-mode) .info-divider { color: rgba(0, 0, 0, 0.12); }
+ :global(.light-mode) .info-divider { color: rgba(0, 0, 0, 0.15); }
  :global(.light-mode) .circle-bg { stroke: rgba(0, 0, 0, 0.08); }
- :global(.light-mode) .current-chapter-text { color: #444444; }
+ :global(.light-mode) .current-chapter-text,
+ :global(.light-mode) .current-album-text { color: #444444; }
 
  :global(.light-mode) .perf-warning-notice { color: #1d1d1f; text-shadow: none; }
  
@@ -580,7 +631,7 @@ import PerformanceGuard from './PerformanceGuard.astro';
  :global(.light-mode) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg) scale(1); }
  :global(.light-mode) .status-divider { color: rgba(0, 0, 0, 0.1); }
 
- /* 低性能模式 (perf-degraded) 降级退场 */
+ /* 低性能模式降级 */
  :global(.perf-degraded) .liquid-glass-bg {
    backdrop-filter: none !important;
    -webkit-backdrop-filter: none !important;
