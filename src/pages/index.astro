@@ -5,6 +5,21 @@ import Intro from '../components/Intro.astro';
 import Earth from '../components/Earth.astro';
 import Navbar from '../components/Navbar.astro';
 import { ClientRouter } from 'astro:transitions';
+
+const defaultQuotes = [
+  "星河璀璨，皆為序章。—— 莎士比亞",
+  "保持熱愛，奔赴山海。",
+  "在星空之下，傾聽時間的脈搏。"
+];
+const quotesList = (SITE_CONFIG as any).quotes || defaultQuotes;
+
+const defaultGreetings = {
+  morning: '早上好 ☀️',
+  afternoon: '下午好 🌤️',
+  evening: '晚上好 🌙',
+  night: '夜深了 🌌'
+};
+const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greetings || {}) };
 ---
 
 <!DOCTYPE html>
@@ -15,15 +30,12 @@ import { ClientRouter } from 'astro:transitions';
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{SITE_CONFIG.title}</title>
     
-    <!-- 載入 Noto Sans SC 與 Plus Jakarta Sans 字型 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
     
-    <!-- 全局核心：啟用 Astro 5+ 原生 ClientRouter 檢視過渡引擎 -->
     <ClientRouter />
 
-    <!-- 主題狀態持久化守衛：防止無刷新路由切換時產生視覺閃爍 -->
     <script is:inline>
       const syncSystemTheme = () => {
         if (localStorage.getItem('theme') === 'light') {
@@ -32,74 +44,386 @@ import { ClientRouter } from 'astro:transitions';
           document.documentElement.classList.remove('light-mode');
         }
       };
-      // 初始化加載時執行
       syncSystemTheme();
-      // 在 ClientRouter 頁面完成替換後獨立同步狀態
       document.addEventListener('astro:after-swap', syncSystemTheme);
     </script>
   </head>
   <body>
 
-    <!-- 1. 開屏物理動畫組件 -->
     <Intro />
 
-    <!-- 2. 主視口容器 -->
     <div class="main-viewport">
       
-      <!-- 頂部液態玻璃導航欄組件 -->
       <Navbar />
 
-      <!-- 3D 地球渲染島組件（使用 transition:persist 保持 Canvas 上下文持久化） -->
       <Earth transition:persist="earth-canvas" />
 
-      <!-- 中央核心資訊層 -->
       <div class="hero-container">
-        <!-- 左側：品牌標題與副標題 -->
         <div class="title-group">
           <h1 class="main-title anim-title-item">{SITE_CONFIG.logo}</h1>
           <p class="subtitle anim-title-item">{SITE_CONFIG.subtitle}</p>
         </div>
 
-        <!-- 右側：工作室詳情卡片 -->
-        <div class="studio-card anim-studio-card">
-          <p class="studio-title">©2026 {SITE_CONFIG.copyRight}</p>
-          <ul class="studio-details">
-            <li><span class="red-star">*</span> {SITE_CONFIG.redStar1}</li>
-            <li><span class="red-star">*</span> {SITE_CONFIG.redStar2}</li>
-            <li><span class="red-star">*</span> {SITE_CONFIG.redStar3}</li>
-          </ul>
+        <div class="right-panel-group">
+          
+          <!-- 天氣與預報卡片 -->
+          <div class="glass-widget weather-card">
+            <div class="widget-header">
+              <span class="greeting-text" id="widget-greeting">你好</span>
+              <span class="live-clock" id="widget-clock">00:00:00</span>
+            </div>
+            
+            <div class="widget-divider"></div>
+
+            <div class="widget-weather-body">
+              <div class="weather-left">
+                <div class="location-row">
+                  <span class="location-name" id="widget-location">定位中...</span>
+                  <button id="relocate-btn" class="relocate-btn" title="重新定位">
+                    <svg viewBox="0 0 24 24" class="loc-icon"><path fill="currentColor" d="M12 8a4 4 0 1 0 4 4a4 4 0 0 0-4-4zm0 6a2 2 0 1 1 2-2a2 2 0 0 1-2 2zm0-12a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8z"/></svg>
+                  </button>
+                </div>
+                <span class="weather-desc" id="widget-weather-desc">獲取天氣...</span>
+              </div>
+              <div class="temp-display" id="widget-temp">--°C</div>
+            </div>
+
+            <div class="hourly-forecast-stream" id="widget-hourly">
+              <div class="hourly-pill">
+                <span class="hourly-time">--:00</span>
+                <div class="hourly-cond">
+                  <span class="hourly-icon">🌤️</span>
+                  <span class="hourly-temp">--°</span>
+                </div>
+              </div>
+              <div class="hourly-pill-divider"></div>
+              <div class="hourly-pill">
+                <span class="hourly-time">--:00</span>
+                <div class="hourly-cond">
+                  <span class="hourly-icon">🌤️</span>
+                  <span class="hourly-temp">--°</span>
+                </div>
+              </div>
+              <div class="hourly-pill-divider"></div>
+              <div class="hourly-pill">
+                <span class="hourly-time">--:00</span>
+                <div class="hourly-cond">
+                  <span class="hourly-icon">🌤️</span>
+                  <span class="hourly-temp">--°</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 每日一言卡片 -->
+          <div class="glass-widget quote-card">
+            <div class="quote-header">
+              <span class="quote-tag">DAILY QUOTE</span>
+              <button id="refresh-quote-btn" class="breathing-sphere-btn" title="點擊切換">
+                <span class="ring-core"></span>
+                <span class="ring-outer" id="ring-outer-el"></span>
+              </button>
+            </div>
+            <div class="quote-body">
+              <p class="quote-content" id="widget-quote-text"></p>
+              <div class="quote-author-wrapper">
+                <span class="quote-author" id="widget-quote-author"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 工作室資訊卡片 -->
+          <div class="studio-card">
+            <p class="studio-title">©2026 {SITE_CONFIG.copyRight}</p>
+            <ul class="studio-details">
+              <li><span class="red-star">*</span> {SITE_CONFIG.redStar1}</li>
+              <li><span class="red-star">*</span> {SITE_CONFIG.redStar2}</li>
+              <li><span class="red-star">*</span> {SITE_CONFIG.redStar3}</li>
+            </ul>
+          </div>
+
         </div>
       </div>
 
-      <!-- 底部左側個人敘事區塊 -->
+      <!-- 底部個人敘事區塊 -->
       <div class="footer-caption">
-        <!-- 第一行：标签 -->
         <p class="bio-tagline anim-tagline-item">
           <span class="blue-dot"></span> {SITE_CONFIG.bioHeader}
         </p>
-        <!-- 第二行：主标题（逐字动画目标） -->
         <h2 class="bio-title" id="bio-title-el">{SITE_CONFIG.bioTitle}</h2>
-        <!-- 第三行：描述文字（逐字动画目标） -->
         <p class="bio-desc" id="bio-desc-el">{SITE_CONFIG.bioDesc}</p>
       </div>
 
     </div>
 
-    <!-- GSAP 核心动画引擎 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
 
-    <script is:inline>
+    <script is:inline define:vars={{ quotesList, greetingsConfig }}>
       document.addEventListener('astro:page-load', () => {
         const titleItems = document.querySelectorAll('.anim-title-item');
         const taglineItem = document.querySelector('.anim-tagline-item');
-        const studioCard = document.querySelector('.anim-studio-card');
+        
+        const weatherCard = document.querySelector('.weather-card');
+        const quoteCard = document.querySelector('.quote-card');
+        const studioCard = document.querySelector('.studio-card');
         
         const bioTitleEl = document.getElementById('bio-title-el');
         const bioDescEl = document.getElementById('bio-desc-el');
 
+        // 即時時鐘與動態問候
+        const updateClockAndGreeting = () => {
+          const now = new Date();
+          const hours = now.getHours();
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');
+
+          const clockEl = document.getElementById('widget-clock');
+          const greetingEl = document.getElementById('widget-greeting');
+
+          if (clockEl) clockEl.innerText = `${String(hours).padStart(2, '0')}:${minutes}:${seconds}`;
+
+          if (greetingEl) {
+            let greeting = '你好';
+            if (hours >= 5 && hours < 12) greeting = greetingsConfig.morning;
+            else if (hours >= 12 && hours < 18) greeting = greetingsConfig.afternoon;
+            else if (hours >= 18 && hours < 23) greeting = greetingsConfig.evening;
+            else greeting = greetingsConfig.night;
+            greetingEl.innerText = greeting;
+          }
+        };
+
+        updateClockAndGreeting();
+        setInterval(updateClockAndGreeting, 1000);
+
+        // 每日一言解析與切換邏輯
+        const parseQuote = (item) => {
+          if (!item) return { text: '', author: '' };
+          if (typeof item === 'object' && item.text) {
+            return { text: item.text, author: item.author || '' };
+          }
+          if (typeof item === 'string') {
+            if (item.includes('——')) {
+              const parts = item.split('——');
+              return { text: parts[0].trim(), author: parts[1].trim() };
+            }
+            if (item.includes('|')) {
+              const parts = item.split('|');
+              return { text: parts[0].trim(), author: parts[1].trim() };
+            }
+            return { text: item.trim(), author: '' };
+          }
+          return { text: String(item), author: '' };
+        };
+
+        let currentQuoteIdx = 0;
+        const quoteTextEl = document.getElementById('widget-quote-text');
+        const quoteAuthorEl = document.getElementById('widget-quote-author');
+        const refreshQuoteBtn = document.getElementById('refresh-quote-btn');
+        const ringOuterEl = document.getElementById('ring-outer-el');
+
+        const updateQuoteDisplay = (idx) => {
+          const parsed = parseQuote(quotesList[idx]);
+          if (quoteTextEl) quoteTextEl.innerText = parsed.text;
+          if (quoteAuthorEl) {
+            quoteAuthorEl.innerText = parsed.author ? `— ${parsed.author}` : '';
+          }
+        };
+
+        const switchNextQuote = () => {
+          if (!quotesList || quotesList.length <= 1) return;
+          gsap.to([quoteTextEl, quoteAuthorEl], {
+            opacity: 0,
+            y: -4,
+            duration: 0.2,
+            onComplete: () => {
+              currentQuoteIdx = (currentQuoteIdx + 1) % quotesList.length;
+              updateQuoteDisplay(currentQuoteIdx);
+              gsap.to([quoteTextEl, quoteAuthorEl], { opacity: 1, y: 0, duration: 0.3 });
+            }
+          });
+        };
+
+        updateQuoteDisplay(0);
+
+        // 監聽呼吸圈動畫：每完成 5 次呼吸週期自動切換語錄
+        let breathCount = 0;
+        if (ringOuterEl) {
+          ringOuterEl.addEventListener('animationiteration', () => {
+            breathCount++;
+            if (breathCount >= 5) {
+              breathCount = 0;
+              switchNextQuote();
+            }
+          });
+        }
+
+        if (refreshQuoteBtn && quotesList && quotesList.length > 0) {
+          refreshQuoteBtn.addEventListener('click', () => {
+            breathCount = 0;
+            refreshQuoteBtn.classList.add('is-clicked');
+            switchNextQuote();
+            setTimeout(() => refreshQuoteBtn.classList.remove('is-clicked'), 400);
+          });
+        }
+
+        // 天氣資料獲取與渲染
+        const weatherIconMap = {
+          0: { icon: '☀️', text: '晴朗' },
+          1: { icon: '🌤️', text: '晴間多雲' }, 2: { icon: '⛅', text: '多雲' }, 3: { icon: '☁️', text: '陰天' },
+          45: { icon: '🌫️', text: '有霧' }, 48: { icon: '🌫️', text: '濃霧' },
+          51: { icon: '🌧️', text: '毛毛雨' }, 53: { icon: '🌧️', text: '小雨' }, 55: { icon: '🌧️', text: '中雨' },
+          61: { icon: '🌧️', text: '小雨' }, 63: { icon: '🌧️', text: '中雨' }, 65: { icon: '🌧️', text: '大雨' },
+          71: { icon: '❄️', text: '小雪' }, 73: { icon: '❄️', text: '中雪' }, 75: { icon: '❄️', text: '大雪' },
+          80: { icon: '🌧️', text: '陣雨' }, 81: { icon: '🌧️', text: '強陣雨' }, 82: { icon: '⛈️', text: '暴雨' },
+          95: { icon: '⛈️', text: '雷陣雨' }
+        };
+
+        const initSmartWeather = () => {
+          const locationEl = document.getElementById('widget-location');
+          const descEl = document.getElementById('widget-weather-desc');
+          const tempEl = document.getElementById('widget-temp');
+          const hourlyContainer = document.getElementById('widget-hourly');
+          const relocateBtn = document.getElementById('relocate-btn');
+
+          const fetchWeatherData = async (lat, lon, cityName = '') => {
+            try {
+              if (!cityName) {
+                try {
+                  const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=zh`);
+                  if (geoRes.ok) {
+                    const geoData = await geoRes.json();
+                    cityName = geoData.city || geoData.locality || geoData.principalSubdivision || '本地';
+                  }
+                } catch {
+                  cityName = '本地';
+                }
+              }
+
+              if (locationEl) locationEl.innerText = cityName;
+
+              const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,weathercode&forecast_days=2`);
+              if (!weatherRes.ok) throw new Error('Weather API Error');
+              const weatherData = await weatherRes.json();
+
+              const temp = Math.round(weatherData.current_weather.temperature);
+              const code = weatherData.current_weather.weathercode;
+              const currentWeatherInfo = weatherIconMap[code] || { icon: '🌿', text: '宜出行' };
+
+              if (descEl) descEl.innerText = `${currentWeatherInfo.text} ${currentWeatherInfo.icon}`;
+              if (tempEl) tempEl.innerText = `${temp}°C`;
+
+              const hourlyTimes = weatherData.hourly.time;
+              const hourlyTemps = weatherData.hourly.temperature_2m;
+              const hourlyCodes = weatherData.hourly.weathercode;
+
+              const nowISO = new Date();
+              const currentHourStr = `${nowISO.getFullYear()}-${String(nowISO.getMonth() + 1).padStart(2, '0')}-${String(nowISO.getDate()).padStart(2, '0')}T${String(nowISO.getHours()).padStart(2, '0')}:00`;
+
+              let currentIdx = hourlyTimes.findIndex(t => t.startsWith(currentHourStr.slice(0, 13)));
+              if (currentIdx === -1) currentIdx = 0;
+
+              if (hourlyContainer) {
+                hourlyContainer.innerHTML = '';
+                for (let i = 1; i <= 3; i++) {
+                  const targetIdx = currentIdx + i;
+                  if (targetIdx < hourlyTimes.length) {
+                    const timeStr = hourlyTimes[targetIdx].slice(11, 16);
+                    const hTemp = Math.round(hourlyTemps[targetIdx]);
+                    const hCode = hourlyCodes[targetIdx];
+                    const hInfo = weatherIconMap[hCode] || { icon: '🌤️', text: '多雲' };
+
+                    const pill = document.createElement('div');
+                    pill.className = 'hourly-pill';
+                    pill.innerHTML = `
+                      <span class="hourly-time">${timeStr}</span>
+                      <div class="hourly-cond">
+                        <span class="hourly-icon">${hInfo.icon}</span>
+                        <span class="hourly-temp">${hTemp}°</span>
+                      </div>
+                    `;
+                    hourlyContainer.appendChild(pill);
+
+                    if (i < 3) {
+                      const divider = document.createElement('div');
+                      divider.className = 'hourly-pill-divider';
+                      hourlyContainer.appendChild(divider);
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              useFallbackWeather();
+            }
+          };
+
+          const useIPLocation = async () => {
+            try {
+              const ipRes = await fetch('https://ipwho.is/');
+              if (!ipRes.ok) throw new Error('IP Fetch Failed');
+              const ipData = await ipRes.json();
+              if (!ipData.success) throw new Error('IP Lookup Failed');
+
+              const city = ipData.city || ipData.region || '本地';
+              await fetchWeatherData(ipData.latitude, ipData.longitude, city);
+            } catch {
+              useFallbackWeather();
+            }
+          };
+
+          const useFallbackWeather = () => {
+            if (locationEl) locationEl.innerText = '香港';
+            if (descEl) descEl.innerText = '微風 🍃';
+            if (tempEl) tempEl.innerText = '26°C';
+
+            if (hourlyContainer) {
+              const currentH = new Date().getHours();
+              hourlyContainer.innerHTML = `
+                <div class="hourly-pill">
+                  <span class="hourly-time">${(currentH + 1) % 24}:00</span>
+                  <div class="hourly-cond"><span class="hourly-icon">🌤️</span><span class="hourly-temp">26°</span></div>
+                </div>
+                <div class="hourly-pill-divider"></div>
+                <div class="hourly-pill">
+                  <span class="hourly-time">${(currentH + 2) % 24}:00</span>
+                  <div class="hourly-cond"><span class="hourly-icon">⛅</span><span class="hourly-temp">25°</span></div>
+                </div>
+                <div class="hourly-pill-divider"></div>
+                <div class="hourly-pill">
+                  <span class="hourly-time">${(currentH + 3) % 24}:00</span>
+                  <div class="hourly-cond"><span class="hourly-icon">🌙</span><span class="hourly-temp">23°</span></div>
+                </div>
+              `;
+            }
+          };
+
+          const requestLocation = () => {
+            if (locationEl) locationEl.innerText = '定位中...';
+            if ('geolocation' in navigator) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => fetchWeatherData(pos.coords.latitude, pos.coords.longitude),
+                () => useIPLocation(),
+                { timeout: 6000, maximumAge: 60000, enableHighAccuracy: true }
+              );
+            } else {
+              useIPLocation();
+            }
+          };
+
+          requestLocation();
+
+          if (relocateBtn) {
+            relocateBtn.addEventListener('click', () => {
+              relocateBtn.classList.add('is-spinning');
+              requestLocation();
+              setTimeout(() => relocateBtn.classList.remove('is-spinning'), 1000);
+            });
+          }
+        };
+
+        initSmartWeather();
+
         if (!titleItems.length) return;
 
-        // 🟢 将文本拆分为逐字 span 节点的辅助函数
         const splitTextToChars = (el) => {
           if (!el) return [];
           const rawText = el.textContent.trim();
@@ -119,15 +443,14 @@ import { ClientRouter } from 'astro:transitions';
         const titleChars = splitTextToChars(bioTitleEl);
         const descChars = splitTextToChars(bioDescEl);
 
-        // 电影级分步梯队入场动画
+        // 頁面入場動畫序列
         const runCinematicEntrance = () => {
-          gsap.killTweensOf([titleItems, taglineItem, titleChars, descChars, studioCard]);
+          gsap.killTweensOf([titleItems, taglineItem, titleChars, descChars, weatherCard, quoteCard, studioCard]);
 
           const tl = gsap.timeline({
             defaults: { ease: "power3.out" }
           });
 
-          // 1️⃣ 第一阶段：左上标题与副标题（由模糊逐渐凝聚、轻盈浮现）
           tl.fromTo(
             titleItems,
             { opacity: 0, y: 50, filter: "blur(10px)" },
@@ -135,12 +458,11 @@ import { ClientRouter } from 'astro:transitions';
               opacity: 1,
               y: 0,
               filter: "blur(0px)",
-              duration: 1.3,
+              duration: 1.2,
               stagger: 0.16,
               clearProps: "transform,filter"
             }
           )
-          // 2️⃣ 第二阶段：左下角第 1 行标签
           .fromTo(
             taglineItem,
             { opacity: 0, y: 25, filter: "blur(4px)" },
@@ -148,12 +470,11 @@ import { ClientRouter } from 'astro:transitions';
               opacity: 1,
               y: 0,
               filter: "blur(0px)",
-              duration: 0.9,
+              duration: 0.8,
               clearProps: "transform,filter"
             },
             "-=0.8"
           )
-          // 3️⃣ 第三阶段：左下角第 2 行标题（一个字一个字显现）
           .fromTo(
             titleChars,
             { opacity: 0, y: 15, filter: "blur(5px)" },
@@ -162,13 +483,12 @@ import { ClientRouter } from 'astro:transitions';
               y: 0,
               filter: "blur(0px)",
               duration: 0.45,
-              stagger: 0.04, // 字与字之间的间隔时间
+              stagger: 0.04,
               ease: "power2.out",
               clearProps: "transform,filter"
             },
             "-=0.5"
           )
-          // 4️⃣ 第四阶段：左下角第 3 行描述（一个字一个字显现，节奏略快）
           .fromTo(
             descChars,
             { opacity: 0, y: 12, filter: "blur(4px)" },
@@ -177,33 +497,54 @@ import { ClientRouter } from 'astro:transitions';
               y: 0,
               filter: "blur(0px)",
               duration: 0.35,
-              stagger: 0.018, // 描述文字较多，适当加快逐字速率
+              stagger: 0.018,
               ease: "power1.out",
               clearProps: "transform,filter"
             },
             "-=0.2"
           )
-          // 5️⃣ 第五阶段：右侧工作室卡片压轴亮相
           .fromTo(
-            studioCard,
+            weatherCard,
             { opacity: 0, y: 35, filter: "blur(8px)" },
             {
               opacity: 1,
               y: 0,
               filter: "blur(0px)",
-              duration: 1.2,
+              duration: 0.8,
+              clearProps: "transform,filter"
+            },
+            "-=0.4"
+          )
+          .fromTo(
+            quoteCard,
+            { opacity: 0, y: 35, filter: "blur(8px)" },
+            {
+              opacity: 1,
+              y: 0,
+              filter: "blur(0px)",
+              duration: 0.8,
+              clearProps: "transform,filter"
+            },
+            "-=0.5"
+          )
+          .fromTo(
+            studioCard,
+            { opacity: 0, y: 30, filter: "blur(6px)" },
+            {
+              opacity: 1,
+              y: 0,
+              filter: "blur(0px)",
+              duration: 0.8,
               clearProps: "transform,filter"
             },
             "-=0.5"
           );
         };
 
-        // 状态判断：若开屏动画已播放过或二次切回首页，直接播放动画
         if (window._introHasPlayed) {
           runCinematicEntrance();
         } else {
-          // 首次加载先隐去节点，等开屏吞噬动画完成事件唤醒
-          gsap.set([titleItems, taglineItem, titleChars, descChars, studioCard], { opacity: 0 });
+          gsap.set([titleItems, taglineItem, titleChars, descChars, weatherCard, quoteCard, studioCard], { opacity: 0 });
           window.addEventListener('intro-complete', runCinematicEntrance, { once: true });
         }
       });
@@ -213,9 +554,7 @@ import { ClientRouter } from 'astro:transitions';
 </html>
 
 <style>
-  /* =========================================
-     核心布局樣式
-     ========================================= */
+
   * {
     box-sizing: border-box;
     margin: 0;
@@ -226,7 +565,7 @@ import { ClientRouter } from 'astro:transitions';
     background-color: #030303;
     color: #ffffff;
     font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
-    overflow: hidden; /* 嚴禁出現全局滾動條 */
+    overflow: hidden;
   }
 
   .main-viewport {
@@ -235,10 +574,9 @@ import { ClientRouter } from 'astro:transitions';
     height: 100vh;
   }
 
-  /* 中央資訊容器 */
   .hero-container {
     position: absolute;
-    top: 55%;
+    top: 52%;
     left: 4%;
     right: 6%;
     transform: translateY(-50%);
@@ -246,7 +584,7 @@ import { ClientRouter } from 'astro:transitions';
     justify-content: space-between;
     align-items: center;
     z-index: 2;
-    pointer-events: none; /* 穿透鼠標以保證背景地球可進行 3D 拖拽交互 */
+    pointer-events: none;
   }
 
   .title-group {
@@ -255,7 +593,6 @@ import { ClientRouter } from 'astro:transitions';
     align-items: flex-start;
   }
 
-  /* 主標題鈦金屬漸變 */
   .main-title {
     font-weight: 900;
     font-size: 10.618rem;
@@ -267,7 +604,6 @@ import { ClientRouter } from 'astro:transitions';
     will-change: transform, opacity, filter;
   }
 
-  /* 極細副標題 */
   .subtitle {
     font-weight: 200;
     font-size: 2.618rem;
@@ -278,29 +614,323 @@ import { ClientRouter } from 'astro:transitions';
     will-change: transform, opacity, filter;
   }
 
-  /* 右側工作室卡片 */
+  .right-panel-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 330px;
+    gap: 14px;
+    margin-top: 30px;
+  }
+
+  .glass-widget {
+    pointer-events: auto;
+    width: 100%;
+    padding: 22px 24px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%), rgba(16, 16, 22, 0.55);
+    backdrop-filter: blur(24px) saturate(190%);
+    -webkit-backdrop-filter: blur(24px) saturate(190%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 22px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    transition: all 0.4s ease;
+    will-change: transform, opacity, filter;
+  }
+
+  .glass-widget:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+  }
+
+  .widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .greeting-text {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+  }
+
+  .live-clock {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--themeColor, #015EFB);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 4px 10px;
+    border-radius: 12px;
+    letter-spacing: 0.05em;
+  }
+
+  .widget-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 16px 0;
+  }
+
+  .widget-weather-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .weather-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .location-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .location-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .relocate-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    padding: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+  }
+
+  .relocate-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .relocate-btn.is-spinning {
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    100% { transform: rotate(360deg); }
+  }
+
+  .loc-icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .weather-desc {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: 0.01em;
+  }
+
+  .temp-display {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 2.1rem;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+  }
+
+  .hourly-forecast-stream {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 18px;
+    padding-top: 8px;
+  }
+
+  .hourly-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+  }
+
+  .hourly-time {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .hourly-cond {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .hourly-icon {
+    font-size: 0.85rem;
+  }
+
+  .hourly-temp {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #bbbbbb;
+  }
+
+  .hourly-pill-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .quote-card {
+    padding: 18px 22px;
+  }
+
+  .quote-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .quote-tag {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* 雙層呼吸擴散圈樣式 */
+  .breathing-sphere-btn {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    padding: 0;
+  }
+
+  .ring-core {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--themeColor, #015EFB);
+    opacity: 1;
+    box-shadow: 0 0 6px var(--themeColor, #015EFB);
+    animation: ring-core-breath 2.4s infinite ease-in-out;
+  }
+
+  .ring-outer {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--themeColor, #015EFB);
+    opacity: 0.33;
+    animation: ring-outer-breath 2.4s infinite ease-in-out;
+  }
+
+  @keyframes ring-core-breath {
+    0%, 100% {
+      transform: scale(0.9);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.3);
+      opacity: 1;
+    }
+  }
+
+  @keyframes ring-outer-breath {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.33;
+    }
+    50% {
+      transform: scale(2.4);
+      opacity: 0.33;
+    }
+  }
+
+  .breathing-sphere-btn.is-clicked .ring-core,
+  .breathing-sphere-btn.is-clicked .ring-outer {
+    animation: ring-click-pop 0.4s ease-out;
+  }
+
+  @keyframes ring-click-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.8); }
+    100% { transform: scale(1); }
+  }
+
+  .quote-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .quote-content {
+    font-size: 0.85rem;
+    color: #dddddd;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+  }
+
+  .quote-author-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 2px;
+  }
+
+  .quote-author {
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
+    letter-spacing: 0.03em;
+    text-align: right;
+  }
+
   .studio-card {
-    max-width: 380px;
+    width: 100%;
+    padding: 2px 4px 0 4px;
     color: #ffffff;
     text-align: left;
-    margin-top: 50px;
-    pointer-events: auto; /* 恢復卡片內部交互 */
+    pointer-events: auto;
     will-change: transform, opacity, filter;
   }
 
   .studio-title {
     font-family: 'Plus Jakarta Sans', sans-serif;
     font-weight: 900;
-    font-size: 1rem;
+    font-size: 0.95rem;
     letter-spacing: 0.05em;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
   }
 
   .studio-details {
     list-style: none;
     font-size: 0.8rem;
     color: #aaaaaa;
-    line-height: 2;
+    line-height: 1.8;
   }
 
   .red-star {
@@ -309,7 +939,6 @@ import { ClientRouter } from 'astro:transitions';
     margin-right: 6px;
   }
 
-  /* 底部左側敘事面板 */
   .footer-caption {
     position: absolute;
     bottom: 40px;
@@ -357,44 +986,89 @@ import { ClientRouter } from 'astro:transitions';
     word-break: break-word;
   }
 
-  /* 🟢 单字容器，确保空格和排版不塌陷 */
   :global(.char-span) {
     display: inline-block;
     white-space: pre;
     will-change: transform, opacity, filter;
   }
 
-  /* 響應式佈局適配 */
   @media (max-width: 900px) {
     .main-title { font-size: 4.5rem; }
     .subtitle { font-size: 1.4rem; }
     .hero-container {
       flex-direction: column;
       align-items: flex-start;
-      gap: 30px;
+      gap: 24px;
       left: 5%;
       top: 45%;
     }
-    .studio-card { margin-top: 0; }
+    .right-panel-group { margin-top: 0; width: 290px; }
     .footer-caption { left: 5%; bottom: 20px; }
   }
 
-  /* =========================================
-     白晝模式樣式翻轉 (Light Mode)
-     ========================================= */
+  /* 白晝模式適配 */
   :global(html.light-mode) body {
     background-color: #f5f5f7 !important;
     color: #1d1d1f !important;
   }
   
-  /* 主標題：轉換為高級鈦灰色漸變 */
   :global(html.light-mode) .main-title {
     background: linear-gradient(180deg, #1d1d1f 40%, #86868b 100%) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
   }
+
+  :global(html.light-mode) .glass-widget {
+    background: rgba(255, 255, 255, 0.72) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  :global(html.light-mode) .greeting-text,
+  :global(html.light-mode) .location-name,
+  :global(html.light-mode) .temp-display,
+  :global(html.light-mode) .quote-content {
+    color: #1d1d1f !important;
+  }
+
+  :global(html.light-mode) .weather-desc {
+    color: #333333 !important;
+  }
+
+  :global(html.light-mode) .hourly-temp {
+    color: #555555 !important;
+  }
+
+  :global(html.light-mode) .quote-author {
+    color: rgba(0, 0, 0, 0.3) !important;
+  }
+
+  :global(html.light-mode) .widget-divider {
+    background: rgba(0, 0, 0, 0.06) !important;
+  }
+
+  :global(html.light-mode) .hourly-pill-divider {
+    background: rgba(0, 0, 0, 0.08) !important;
+  }
+
+  :global(html.light-mode) .hourly-time,
+  :global(html.light-mode) .quote-tag {
+    color: rgba(0, 0, 0, 0.45) !important;
+  }
+
+  :global(html.light-mode) .relocate-btn {
+    color: rgba(0, 0, 0, 0.5) !important;
+  }
+
+  :global(html.light-mode) .relocate-btn:hover {
+    color: #1d1d1f !important;
+    background: rgba(0, 0, 0, 0.08) !important;
+  }
+
+  :global(html.light-mode) .live-clock {
+    background: rgba(0, 0, 0, 0.05) !important;
+  }
   
-  /* 副標題與描述文字變更為深灰色 */
   :global(html.light-mode) .subtitle,
   :global(html.light-mode) .studio-details,
   :global(html.light-mode) .bio-desc,
@@ -402,7 +1076,6 @@ import { ClientRouter } from 'astro:transitions';
     color: #86868b !important;
   }
 
-  /* 文字卡片與小標題轉換為深黑色 */
   :global(html.light-mode) .studio-card,
   :global(html.light-mode) .bio-title {
     color: #1d1d1f !important;

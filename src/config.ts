@@ -18,15 +18,32 @@ export const SITE_CONFIG = {
     // themeColor: "#FFFFFF",
   
   // 底部左侧信息
-bioHeader: "Hello, Here is Quasar",
+  bioHeader: "Hello, Here is Quasar",
   bioTitle: "记录生活与思考的数字角落",
   bioDesc: "这里是 Quasar Theme 的博客项目演示，用于记录技术探索、日常生活与随想。",
+
+// 每日一句语录库（支持 "句子——作者" / "句子|作者" 格式）
+  quotes: [
+    "星河璀璨，皆为序章。—— Quasar",
+    "保持热爱，奔赴山海。",
+    "在星空之下，倾听时间的脉搏。",
+    "无人问津的日子里，你在默默积蓄力量。",
+    "宇宙很大，生活更大。"
+  ],
+
+  greetings: {
+    morning: "早上好 ☀️",
+    afternoon: "下午好 🌤️",
+    evening: "晚上好 🌙",
+    night: "夜深了，早点休息 🌌",
+  },
 
   copyRight: "Quasar Blog",
   redStar1: "光影记录 (Photography)",
   redStar2: "生活碎片 (Life Fragments)",
   redStar3: "思绪漫游 (Mind Wandering)",
 };
+
 
 export const NAVBAR_CONFIG = {
   // 顶部的搜索框提示和 4 个自定义标签页
