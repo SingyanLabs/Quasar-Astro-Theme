@@ -50,6 +50,7 @@ export const NAVBAR_CONFIG = {
   searchBox: "🔍 探索 Quasar Blog...",
   navItems: [
     { label: "文章", url: "/posts" },
+    { label: '音乐', url: '/music' },
     { label: "相册", url: "/albums" },
     { label: "时刻", url: "/moments" },
     { label: "关于", url: "/about" }
