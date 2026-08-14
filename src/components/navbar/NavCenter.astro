@@ -1,0 +1,98 @@
+---
+import { NAVBAR_CONFIG } from '../../config';
+import NavSearch from '../NavSearch.astro';
+---
+<div class="nav-content-wrapper">
+  <!-- 桌面端导航链接 -->
+  <nav class="nav-center" id="nav-center">
+    {NAVBAR_CONFIG.navItems.map((item) => (
+      <a href={item.url} class="nav-link">
+        <span class="link-text">{item.label}</span>
+      </a>
+    ))}
+  </nav>
+
+  <!-- 桌面端歌词容器 -->
+  <div class="nav-lyrics-display" id="nav-lyrics-display">
+    <span class="nav-lyric-text" id="nav-lyric-text">正在等待歌词...</span>
+  </div>
+
+  <!-- 提示弹窗 (仅桌面端居中显示) -->
+  <div class="perf-warning-notice" id="nav-perf-alert">
+    <div class="countdown-circle-wrapper">
+      <svg class="countdown-svg" viewBox="0 0 20 20">
+        <circle class="countdown-bg" cx="10" cy="10" r="8"></circle>
+        <circle class="countdown-bar" id="countdown-circle-bar" cx="10" cy="10" r="8"></circle>
+      </svg>
+    </div>
+    <span id="perf-alert-text"></span>
+  </div>
+
+  <NavSearch />
+</div>
+
+<style>
+  .nav-content-wrapper { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; z-index: 3; width: 45vw; }
+  .nav-center { display: flex; align-items: center; gap: 32px; transition: opacity 0.22s ease, transform 0.22s ease; will-change: transform, opacity; pointer-events: auto; }
+  
+  :global(.quasar-navbar.search-active) .nav-center,
+  :global(.quasar-navbar.search-active) .nav-lyrics-display,
+  :global(.quasar-navbar.search-active) .perf-warning-notice { opacity: 0 !important; pointer-events: none !important; transform: scale(0.95) !important; }
+  :global(.quasar-navbar.search-active) .nav-lyrics-display,
+  :global(.quasar-navbar.search-active) .perf-warning-notice { transform: translate(-50%, -50%) scale(0.95) !important; }
+
+  .nav-lyrics-display { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); opacity: 0; visibility: hidden; pointer-events: none; width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.22s ease, transform 0.22s ease; }
+  .nav-lyric-text { font-size: 0.92rem; font-weight: 500; color: #ffffff; letter-spacing: 0.02em; text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); display: inline-block; text-wrap: balance !important; will-change: opacity; }
+
+  /* 桌面端提示框样式 */
+  .perf-warning-notice { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max-content; pointer-events: none; opacity: 0; visibility: hidden; font-size: 0.85rem; font-weight: 500; color: #ffffff; letter-spacing: 0.02em; text-shadow: 0 0 12px rgba(255, 255, 255, 0.1); display: flex; align-items: center; gap: 8px; z-index: 20; transition: opacity 0.22s ease, transform 0.22s ease; }
+  .perf-warning-notice.is-red-warning { color: #ff3e18 !important; text-shadow: 0 0 12px rgba(255, 62, 24, 0.2) !important; }
+
+  .countdown-circle-wrapper { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; position: relative; }
+  .countdown-svg { width: 16px; height: 16px; transform: rotate(-90deg); }
+  .countdown-bg { fill: none; stroke: rgba(255, 255, 255, 0.15); stroke-width: 2.5; }
+  .countdown-bar { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 50.26; stroke-dashoffset: 0; }
+
+  .nav-link { position: relative; text-decoration: none; color: #999999; font-size: 0.85rem; font-weight: 500; padding: 8px 0; transition: color 0.3s ease; }
+  .nav-link:hover { color: #ffffff; }
+  .nav-link::after { content: ''; position: absolute; bottom: 2px; left: 0; width: 100%; height: 1.5px; background-color: #ffffff; transform: scaleX(0); transform-origin: left; transition: transform 0.4s ease; }
+  .nav-link:hover::after { transform: scaleX(1); }
+
+  :global(.light-mode) .nav-link { color: #555555; }
+  :global(.light-mode) .nav-link:hover { color: #000000; }
+  :global(.light-mode) .nav-link::after { background-color: #000000; }
+  :global(.light-mode) .nav-lyric-text { color: #1d1d1f; text-shadow: none; }
+  :global(.light-mode) .perf-warning-notice { color: #1d1d1f; text-shadow: none; }
+  :global(.light-mode) .countdown-bg { stroke: rgba(0, 0, 0, 0.08); }
+
+  /* ⚡ 移动端展开布局：将搜索框推至 right: 5.8rem，留下干净安全区不盖住 X 按钮和菜单 */
+  @media (max-width: 768px) {
+    .nav-content-wrapper {
+      position: absolute;
+      right: 0.85rem;
+      left: auto;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2.25rem;
+      height: 2.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      pointer-events: auto;
+      z-index: 5;
+      transition: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .nav-center, .nav-lyrics-display, .perf-warning-notice { display: none !important; }
+
+    :global(.quasar-navbar.search-active) .nav-content-wrapper {
+      left: auto !important;
+      right: 5.8rem !important;       /* ⚡ 留出 5.8rem，不挡 Navbar 的 X 和抽屉按钮 */
+      width: 11rem !important;
+      max-width: calc(100vw - 9.5rem) !important;
+      height: 2.25rem !important;
+      transform: translateY(-50%) !important;
+      z-index: 10 !important;
+    }
+  }
+</style>

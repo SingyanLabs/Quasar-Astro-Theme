@@ -1,0 +1,732 @@
+---
+// src/pages/generator/theme.astro
+// title: "全局主题色选择器"
+// description: "可视化调节站点核心 themeColor，支持色相顺滑调节与精选调色盘，实时预览 UI 组件在明暗模式下的渲染效果并一键复制 Hex 色值。"
+// badge: "ThemeColor"
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { SITE_CONFIG } from '../../config';
+
+if (import.meta.env.PROD) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+const defaultThemeColor = SITE_CONFIG.themeColor || '#015EFB';
+---
+
+<BaseLayout title="局主题色选择器">
+  <main class="theme-gen-viewport">
+    <div class="gen-layout">
+      <!-- 左侧控制面板 -->
+      <aside class="control-panel">
+        <div class="panel-header">
+          <a href="/generator" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            返回工具箱
+          </a>
+          <h1 class="panel-title">局主题色选择器</h1>
+        </div>
+
+        <div class="panel-form">
+          <!-- 色相顺滑调节 -->
+          <div class="form-group">
+            <label for="hue-slider">色相顺滑调节 (Hue Slider)</label>
+            <div class="hue-slider-wrapper">
+              <input type="range" id="hue-slider" min="0" max="360" value="215" class="hue-range-input" />
+            </div>
+          </div>
+
+          <!-- 十六进制色值输入 -->
+          <div class="form-group">
+            <label for="input-color-hex">十六进制色值 (Hex)</label>
+            <div class="hex-input-group">
+              <div class="color-swatch-preview" id="current-swatch"></div>
+              <input type="text" id="input-color-hex" value={defaultThemeColor} maxlength="7" spellcheck="false" />
+            </div>
+          </div>
+
+          <!-- 精选预设调色盘 -->
+          <div class="form-group">
+            <label>精选高质感调色盘</label>
+            <div class="preset-grid">
+              <button type="button" class="preset-chip" data-color="#015EFB" style="--c: #015EFB;" title="Quasar Blue"></button>
+              <button type="button" class="preset-chip" data-color="#10B981" style="--c: #10B981;" title="Emerald"></button>
+              <button type="button" class="preset-chip" data-color="#6366F1" style="--c: #6366F1;" title="Indigo"></button>
+              <button type="button" class="preset-chip" data-color="#8B5CF6" style="--c: #8B5CF6;" title="Violet"></button>
+              <button type="button" class="preset-chip" data-color="#EC4899" style="--c: #EC4899;" title="Pink"></button>
+              <button type="button" class="preset-chip" data-color="#F43F5E" style="--c: #F43F5E;" title="Rose"></button>
+              <button type="button" class="preset-chip" data-color="#F59E0B" style="--c: #F59E0B;" title="Amber"></button>
+              <button type="button" class="preset-chip" data-color="#14B8A6" style="--c: #14B8A6;" title="Teal"></button>
+              <button type="button" class="preset-chip" data-color="#06B6D4" style="--c: #06B6D4;" title="Cyan"></button>
+              <button type="button" class="preset-chip" data-color="#3B82F6" style="--c: #3B82F6;" title="Sky Blue"></button>
+              <button type="button" class="preset-chip" data-color="#A855F7" style="--c: #A855F7;" title="Purple"></button>
+              <button type="button" class="preset-chip" data-color="#EAB308" style="--c: #EAB308;" title="Gold"></button>
+            </div>
+          </div>
+
+          <!-- 复制按钮 -->
+          <div class="btn-group">
+            <button type="button" id="btn-copy" class="btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span id="copy-btn-text">复制色值 (#015EFB)</span>
+            </button>
+          </div>
+
+          <!-- 代码参考 -->
+          <div class="form-group">
+            <label>src/config.ts 配置代码</label>
+            <textarea id="code-output" readonly rows="5"></textarea>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 右侧 UI 预览舞台 -->
+      <section class="preview-stage" id="preview-stage">
+        <div class="stage-header">
+          <span class="stage-tag">UI PREVIEW STAGE</span>
+          <div class="stage-mode-switch">
+            <button type="button" id="toggle-dark" class="mode-tab active">Dark</button>
+            <button type="button" id="toggle-light" class="mode-tab">Light</button>
+          </div>
+        </div>
+
+        <div class="preview-canvas-content">
+          <!-- 1. Brand Logo & Indicator -->
+          <div class="ui-block">
+            <span class="block-hint">导航标识与动态微光点</span>
+            <div class="brand-preview">
+              <span class="theme-glowing-dot"></span>
+              <span class="brand-text">Quasar Blog Architecture</span>
+            </div>
+          </div>
+
+          <!-- 2. Buttons & Badges -->
+          <div class="ui-block">
+            <span class="block-hint">按钮组件与 Pill 标签</span>
+            <div class="button-row">
+              <button type="button" class="ui-btn-solid">Primary Button</button>
+              <button type="button" class="ui-btn-ghost">Outline Button</button>
+              <span class="ui-tag">#Astro</span>
+              <span class="ui-tag">#Islands</span>
+            </div>
+          </div>
+
+          <!-- 3. Post Card Preview -->
+          <div class="ui-block">
+            <span class="block-hint">文章卡片悬浮与发光微交互</span>
+            <div class="ui-card">
+              <span class="ui-card-badge">FEATURED</span>
+              <h3 class="ui-card-title">构建高性能极简个人前端博客</h3>
+              <p class="ui-card-desc">全解 Astro 群岛架构下的 DOM 渲染隔离、CSS 变量响应与极速交互引擎。</p>
+              <div class="ui-card-footer">
+                <span class="footer-link">阅读全文</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="footer-arrow">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Progress & Text Accent -->
+          <div class="ui-block">
+            <span class="block-hint">阅读进度条与正文高亮</span>
+            <div class="ui-progress-track">
+              <div class="ui-progress-fill"></div>
+            </div>
+            <p class="ui-prose">
+              在 Markdown 文章正文中，<strong class="ui-highlight">核心关键词与重点语句</strong> 将自动继承主题色的优雅下边框高亮，同时 <a href="javascript:void(0)" class="ui-link">行内超链接</a> 也将同步呈现主色基调。
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<script is:inline>
+  function setupThemeGenerator() {
+    const hueSlider = document.getElementById('hue-slider');
+    const inputColorHex = document.getElementById('input-color-hex');
+    const currentSwatch = document.getElementById('current-swatch');
+    const presetChips = document.querySelectorAll('.preset-chip');
+    const btnToggleDark = document.getElementById('toggle-dark');
+    const btnToggleLight = document.getElementById('toggle-light');
+    const btnCopy = document.getElementById('btn-copy');
+    const copyBtnText = document.getElementById('copy-btn-text');
+    const codeOutput = document.getElementById('code-output');
+    const previewStage = document.getElementById('preview-stage');
+
+    if (!inputColorHex || !previewStage) return;
+
+    let activeHex = '#015EFB';
+
+    const hslToHex = (h, s, l) => {
+      l /= 100;
+      const a = s * Math.min(l, 1 - l) / 100;
+      const f = n => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+    };
+
+    const hexToRgb = (hex) => {
+      const cleanHex = hex.replace('#', '');
+      const num = parseInt(cleanHex, 16);
+      return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+    };
+
+    const hexToHue = (hex) => {
+      let r = parseInt(hex.slice(1, 3), 16) / 255;
+      let g = parseInt(hex.slice(3, 5), 16) / 255;
+      let b = parseInt(hex.slice(5, 7), 16) / 255;
+      let max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h = 0;
+      if (max !== min) {
+        let d = max - min;
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+      return Math.round(h * 360);
+    };
+
+    const applyThemeColor = (hex) => {
+      const validHex = (hex.startsWith('#') ? hex : '#' + hex).toUpperCase();
+      activeHex = validHex;
+
+      inputColorHex.value = validHex;
+      if (currentSwatch) currentSwatch.style.backgroundColor = validHex;
+
+      const rgb = hexToRgb(validHex);
+
+      previewStage.style.setProperty('--themeColor', validHex);
+      previewStage.style.setProperty('--themeColorRgb', rgb);
+
+      if (copyBtnText) {
+        copyBtnText.innerText = `复制色值 (${validHex})`;
+      }
+
+      if (codeOutput) {
+        codeOutput.value = `// src/config.ts
+export const SITE_CONFIG = {
+  themeColor: '${validHex}',
+};`;
+      }
+    };
+
+    if (hueSlider) {
+      hueSlider.oninput = (e) => {
+        const hue = parseInt(e.target.value);
+        const hex = hslToHex(hue, 95, 49);
+        applyThemeColor(hex);
+      };
+    }
+
+    inputColorHex.oninput = (e) => {
+      let val = e.target.value.trim();
+      if (!val.startsWith('#')) val = '#' + val;
+      if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+        applyThemeColor(val);
+        if (hueSlider) hueSlider.value = hexToHue(val).toString();
+      }
+    };
+
+    presetChips.forEach(chip => {
+      chip.onclick = () => {
+        const color = chip.dataset.color;
+        if (color) {
+          applyThemeColor(color);
+          if (hueSlider) hueSlider.value = hexToHue(color).toString();
+        }
+      };
+    });
+
+    if (btnToggleDark && btnToggleLight) {
+      btnToggleDark.onclick = () => {
+        previewStage.classList.remove('light-mode');
+        btnToggleDark.classList.add('active');
+        btnToggleLight.classList.remove('active');
+      };
+      btnToggleLight.onclick = () => {
+        previewStage.classList.add('light-mode');
+        btnToggleLight.classList.add('active');
+        btnToggleDark.classList.remove('active');
+      };
+    }
+
+    if (btnCopy) {
+      btnCopy.onclick = () => {
+        const textToCopy = activeHex;
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(textToCopy).then(showCopySuccess).catch(fallbackCopy);
+        } else {
+          fallbackCopy();
+        }
+
+        function fallbackCopy() {
+          try {
+            const tempInput = document.createElement('input');
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showCopySuccess();
+          } catch (err) {
+            alert(`色值: ${textToCopy}`);
+          }
+        }
+
+        function showCopySuccess() {
+          if (copyBtnText) copyBtnText.innerText = `已复制 ${activeHex} !`;
+          btnCopy.style.backgroundColor = 'var(--themeColor)';
+          setTimeout(() => {
+            if (copyBtnText) copyBtnText.innerText = `复制色值 (${activeHex})`;
+            btnCopy.style.backgroundColor = '';
+          }, 2000);
+        }
+      };
+    }
+
+    applyThemeColor(activeHex);
+  }
+
+  document.addEventListener('astro:page-load', setupThemeGenerator);
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setupThemeGenerator();
+  } else {
+    document.addEventListener('DOMContentLoaded', setupThemeGenerator);
+  }
+</script>
+
+<style>
+  .theme-gen-viewport {
+    width: 100%;
+    min-height: calc(100vh - 4.5rem);
+    margin-top: 4.5rem;
+    padding: 2rem 0 4rem 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .gen-layout {
+    width: 92%;
+    max-width: 82rem;
+    display: grid;
+    grid-template-columns: 22rem 1fr;
+    gap: 1.75rem;
+    align-items: start;
+  }
+
+  .control-panel {
+    background: #0d0d11;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    box-sizing: border-box;
+    color: #ffffff;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #a1a1aa;
+    text-decoration: none;
+    font-size: 0.82rem;
+    margin-bottom: 0.4rem;
+  }
+  .back-link:hover { color: #ffffff; }
+  .back-link svg { width: 0.9rem; height: 0.9rem; }
+
+  .panel-title { 
+    font-size: 1.4rem; 
+    font-weight: 800; 
+    color: #ffffff;
+  }
+  
+  .panel-form { display: flex; flex-direction: column; gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; box-sizing: border-box; }
+  .form-group label { font-size: 0.78rem; font-weight: 700; color: #a1a1aa; }
+
+  /* 色相渐变滑块 */
+  .hue-slider-wrapper {
+    width: 100%;
+    padding: 0.3rem 0;
+  }
+  .hue-range-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 0.75rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+    outline: none;
+    cursor: pointer;
+  }
+  .hue-range-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+    border: 2px solid #000000;
+    cursor: pointer;
+  }
+
+  /* Hex 输入框 */
+  .hex-input-group {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .color-swatch-preview {
+    width: 100%;
+    height: 2.2rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-color: #015EFB;
+    transition: background-color 0.2s ease;
+  }
+
+  .form-group input[type="text"],
+  .form-group textarea {
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-family: monospace;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* 预设色块网格 */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.4rem;
+  }
+  .preset-chip {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 0.4rem;
+    background-color: var(--c);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  }
+  .preset-chip:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 10px var(--c);
+    z-index: 2;
+  }
+
+  /* 复制按钮 */
+  .btn-group { display: flex; margin-top: 0.2rem; }
+  .btn-primary {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background: var(--themeColor, #015EFB);
+    border: none;
+    color: #ffffff;
+    transition: all 0.2s ease;
+  }
+  .btn-primary svg { width: 0.9rem; height: 0.9rem; }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  textarea { font-size: 0.75rem !important; resize: none; line-height: 1.4; color: #a1a1aa !important; }
+
+  /* ⚡ 修复暗色模式文本透明度与对比度问题 */
+  .preview-stage {
+    position: relative;
+    background: #09090b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.25rem;
+    padding: 1.75rem;
+    box-sizing: border-box;
+    transition: background 0.3s ease, border-color 0.3s ease;
+    color: #ffffff;
+  }
+
+  .stage-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .stage-tag {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #a1a1aa;
+    letter-spacing: 0.08em;
+  }
+
+  .stage-mode-switch {
+    display: flex;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0.15rem;
+    border-radius: 0.4rem;
+  }
+
+  .mode-tab {
+    background: transparent;
+    border: none;
+    color: #a1a1aa;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 0.3rem;
+    cursor: pointer;
+  }
+  .mode-tab.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+
+  .preview-canvas-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+
+  .ui-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .block-hint {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #a1a1aa;
+  }
+
+  /* 品牌 Demo */
+  .brand-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .theme-glowing-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--themeColor, #015EFB);
+    box-shadow: 0 0 10px var(--themeColor, #015EFB);
+  }
+  .brand-text {
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+  }
+
+  /* 按钮与标签 Demo */
+  .button-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .ui-btn-solid {
+    background: var(--themeColor, #015EFB);
+    color: #ffffff;
+    border: none;
+    padding: 0.55rem 1.1rem;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(var(--themeColorRgb, 1, 94, 251), 0.35);
+  }
+  .ui-btn-ghost {
+    background: rgba(var(--themeColorRgb, 1, 94, 251), 0.15);
+    color: var(--themeColor, #015EFB);
+    border: 1px solid rgba(var(--themeColorRgb, 1, 94, 251), 0.35);
+    padding: 0.55rem 1.1rem;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .ui-tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--themeColor, #015EFB);
+    background: rgba(var(--themeColorRgb, 1, 94, 251), 0.15);
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.35rem;
+  }
+
+  /* 卡片 Demo */
+  .ui-card {
+    position: relative;
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.875rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    transition: border-color 0.25s ease, transform 0.25s ease;
+  }
+  .ui-card:hover {
+    border-color: var(--themeColor, #015EFB);
+    transform: translateY(-2px);
+  }
+  .ui-card-badge {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--themeColor, #015EFB);
+    background: rgba(var(--themeColorRgb, 1, 94, 251), 0.15);
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.3rem;
+  }
+  .ui-card-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #ffffff;
+  }
+  .ui-card-desc {
+    font-size: 0.82rem;
+    color: #a1a1aa;
+    line-height: 1.5;
+  }
+  .ui-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--themeColor, #015EFB);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 0.65rem;
+    margin-top: 0.3rem;
+  }
+  .footer-arrow { width: 0.85rem; height: 0.85rem; }
+
+  /* 进度条与文字 Demo */
+  .ui-progress-track {
+    width: 100%;
+    height: 0.22rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0.1rem;
+    overflow: hidden;
+  }
+  .ui-progress-fill {
+    width: 60%;
+    height: 100%;
+    background: var(--themeColor, #015EFB);
+  }
+  .ui-prose {
+    font-size: 0.85rem;
+    color: #d4d4d8;
+    line-height: 1.6;
+  }
+  .ui-highlight {
+    color: #ffffff;
+    background: linear-gradient(180deg, transparent 60%, rgba(var(--themeColorRgb, 1, 94, 251), 0.4) 60%);
+    padding: 0 0.2rem;
+  }
+  .ui-link {
+    color: var(--themeColor, #015EFB);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--themeColor, #015EFB);
+  }
+
+  /* ⚡ 明亮模式 (Light) 预览舞台适配 */
+  .preview-stage.light-mode {
+    background: #ffffff !important;
+    border-color: rgba(0, 0, 0, 0.1) !important;
+    color: #1d1d1f !important;
+  }
+  .preview-stage.light-mode .stage-header {
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+  .preview-stage.light-mode .stage-tag {
+    color: #6e6e73 !important;
+  }
+  .preview-stage.light-mode .block-hint {
+    color: #6e6e73 !important;
+  }
+  .preview-stage.light-mode .stage-mode-switch {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+  .preview-stage.light-mode .mode-tab {
+    color: #6e6e73;
+  }
+  .preview-stage.light-mode .mode-tab.active {
+    background: #1d1d1f;
+    color: #ffffff;
+  }
+  .preview-stage.light-mode .brand-text,
+  .preview-stage.light-mode .ui-card-title {
+    color: #1d1d1f !important;
+  }
+  .preview-stage.light-mode .ui-card {
+    background: #f5f5f7 !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+  }
+  .preview-stage.light-mode .ui-card-desc,
+  .preview-stage.light-mode .ui-prose {
+    color: #515154 !important;
+  }
+  .preview-stage.light-mode .ui-highlight {
+    color: #1d1d1f !important;
+  }
+
+  :global(html.light-mode) .control-panel {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #1d1d1f;
+  }
+  :global(html.light-mode) .panel-title {
+    color: #1d1d1f;
+  }
+  :global(html.light-mode) .form-group label {
+    color: #6e6e73;
+  }
+  :global(html.light-mode) .form-group input[type="text"],
+  :global(html.light-mode) .form-group textarea {
+    background: #f5f5f7;
+    border-color: rgba(0, 0, 0, 0.12);
+    color: #1d1d1f !important;
+  }
+
+  @media (max-width: 64rem) {
+    .gen-layout { grid-template-columns: 1fr; }
+  }
+</style>

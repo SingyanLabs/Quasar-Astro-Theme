@@ -1,0 +1,248 @@
+---
+// src/components/widgets/WeatherWidget.astro
+import { SITE_CONFIG } from '../../config.ts';
+
+const defaultGreetings = {
+  morning: '早上好 ☀️',
+  afternoon: '下午好 🌤️',
+  evening: '晚上好 🌙',
+  night: '夜深了 🌌'
+};
+const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greetings || {}) };
+---
+<div class="glass-widget weather-card">
+  <div class="widget-header">
+    <span class="greeting-text" id="widget-greeting">你好</span>
+    <span class="live-clock" id="widget-clock">00:00:00 <span class="ampm">AM</span></span>
+  </div>
+  
+  <div class="widget-divider"></div>
+
+  <div class="widget-weather-body">
+    <div class="weather-left">
+      <div class="location-row">
+        <span class="location-name" id="widget-location">正在定位...</span>
+        <button id="relocate-btn" class="relocate-btn" title="重新定位">
+          <svg viewBox="0 0 24 24" class="loc-icon"><path fill="currentColor" d="M12 8a4 4 0 1 0 4 4a4 4 0 0 0-4-4zm0 6a2 2 0 1 1 2-2a2 2 0 0 1-2 2zm0-12a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8z"/></svg>
+        </button>
+      </div>
+      <span class="weather-desc" id="widget-weather-desc">等待數據同步...</span>
+    </div>
+    <div class="temp-display" id="widget-temp">--°C</div>
+  </div>
+
+  <div class="hourly-forecast-stream" id="widget-hourly">
+    <div class="no-data-tip">暫無天氣預報數據</div>
+  </div>
+</div>
+
+<script is:inline define:vars={{ greetingsConfig }}>
+  document.addEventListener('astro:page-load', () => {
+    // === 1. 12小時制時鐘與問候邏輯 ===
+    const updateClockAndGreeting = () => {
+      const now = new Date();
+      const hours24 = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+
+      const ampm = hours24 >= 12 ? 'PM' : 'AM';
+      const hours12 = hours24 % 12 || 12;
+
+      const clockEl = document.getElementById('widget-clock');
+      const greetingEl = document.getElementById('widget-greeting');
+
+      if (clockEl) {
+        clockEl.innerHTML = `${String(hours12).padStart(2, '0')}:${minutes}:${seconds} <span style="font-size:0.75em; opacity:0.8; margin-left:2px;">${ampm}</span>`;
+      }
+
+      if (greetingEl) {
+        let greeting = '你好';
+        if (hours24 >= 5 && hours24 < 12) greeting = greetingsConfig.morning;
+        else if (hours24 >= 12 && hours24 < 18) greeting = greetingsConfig.afternoon;
+        else if (hours24 >= 18 && hours24 < 23) greeting = greetingsConfig.evening;
+        else greeting = greetingsConfig.night;
+        greetingEl.innerText = greeting;
+      }
+    };
+    updateClockAndGreeting();
+    setInterval(updateClockAndGreeting, 1000);
+
+    // === 2. 智慧天氣獲取與嚴格無數據兜底邏輯 ===
+    const weatherIconMap = {
+      0: { icon: '☀️', text: '晴朗' }, 1: { icon: '🌤️', text: '晴間多雲' }, 2: { icon: '⛅', text: '多雲' }, 3: { icon: '☁️', text: '陰天' },
+      45: { icon: '🌫️', text: '有霧' }, 48: { icon: '🌫️', text: '濃霧' }, 51: { icon: '🌧️', text: '毛毛雨' }, 53: { icon: '🌧️', text: '小雨' },
+      55: { icon: '🌧️', text: '中雨' }, 61: { icon: '🌧️', text: '小雨' }, 63: { icon: '🌧️', text: '中雨' }, 65: { icon: '🌧️', text: '大雨' },
+      71: { icon: '❄️', text: '小雪' }, 73: { icon: '❄️', text: '中雪' }, 75: { icon: '❄️', text: '大雪' },
+      80: { icon: '🌧️', text: '陣雨' }, 81: { icon: '🌧️', text: '強陣雨' }, 82: { icon: '⛈️', text: '暴雨' }, 95: { icon: '⛈️', text: '雷陣雨' }
+    };
+
+    let weatherDataCache = null;
+
+    const initSmartWeather = () => {
+      const locationEl = document.getElementById('widget-location');
+      const descEl = document.getElementById('widget-weather-desc');
+      const tempEl = document.getElementById('widget-temp');
+      const hourlyContainer = document.getElementById('widget-hourly');
+      const relocateBtn = document.getElementById('relocate-btn');
+
+      const renderHourly = () => {
+        if (!weatherDataCache || !hourlyContainer) return;
+        const data = weatherDataCache;
+
+        const nowISO = new Date();
+        const currentHourStr = `${nowISO.getFullYear()}-${String(nowISO.getMonth() + 1).padStart(2, '0')}-${String(nowISO.getDate()).padStart(2, '0')}T${String(nowISO.getHours()).padStart(2, '0')}:00`;
+        
+        let currentIdx = data.hourly.time.findIndex(t => t.startsWith(currentHourStr.slice(0, 13)));
+        if (currentIdx === -1) currentIdx = 0;
+
+        hourlyContainer.innerHTML = '';
+        for (let i = 1; i <= 3; i++) {
+          const idx = currentIdx + i;
+          if (idx < data.hourly.time.length) {
+            const hInfo = weatherIconMap[data.hourly.weathercode[idx]] || { icon: '🌤️', text: '多雲' };
+            hourlyContainer.innerHTML += `
+              <div class="hourly-pill">
+                <span class="hourly-time">${data.hourly.time[idx].slice(11, 16)}</span>
+                <div class="hourly-cond"><span class="hourly-icon">${hInfo.icon}</span><span class="hourly-temp">${Math.round(data.hourly.temperature_2m[idx])}°</span></div>
+              </div>
+              ${i < 3 ? '<div class="hourly-pill-divider"></div>' : ''}
+            `;
+          }
+        }
+      };
+
+      const showNoDataState = () => {
+        if (locationEl) locationEl.innerText = '未知位置';
+        if (descEl) descEl.innerText = '無法獲取天氣';
+        if (tempEl) tempEl.innerText = '--°C';
+        if (hourlyContainer) {
+          hourlyContainer.innerHTML = `<div class="no-data-tip">暫無天氣預報數據</div>`;
+        }
+      };
+
+      const fetchWeatherData = async (lat, lon, cityName = '') => {
+        try {
+          if (!cityName) {
+            try {
+              const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=zh`);
+              if (geoRes.ok) cityName = (await geoRes.json()).city || '本地';
+            } catch { cityName = '本地'; }
+          }
+          if (locationEl) locationEl.innerText = cityName;
+
+          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,weathercode&forecast_days=2`);
+          if (!weatherRes.ok) throw new Error('API Error');
+          const data = await weatherRes.json();
+
+          const temp = Math.round(data.current_weather.temperature);
+          const info = weatherIconMap[data.current_weather.weathercode] || { icon: '🌿', text: '宜出行 |' };
+
+          if (descEl) descEl.innerText = `${info.text} ${info.icon}`;
+          if (tempEl) tempEl.innerText = `${temp}°C`;
+
+          weatherDataCache = data;
+          renderHourly();
+        } catch { 
+          showNoDataState(); 
+        }
+      };
+
+      const useIPLocation = async () => {
+        try {
+          const ipRes = await fetch('https://ipwho.is/');
+          if (!ipRes.ok) throw new Error();
+          const ipData = await ipRes.json();
+          if (!ipData.success) throw new Error();
+          await fetchWeatherData(ipData.latitude, ipData.longitude, ipData.city || ipData.region || '本地');
+        } catch {
+          showNoDataState();
+        }
+      };
+
+      const requestLocation = () => {
+        if (locationEl) locationEl.innerText = '正在定位...';
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => fetchWeatherData(pos.coords.latitude, pos.coords.longitude),
+            () => useIPLocation(), { timeout: 4000, maximumAge: 60000 }
+          );
+        } else {
+          useIPLocation();
+        }
+      };
+
+      requestLocation();
+
+      setInterval(() => {
+        if (weatherDataCache) renderHourly();
+      }, 60 * 1000);
+
+      setInterval(requestLocation, 30 * 60 * 1000);
+
+      if (relocateBtn) {
+        relocateBtn.addEventListener('click', () => {
+          relocateBtn.classList.add('is-spinning');
+          requestLocation();
+          setTimeout(() => relocateBtn.classList.remove('is-spinning'), 1000);
+        });
+      }
+    };
+    initSmartWeather();
+  });
+</script>
+
+<style>
+  .widget-header { display: flex; justify-content: space-between; align-items: center; }
+  .greeting-text { font-size: 0.95rem; font-weight: 700; color: #ffffff; letter-spacing: 0.02em; }
+  
+  .live-clock {
+    display: flex; align-items: baseline; justify-content: center;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-variant-numeric: tabular-nums;
+    font-weight: 700; font-size: 0.85rem; color: var(--themeColor, #015EFB) !important;
+    background: rgba(255, 255, 255, 0.08); padding: 4px 10px; border-radius: 12px; letter-spacing: 0.05em;
+  }
+  .widget-divider { height: 1px; background: rgba(255, 255, 255, 0.08); margin: 16px 0; }
+  
+  .widget-weather-body { display: flex; justify-content: space-between; align-items: center; }
+  .weather-left { display: flex; flex-direction: column; gap: 4px; }
+  .location-row { display: flex; align-items: center; gap: 6px; }
+  .location-name { font-size: 1.05rem; font-weight: 700; color: #ffffff; }
+  .relocate-btn { background: none; border: none; color: rgba(255, 255, 255, 0.45); cursor: pointer; padding: 3px; border-radius: 50%; transition: all 0.3s ease; }
+  .relocate-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); }
+  .relocate-btn.is-spinning { animation: spin 0.8s linear infinite; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  .loc-icon { width: 15px; height: 15px; display: flex; align-items: center; justify-content: center; }
+  
+  .weather-desc { font-size: 1.1rem; font-weight: 600; color: #ffffff; letter-spacing: 0.01em; }
+  .temp-display { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2.1rem; font-weight: 900; color: #ffffff; letter-spacing: -0.02em; }
+  
+  /* ⚡ 精致化：调整三小时预报流的间距与尺寸，无边框设计 */
+  .hourly-forecast-stream { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-top: 6px; min-height: 32px; }
+  .no-data-tip { font-size: 0.8rem; color: rgba(255, 255, 255, 0.4); width: 100%; text-align: center; }
+  
+  :global(.hourly-pill) { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+  :global(.hourly-time) { font-family: 'Plus Jakarta Sans', sans-serif; font-variant-numeric: tabular-nums; font-size: 0.8rem; font-weight: 500; color: rgba(255, 255, 255, 0.5); }
+  :global(.hourly-cond) { display: flex; align-items: center; gap: 2px; }
+  :global(.hourly-icon) { font-size: 0.8rem; }
+  :global(.hourly-temp) { font-family: 'Plus Jakarta Sans', sans-serif; font-variant-numeric: tabular-nums; font-size: 0.8rem; font-weight: 600; color: #cccccc; }
+  
+  /* ⚡ 加上 2 条独立的极细分隔线分别隔开这三小时 */
+  :global(.hourly-pill-divider) { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.1); }
+
+  /* 明亮模式适配 */
+  :global(html.light-mode) .live-clock { background: rgba(0, 0, 0, 0.06) !important; color: var(--themeColor, #015EFB) !important; }
+  :global(html.light-mode) .greeting-text, 
+  :global(html.light-mode) .location-name, 
+  :global(html.light-mode) .temp-display,
+  :global(html.light-mode) .weather-desc { color: #1d1d1f !important; }
+  
+  :global(html.light-mode) .no-data-tip { color: rgba(0, 0, 0, 0.55) !important; font-weight: 600 !important; }
+  
+  :global(html.light-mode) .widget-divider { background: rgba(0, 0, 0, 0.08) !important; }
+  :global(html.light-mode) .relocate-btn { color: rgba(0, 0, 0, 0.6) !important; }
+  :global(html.light-mode) .relocate-btn:hover { color: #1d1d1f !important; background: rgba(0, 0, 0, 0.08) !important; }
+
+  :global(html.light-mode) :global(.hourly-time) { color: rgba(0, 0, 0, 0.55) !important; font-weight: 300 !important; }
+  :global(html.light-mode) :global(.hourly-temp) { color: #1d1d1f !important; font-weight: 700 !important; }
+  :global(html.light-mode) :global(.hourly-pill-divider) { background: rgba(0, 0, 0, 0.12) !important; }
+</style>

@@ -1,0 +1,301 @@
+---
+// src/pages/404.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Earth from '../components/Earth.astro';
+import { SITE_CONFIG } from '../config';
+---
+
+<BaseLayout title={`404 页面未找到 | ${SITE_CONFIG.title}`}>
+  <!-- 按钮原点扩散圆形转场遮罩层 -->
+  <div id="transition-overlay" class="transition-overlay"></div>
+
+  <div class="not-found-stage">
+    <div class="not-found-container">
+      
+      <!-- 404 艺术化排版：中间的 0 用地球代替 -->
+      <div class="error-code-wrapper">
+        <span class="error-digit">4</span>
+        <div class="error-earth-zero">
+          <Earth />
+          <!-- 🔑 仅在 404 页面拦截并削减地球星空粒子数 90%，防止密集恐惧 -->
+          <script is:inline>
+            const earthContainer = document.getElementById('earth-container');
+            if (earthContainer && earthContainer.dataset.starcount) {
+              const originalCount = parseInt(earthContainer.dataset.starcount) || 2000;
+              earthContainer.dataset.starcount = Math.max(30, Math.floor(originalCount * 0.1));
+            }
+          </script>
+        </div>
+        <span class="error-digit">4</span>
+      </div>
+
+      <!-- 动态扫描横线 -->
+      <div class="animated-divider-box">
+        <div class="divider-bar"></div>
+      </div>
+
+      <!-- 提示语（从 config 读取）与右侧动画主页 Icon 按钮 -->
+      <div class="error-content-row">
+        <p class="error-message">{SITE_CONFIG.notFoundMessage}</p>
+        <a href="/" class="home-icon-btn" id="home-link" title="返回主页">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</BaseLayout>
+
+<script is:inline>
+  // 加快 404 页面中地球转动速度
+  window._quasarAnimationSpeedMultiplier = 2.5;
+
+  const init404Animations = () => {
+    // 1. 防御性检查 GSAP 引擎，执行丝滑的 GPU 加速页面入场动效
+    if (window.gsap) {
+      gsap.fromTo('.error-digit', 
+        { opacity: 0, y: 35, scale: 0.9, force3D: true }, 
+        { opacity: 1, y: 0, scale: 1, duration: 0.8, stagger: 0.12, ease: 'power3.out', force3D: true }
+      );
+      gsap.fromTo('.error-earth-zero', 
+        { opacity: 0, scale: 0.4, rotation: -30, force3D: true }, 
+        { opacity: 1, scale: 1, rotation: 0, duration: 1.0, ease: 'back.out(1.7)', delay: 0.15, force3D: true }
+      );
+      gsap.fromTo('.animated-divider-box', 
+        { scaleX: 0, opacity: 0, force3D: true }, 
+        { scaleX: 1, opacity: 1, duration: 0.8, ease: 'power2.out', delay: 0.4, force3D: true }
+      );
+      gsap.fromTo('.error-content-row', 
+        { opacity: 0, y: 20, force3D: true }, 
+        { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', delay: 0.6, force3D: true }
+      );
+    }
+
+    // 2. 点击按钮：精准从按钮坐标出发，1秒线性扩散转场
+    const homeBtn = document.getElementById('home-link');
+    const overlay = document.getElementById('transition-overlay');
+
+    if (homeBtn && overlay) {
+      const updateButtonOrigin = () => {
+        const rect = homeBtn.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        overlay.style.setProperty('--x', `${x}px`);
+        overlay.style.setProperty('--y', `${y}px`);
+      };
+
+      updateButtonOrigin();
+      window.addEventListener('resize', updateButtonOrigin);
+
+      homeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetUrl = homeBtn.getAttribute('href');
+
+        updateButtonOrigin();
+        overlay.classList.add('active');
+
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 950);
+      });
+    }
+  };
+
+  // 兼容 DOM 原生加载与 SPA 页面视图切换事件
+  document.addEventListener('DOMContentLoaded', init404Animations);
+  document.addEventListener('astro:page-load', init404Animations);
+</script>
+
+<style>
+  /* 按钮原点扩散圆形转场遮罩层 */
+  .transition-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: #000000;
+    z-index: 99999;
+    clip-path: circle(0px at var(--x, 50%) var(--y, 50%));
+    pointer-events: none;
+    transition: clip-path 1s linear;
+    will-change: clip-path;
+  }
+
+  .transition-overlay.active {
+    clip-path: circle(150vmax at var(--x, 50%) var(--y, 50%));
+    pointer-events: auto;
+  }
+
+  .not-found-stage {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    overflow: hidden;
+  }
+
+  .not-found-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.8rem;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    max-width: 50rem;
+    width: 100%;
+  }
+
+  .error-code-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: clamp(5.5rem, 15vw, 11rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .error-digit {
+    color: #ffffff;
+    text-shadow: 0 0 40px rgba(255, 255, 255, 0.25);
+    user-select: none;
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+
+  .error-earth-zero {
+    position: relative;
+    width: clamp(4.8rem, 12.5vw, 9.5rem);
+    height: clamp(4.8rem, 12.5vw, 9.5rem);
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(1, 94, 251, 0.35);
+    display: inline-block;
+    vertical-align: middle;
+    background: #ffffff;
+    transition: background-color 0.4s ease, box-shadow 0.4s ease;
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    flex-shrink: 0;
+  }
+
+  .animated-divider-box {
+    width: 100%;
+    max-width: 380px;
+    height: 2px;
+    position: relative;
+    overflow: hidden;
+    margin: 0.5rem 0;
+    transform: translateZ(0);
+    will-change: transform, opacity;
+  }
+
+  .divider-bar {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--themeColor, #015EFB), transparent);
+    animation: linePulse 3s ease-in-out infinite;
+  }
+
+  @keyframes linePulse {
+    0%, 100% { opacity: 0.3; transform: scaleX(0.8); }
+    50% { opacity: 1; transform: scaleX(1.2); filter: drop-shadow(0 0 8px var(--themeColor, #015EFB)); }
+  }
+
+  .error-content-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    transform: translateZ(0);
+    will-change: transform, opacity;
+  }
+
+  .error-message {
+    font-size: clamp(0.95rem, 2.2vw, 1.25rem);
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  .home-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    background-color: var(--themeColor, #015EFB);
+    color: #ffffff;
+    border-radius: 50%;
+    text-decoration: none;
+    box-shadow: 0 4px 20px rgba(1, 94, 251, 0.4);
+    animation: iconFloat 3s ease-in-out infinite;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    flex-shrink: 0;
+  }
+
+  .home-icon-btn:hover {
+    transform: scale(1.15) translateY(-3px) translateZ(0);
+    box-shadow: 0 8px 30px rgba(1, 94, 251, 0.6);
+    animation-play-state: paused;
+  }
+
+  .home-icon-btn:active {
+    transform: scale(0.95) translateZ(0);
+  }
+
+  @keyframes iconFloat {
+    0%, 100% { transform: translateY(0) translateZ(0); }
+    50% { transform: translateY(-5px) translateZ(0); }
+  }
+
+  /* ⚡ 移动端小屏幕与竖屏独立优化 */
+  @media (max-width: 768px) {
+    .not-found-container {
+      gap: 1.2rem;
+      padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+    }
+    .error-code-wrapper {
+      gap: 0.6rem;
+    }
+    .animated-divider-box {
+      max-width: 75%;
+    }
+    .error-content-row {
+      flex-direction: column;
+      gap: 1rem;
+    }
+  }
+
+  /* ⚡ 浅色模式全站无缝统一适配 */
+  :global(html.light-mode) .transition-overlay {
+    background-color: #000000;
+  }
+
+  :global(html.light-mode) .error-digit {
+    color: #1d1d1f;
+    text-shadow: none;
+  }
+
+  :global(html.light-mode) .error-message {
+    color: rgba(0, 0, 0, 0.65);
+  }
+
+  :global(html.light-mode) .error-earth-zero {
+    background: #000000;
+    box-shadow: 0 0 30px rgba(1, 94, 251, 0.25);
+  }
+</style>

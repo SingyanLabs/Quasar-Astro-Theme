@@ -1,0 +1,20 @@
+---
+import { buildSearchIndex } from '../utils/searchDataBuilder.js';
+import SearchBar from './navbar/search/SearchBar.astro';
+import SearchModal from './navbar/search/SearchModal.astro';
+
+// 在服务端打包时直接拉取并处理索引数据
+const searchIndex = buildSearchIndex();
+---
+
+<!-- 1. 数据注入节点 (对客户端隐藏) -->
+<div id="full-search-data-store" data-json={JSON.stringify(searchIndex)} style="display: none;"></div>
+
+<!-- 2. UI 组件拼装 -->
+<SearchBar />
+<SearchModal />
+
+<!-- 3. 引入客户端运行逻辑交由 Vite 处理 -->
+<script>
+  import '../assets/scripts/navSearchLogic.js';
+</script>

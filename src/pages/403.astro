@@ -1,0 +1,539 @@
+---
+// src/pages/403.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_CONFIG } from '../config';
+---
+
+<BaseLayout title={`403 访问被拒绝 | ${SITE_CONFIG.title}`}>
+  <!-- CDN 托管 Three.js（仅由浏览器端客户端安全水合执行） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" is:inline></script>
+
+  <div class="stage">
+    <div class="container">
+      <!-- 403 艺术排版：中间 0 挂载 1:1 着色器还原的 3D 地球 -->
+      <div class="code-row">
+        <span class="digit">4</span>
+        <div class="earth-zero">
+          <div id="full-shader-earth"></div>
+        </div>
+        <span class="digit">3</span>
+      </div>
+
+      <!-- 高速呼吸警示扫描线 -->
+      <div class="divider-box">
+        <div class="divider-bar"></div>
+      </div>
+
+      <!-- 提示语（读取配置文件） -->
+      <p class="msg">{SITE_CONFIG.forbiddenMessage || "访问被拒绝，此区域受到严密安全保护..."}</p>
+    </div>
+  </div>
+</BaseLayout>
+
+<!-- 1:1 完美复刻 Earth.astro 著色器与三层球体引擎（纯客户端执行，完美兼容 SSG） -->
+<script is:inline>
+  const initFullShaderEarth = () => {
+    const container = document.getElementById('full-shader-earth');
+    if (!container || !window.THREE) return;
+
+    // 防止 SPA 路由切换时重复创建 WebGL Canvas 导致内存泄露
+    if (container.dataset.inited === "true") return;
+    container.innerHTML = '';
+    container.dataset.inited = "true";
+
+    // ── 1. 著色器定義 ──
+    const earthVertexShader = `
+      precision mediump float;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+      void main() {
+        vUv = uv;
+        vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    const earthFragmentShader = `
+      precision mediump float;
+      uniform sampler2D tDay;
+      uniform sampler2D tNight;
+      uniform sampler2D tSpecular;
+      uniform sampler2D tClouds;
+      uniform vec3 uSunDirection;
+      uniform vec3 uCameraPosition;
+      uniform float uTime;
+      uniform float uSaturation;
+      uniform float uIsLightMode; 
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec3 normal = normalize(vNormal);
+        vec3 viewDir = normalize(uCameraPosition - vWorldPosition);
+        float dotProduct = dot(normal, uSunDirection);
+        float dayMix = smoothstep(-0.2, 0.15, dotProduct);
+        vec4 dayColor = texture2D(tDay, vUv);
+        vec4 nightColor = texture2D(tNight, vUv);
+        vec4 specColor = texture2D(tSpecular, vUv);
+
+        vec3 coolSlateBlue = vec3(0.82, 0.94, 1.15);
+        dayColor.rgb = clamp(dayColor.rgb * coolSlateBlue, 0.0, 1.0);
+        float luma = dot(dayColor.rgb, vec3(0.299, 0.587, 0.114));
+        dayColor.rgb = mix(dayColor.rgb, vec3(0.12, 0.28, 0.52) * luma * 1.4, 0.1);
+
+        vec2 cloudUv = vUv + vec2(uTime * 0.001, uTime * 0.0003);
+        vec2 shadowUv = cloudUv - uSunDirection.xy * 0.008; 
+        vec4 shadowCloud = texture2D(tClouds, shadowUv);
+        float shadowFactor = mix(1.0, 1.0 - shadowCloud.r * 0.65, dayMix);
+
+        vec3 cityLights = nightColor.rgb * vec3(2.4, 1.55, 0.82);
+        vec3 lightModeShadow = dayColor.rgb * 0.8; 
+        vec3 darkSide = mix(cityLights, lightModeShadow, uIsLightMode);
+        
+        vec3 finalColor = mix(darkSide, dayColor.rgb, dayMix);
+        finalColor *= mix(shadowFactor, 1.0, uIsLightMode * 0.8); 
+
+        float twilight = smoothstep(-0.25, -0.02, dotProduct) * smoothstep(0.18, -0.02, dotProduct);
+        vec3 twilightGlow = vec3(0.9, 0.32, 0.08) * twilight * (0.5 - uIsLightMode * 0.45); 
+        finalColor += twilightGlow;
+
+        vec3 halfDir = normalize(uSunDirection + viewDir);
+        float spec = pow(max(dot(normal, halfDir), 0.0), 24.0) * specColor.r;
+        vec3 specularReflection = vec3(0.42, 0.58, 0.88) * spec * dayMix * 0.8 * (1.0 - shadowCloud.r * 0.85);
+        finalColor += specularReflection;
+
+        float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 5.0);
+        vec3 atmosphericEdge = vec3(0.2, 0.52, 1.0) * fresnel * dayMix * 0.6;
+        finalColor += atmosphericEdge;
+
+        float gray = dot(finalColor, vec3(0.299, 0.587, 0.114));
+        finalColor = mix(vec3(gray), finalColor, uSaturation);
+
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+
+    const cloudVertexShader = `
+      precision mediump float;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+      void main() {
+        vUv = uv;
+        vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    const cloudFragmentShader = `
+      precision mediump float;
+      uniform sampler2D tClouds;
+      uniform vec3 uSunDirection;
+      uniform vec3 uCameraPosition;
+      uniform float uTime;
+      uniform float uSaturation;
+      uniform float uIsLightMode; 
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec3 normal = normalize(vNormal);
+        vec3 viewDir = normalize(uCameraPosition - vWorldPosition);
+
+        vec2 driftUv = vUv + vec2(uTime * 0.001, uTime * 0.0003);
+        vec4 cloudColor = texture2D(tClouds, driftUv);
+
+        float dotProduct = dot(normal, uSunDirection);
+        float dayMix = smoothstep(-0.25, 0.25, dotProduct);
+
+        vec3 dayCloud = vec3(0.92, 0.96, 1.0) * 1.15;
+        vec3 nightCloud = vec3(0.01, 0.015, 0.03); 
+
+        vec3 lightModeNightCloud = dayCloud * 0.8;
+        vec3 finalNightCloud = mix(nightCloud, lightModeNightCloud, uIsLightMode);
+
+        vec3 cloudBase = mix(finalNightCloud, dayCloud, dayMix);
+
+        float alpha = cloudColor.r * mix(0.7, 0.85, dayMix);
+        float gray = dot(cloudBase, vec3(0.299, 0.587, 0.114));
+        cloudBase = mix(vec3(gray), cloudBase, uSaturation);
+
+        gl_FragColor = vec4(cloudBase, alpha);
+      }
+    `;
+
+    const atmosphereVertexShader = `
+      precision mediump float;
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+      void main() {
+        vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    const atmosphereFragmentShader = `
+      precision mediump float;
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+      uniform vec3 uSunDirection;
+      uniform vec3 uCameraPosition;
+      uniform float uSaturation;
+
+      void main() {
+        vec3 normal = normalize(vNormal);
+        vec3 viewDir = normalize(uCameraPosition - vWorldPosition);
+        
+        float rim = 1.0 + dot(normal, viewDir);
+        float glow = pow(max(rim, 0.0), 5.0) * 0.25; 
+
+        float sunBlend = smoothstep(-0.2, 0.25, dot(normal, uSunDirection));
+        
+        vec3 dayGlow = vec3(0.18, 0.52, 1.0) * glow * sunBlend * 3.4;
+        vec3 nightGlow = vec3(0.02, 0.08, 0.22) * glow * (1.0 - sunBlend) * 0.35;
+        vec3 finalGlow = dayGlow + nightGlow;
+        
+        float grayGlow = dot(finalGlow, vec3(0.299, 0.587, 0.114));
+        finalGlow = mix(vec3(grayGlow), finalGlow, uSaturation);
+        
+        gl_FragColor = vec4(finalGlow, (finalGlow.r + finalGlow.b) * 1.8);
+      }
+    `;
+
+    // ── 2. 實時太陽角度計算 ──
+    function getLiveSunDirection() {
+      const now = new Date();
+      const declination = 21.5 * (Math.PI / 180); 
+      const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+      const sunLon = (12 - utcHours) * 15 * (Math.PI / 180);
+      return new THREE.Vector3(Math.cos(declination) * Math.sin(sunLon), Math.sin(declination), Math.cos(declination) * Math.cos(sunLon)).normalize();
+    }
+
+    // ── 3. 初始化 Three.js 渲染引擎 ──
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2500);
+    camera.position.set(0, 0, 200);
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance", precision: "mediump" });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; 
+    renderer.toneMappingExposure = 1.618;
+    container.appendChild(renderer.domElement);
+
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin('anonymous');
+
+    const dayMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+    const nightMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-night.jpg');
+    const specMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png');
+    const cloudMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png');
+
+    const satConfig = 1.0;
+
+    // 地球主網格
+    const globeMaterial = new THREE.ShaderMaterial({
+      vertexShader: earthVertexShader, fragmentShader: earthFragmentShader,
+      uniforms: {
+        tDay: { value: dayMap }, tNight: { value: nightMap }, tSpecular: { value: specMap }, tClouds: { value: cloudMap },
+        uSunDirection: { value: getLiveSunDirection() }, uCameraPosition: { value: camera.position },
+        uTime: { value: 0 }, uSaturation: { value: satConfig }, uIsLightMode: { value: 0.0 } 
+      }
+    });
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(51, 64, 64), globeMaterial);
+    scene.add(globe);
+
+    // 雲層網格
+    const cloudMaterial = new THREE.ShaderMaterial({
+      vertexShader: cloudVertexShader, fragmentShader: cloudFragmentShader,
+      uniforms: {
+        tClouds: { value: cloudMap }, uSunDirection: { value: getLiveSunDirection() }, uCameraPosition: { value: camera.position },
+        uTime: { value: 0 }, uSaturation: { value: satConfig }, uIsLightMode: { value: 0.0 }
+      },
+      transparent: true, blending: THREE.NormalBlending
+    });
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(51.45, 64, 64), cloudMaterial);
+    scene.add(clouds);
+
+    // 大氣光暈網格
+    const atmosphereMaterial = new THREE.ShaderMaterial({
+      vertexShader: atmosphereVertexShader, fragmentShader: atmosphereFragmentShader,
+      uniforms: { uSunDirection: { value: getLiveSunDirection() }, uCameraPosition: { value: camera.position }, uSaturation: { value: satConfig } },
+      blending: THREE.AdditiveBlending, side: THREE.BackSide, transparent: true
+    });
+    const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(54.8, 64, 64), atmosphereMaterial);
+    scene.add(atmosphere);
+
+    // ── 4. 幀循環動畫 ──
+    const clock = new THREE.Clock();
+    const animate = () => {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+      const speedMult = 2.5;
+
+      globe.rotation.y += 0.0002 * speedMult; 
+      clouds.rotation.y += 0.00028 * speedMult;
+
+      globeMaterial.uniforms.uTime.value = elapsed;
+      cloudMaterial.uniforms.uTime.value = elapsed;
+
+      const currentSunDir = getLiveSunDirection();
+      globeMaterial.uniforms.uSunDirection.value.copy(currentSunDir);
+      cloudMaterial.uniforms.uSunDirection.value.copy(currentSunDir);
+      atmosphereMaterial.uniforms.uSunDirection.value.copy(currentSunDir);
+
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    // ── 5. 淺色/深色主題聯動 ──
+    const themeObserver = new MutationObserver(() => {
+      const isLight = document.documentElement.classList.contains('light-mode');
+      const targetSat = isLight ? 1.618 : satConfig; 
+      const targetExp = isLight ? 1.80 : 1.618; 
+      const targetLightMode = isLight ? 1.0 : 0.0; 
+
+      if (window.gsap) {
+        gsap.to([globeMaterial.uniforms.uSaturation, cloudMaterial.uniforms.uSaturation, atmosphereMaterial.uniforms.uSaturation], { value: targetSat, duration: 1.2 });
+        gsap.to(renderer, { toneMappingExposure: targetExp, duration: 1.2 });
+        gsap.to([globeMaterial.uniforms.uIsLightMode, cloudMaterial.uniforms.uIsLightMode], { value: targetLightMode, duration: 1.2 });
+      } else {
+        globeMaterial.uniforms.uSaturation.value = targetSat;
+        cloudMaterial.uniforms.uSaturation.value = targetSat;
+        atmosphereMaterial.uniforms.uSaturation.value = targetSat;
+        globeMaterial.uniforms.uIsLightMode.value = targetLightMode;
+        cloudMaterial.uniforms.uIsLightMode.value = targetLightMode;
+        renderer.toneMappingExposure = targetExp;
+      }
+    });
+
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    if (document.documentElement.classList.contains('light-mode')) {
+      globeMaterial.uniforms.uSaturation.value = 1.618;
+      cloudMaterial.uniforms.uSaturation.value = 1.618;
+      atmosphereMaterial.uniforms.uSaturation.value = 1.0618;
+      globeMaterial.uniforms.uIsLightMode.value = 1.0;
+      cloudMaterial.uniforms.uIsLightMode.value = 1.0;
+      renderer.toneMappingExposure = 1.80;
+    }
+  };
+
+  const tryInit403Earth = () => {
+    let checkCount = 0;
+    const timer = setInterval(() => {
+      if (window.THREE) {
+        clearInterval(timer);
+        initFullShaderEarth();
+      }
+      checkCount++;
+      if (checkCount > 50) clearInterval(timer);
+    }, 50);
+  };
+
+  document.addEventListener('DOMContentLoaded', tryInit403Earth);
+  document.addEventListener('astro:page-load', tryInit403Earth);
+</script>
+
+<style>
+  /* ⚡ 桌面端 Navbar 彻底隐藏歌词与音乐播放控件 */
+  :global(.quasar-navbar .nav-music-info),
+  :global(.quasar-navbar .nav-lyric-btn),
+  :global(.quasar-navbar .nav-play-btn),
+  :global(.quasar-navbar .nav-volume-wrapper) {
+    display: none !important;
+  }
+
+  /* ⚡ 桌面端 Navbar 其他非必要交互：按钮呈现灰色且禁点击 */
+  :global(.quasar-navbar .nav-center),
+  :global(.quasar-navbar .article-reading-info),
+  :global(.quasar-navbar .album-reading-info),
+  :global(.quasar-navbar .search-trigger),
+  :global(.quasar-navbar .back-to-top-btn),
+  :global(html.light-mode .quasar-navbar .search-trigger),
+  :global(html.light-mode .quasar-navbar .back-to-top-btn) {
+    pointer-events: none !important;
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+  }
+  :global(.quasar-navbar #nav-logo) { pointer-events: none !important; opacity: 1 !important; }
+  :global(.quasar-navbar .theme-toggle), :global(.quasar-navbar .perf-status-toggle) { pointer-events: auto !important; opacity: 1 !important; }
+
+  /* ⚡ 移动端 Menu 抽屉：歌词看板彻底屏蔽隐藏 */
+  :global(.mobile-drawer .drawer-lyric-box) {
+    display: none !important;
+  }
+
+  /* ⚡ 移动端 Menu 抽屉：仅导航菜单列表和分割线置灰禁点击 */
+  :global(.mobile-drawer .drawer-nav-list .drawer-nav-item),
+  :global(.mobile-drawer .drawer-divider) {
+    pointer-events: none !important;
+    opacity: 0.45 !important;
+    filter: grayscale(0.85) !important;
+    cursor: not-allowed !important;
+    user-select: none !important;
+  }
+
+  /* ⚡ 移动端独立提示框 (Alert Box)：保持彩色与原版警告高亮，不置灰，但不可交互 */
+  :global(.mobile-drawer .drawer-alert-box) {
+    pointer-events: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    user-select: none !important;
+  }
+
+  /* ⚡ 移动端 Drawer 导航列表底部的“阻止访问”警示指示：保持亮丽红彩 (#ff3e18) */
+  :global(.mobile-drawer .drawer-nav-list::after) {
+    content: "⛔ 访问受限 · 阻止访问";
+    display: block;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #ff3e18 !important;
+    background: rgba(255, 62, 24, 0.12) !important;
+    border: 1px solid rgba(255, 62, 24, 0.25) !important;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 10px;
+    text-shadow: 0 0 10px rgba(255, 62, 24, 0.3);
+    filter: none !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
+  }
+
+  /* ⚡ 移动端主题切换与性能模式开关保持 100% 正常交互，强行沉底 */
+  :global(.mobile-drawer .drawer-controls-row) {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    margin-top: auto !important;
+    padding-top: 16px !important;
+  }
+
+  /* 布局排版与 GPU 加速动画 */
+  .stage {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    overflow: hidden;
+  }
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    max-width: 50rem;
+    width: 100%;
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  .code-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: clamp(5.5rem, 15vw, 11rem);
+    line-height: 1;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  
+  .digit {
+    color: #ffffff;
+    text-shadow: 0 0 40px rgba(239, 68, 68, 0.5);
+    user-select: none;
+  }
+
+  .earth-zero {
+    position: relative;
+    width: clamp(4.8rem, 12.5vw, 9.5rem);
+    height: clamp(4.8rem, 12.5vw, 9.5rem);
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.4);
+    background: #ffffff;
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+    flex-shrink: 0;
+  }
+
+  #full-shader-earth { width: 100%; height: 100%; }
+
+  /* 警示扫描线（纯 CSS 呼吸动画） */
+  .divider-box {
+    width: 100%;
+    max-width: 380px;
+    height: 2px;
+    position: relative;
+    overflow: hidden;
+    margin: 0.5rem 0;
+  }
+
+  .divider-bar {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, #ef4444, transparent);
+    animation: pulse 1.0s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scaleX(0.7); }
+    50% { opacity: 1; transform: scaleX(1.3); filter: drop-shadow(0 0 12px #ef4444); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg {
+    font-size: clamp(0.95rem, 2.2vw, 1.25rem);
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 500;
+  }
+
+  /* ⚡ 移动端与竖屏小屏幕响应式优化 */
+  @media (max-width: 768px) {
+    .container {
+      gap: 1.2rem;
+      padding: 1.5rem 1rem;
+      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    }
+    .code-row {
+      gap: 0.6rem;
+    }
+    .divider-box {
+      max-width: 75%;
+    }
+  }
+
+  /* ⚡ 浅色模式全站统一规范 */
+  :global(html.light-mode) .digit {
+    color: #1d1d1f !important;
+    text-shadow: 0 0 30px rgba(239, 68, 68, 0.4) !important;
+  }
+
+  :global(html.light-mode) .msg {
+    color: rgba(0, 0, 0, 0.65) !important;
+  }
+
+  :global(html.light-mode) .earth-zero {
+    background: #000000 !important;
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.35) !important;
+  }
+</style>

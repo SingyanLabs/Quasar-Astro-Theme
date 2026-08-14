@@ -1,0 +1,39 @@
+---
+---
+<div class="nav-center-search-bar" id="nav-center-search-bar">
+  <svg viewBox="0 0 24 24" fill="none" class="search-bar-icon">
+    <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <input 
+    type="text" 
+    class="center-search-input" 
+    id="center-search-input" 
+    placeholder="搜索文章、时刻、歌词..." 
+    autocomplete="off" 
+    spellcheck="false"
+  />
+  <button class="search-clear-btn" id="search-clear-btn" aria-label="清空文本" type="button">✕</button>
+</div>
+
+<style>
+  .nav-center-search-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 0; max-width: 32.5rem; height: 2.375rem; border-radius: 1.1875rem; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.18); display: flex; align-items: center; opacity: 0; pointer-events: none; z-index: 10; transition: width 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, background 0.22s ease, border-color 0.22s ease; overflow: hidden; }
+  .nav-center-search-bar.active { width: 100%; opacity: 1; pointer-events: auto; background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.28); }
+  .search-bar-icon { position: absolute; left: 0.75rem; width: 1rem; height: 1rem; color: rgba(255, 255, 255, 0.6); pointer-events: none; flex-shrink: 0; }
+  .center-search-input { width: 100%; height: 100%; background: transparent; border: none; outline: none; padding-left: 2.25rem; padding-right: 2rem; color: #ffffff; font-size: 0.88rem; font-weight: 500; }
+  .center-search-input::placeholder { color: rgba(255, 255, 255, 0.45); }
+  
+  .search-clear-btn { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, 0.2); border: none; color: rgba(255, 255, 255, 0.8); cursor: pointer; width: 1.125rem; height: 1.125rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold; opacity: 0; pointer-events: none; z-index: 15; transition: opacity 0.2s ease, background 0.2s ease; }
+  .search-clear-btn.visible { opacity: 1; pointer-events: auto; }
+  .search-clear-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.35); }
+
+  :global(.light-mode) .nav-center-search-bar { background: rgba(0, 0, 0, 0.06); border-color: rgba(0, 0, 0, 0.12); }
+  :global(.light-mode) .search-bar-icon { color: rgba(0, 0, 0, 0.5); }
+  :global(.light-mode) .center-search-input { color: #1d1d1f; }
+  :global(.light-mode) .center-search-input::placeholder { color: rgba(0, 0, 0, 0.45); }
+
+  @media (max-width: 768px) {
+    .nav-center-search-bar { max-width: 11rem !important; }
+    .search-clear-btn { display: none !important; } /* 移动端屏蔽内部 ✕ */
+    .center-search-input { padding-right: 0.8rem !important; }
+  }
+</style>

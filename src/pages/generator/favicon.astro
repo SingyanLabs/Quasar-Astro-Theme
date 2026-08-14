@@ -1,0 +1,709 @@
+---
+// title: "SVG 转 Favicon 工具"
+// description: "纯浏览器端将 SVG 转换为多尺寸 PNG 及标准 ICO 格式 Favicon，内置浏览器标签页实时拟真预览与一键下载。"
+// badge: "Favicon"
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { SITE_CONFIG } from '../../config';
+
+if (import.meta.env.PROD) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+const themeColor = SITE_CONFIG.themeColor || '#015EFB';
+---
+
+<BaseLayout title="SVG 转 Favicon 工具">
+  <main class="favicon-gen-viewport">
+    <div class="gen-layout">
+      <!-- 左侧：控制面板 -->
+      <aside class="control-panel">
+        <div class="panel-header">
+          <a href="/generator" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            返回工具箱
+          </a>
+          <h1 class="panel-title">SVG 转 Favicon</h1>
+        </div>
+
+        <div class="panel-form">
+          <!-- 1. SVG 输入/上传 -->
+          <div class="form-group">
+            <div class="label-row">
+              <label for="svg-input">SVG 代码或文件</label>
+              <label class="upload-btn-inline">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                上传文件
+                <input type="file" id="input-file" accept=".svg" hidden />
+              </label>
+            </div>
+            <textarea id="svg-input" rows="6" placeholder="粘贴 SVG 代码或直接上传文件..." spellcheck="false"></textarea>
+          </div>
+
+          <!-- 2. 尺寸选择器 (默认 32px) -->
+          <div class="form-group">
+            <label>生成尺寸 (默认 32px)</label>
+            <div class="size-preset-grid">
+              <button type="button" class="size-chip" data-size="16">16px</button>
+              <button type="button" class="size-chip active" data-size="32">32px</button>
+              <button type="button" class="size-chip" data-size="48">48px</button>
+              <button type="button" class="size-chip" data-size="64">64px</button>
+              <button type="button" class="size-chip" data-size="128">128px</button>
+              <button type="button" class="size-chip" data-size="256">256px</button>
+            </div>
+            <div class="custom-size-row">
+              <span class="custom-label">自定义像素 (px):</span>
+              <input type="number" id="input-size" value="32" min="16" max="1024" step="1" />
+            </div>
+          </div>
+
+          <!-- 3. 背景充填选项 -->
+          <div class="form-group">
+            <label>图标背景设置</label>
+            <div class="bg-mode-grid">
+              <label class="radio-chip">
+                <input type="radio" name="bg-mode" value="transparent" checked />
+                <span>透明背景</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="bg-mode" value="#ffffff" />
+                <span>纯白背景</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="bg-mode" value="#09090b" />
+                <span>极夜黑</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 4. 下载按钮组 -->
+          <div class="download-btn-grid">
+            <button type="button" class="btn-primary" id="btn-dl-png">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              下载 PNG (<span id="lbl-btn-size">32x32</span>)
+            </button>
+            <button type="button" class="btn-secondary" id="btn-dl-ico">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              下载 favicon.ico
+            </button>
+          </div>
+
+          <!-- 5. HTML 引用代码 -->
+          <div class="form-group">
+            <div class="label-row">
+              <label>HTML 引用代码</label>
+              <button type="button" class="copy-link-btn" id="btn-copy-code">复制 HTML</button>
+            </div>
+            <textarea id="code-snippet" readonly rows="3"></textarea>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 右侧：拟真预览舞台 -->
+      <section class="preview-panel">
+        <div class="preview-header">
+          <h2 class="preview-title">实时拟真预览</h2>
+          <p class="preview-subtitle">模拟图标在浏览器 Tab 标签页与实际尺寸下的表现</p>
+        </div>
+
+        <div class="preview-content">
+          <!-- 1. 模拟浏览器 Tab 标签页 -->
+          <div class="sim-block">
+            <span class="block-label">浏览器 Tab 标签页拟真效果 (16x16 / 32x32)</span>
+            <div class="browser-tab-bar">
+              <div class="tab-item active">
+                <img id="tab-icon-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'/>" class="tab-icon" alt="Favicon" />
+                <span class="tab-title">Quasar Blog Architecture</span>
+                <span class="tab-close">×</span>
+              </div>
+              <div class="tab-item">
+                <span class="tab-title">New Tab</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 主渲染 Canvas 与多尺寸对比 -->
+          <div class="sim-block">
+            <span class="block-label">当前尺寸画布渲染 (<span id="lbl-canvas-size">32x32</span>)</span>
+            <div class="canvas-stage-wrapper bg-checkerboard">
+              <canvas id="export-canvas" width="32" height="32"></canvas>
+            </div>
+          </div>
+
+          <!-- 3. 常规多尺寸快捷对照阵列 -->
+          <div class="sim-block">
+            <span class="block-label">多分辨率尺寸生成对照</span>
+            <div class="size-matrix">
+              <div class="matrix-item">
+                <div class="matrix-box bg-checkerboard"><img id="preview-16" alt="16" /></div>
+                <span>16x16</span>
+              </div>
+              <div class="matrix-item">
+                <div class="matrix-box bg-checkerboard"><img id="preview-32" alt="32" /></div>
+                <span>32x32</span>
+              </div>
+              <div class="matrix-item">
+                <div class="matrix-box bg-checkerboard"><img id="preview-64" alt="64" /></div>
+                <span>64x64</span>
+              </div>
+              <div class="matrix-item">
+                <div class="matrix-box bg-checkerboard"><img id="preview-128" alt="128" /></div>
+                <span>128x128</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<script is:inline>
+  function setupFaviconGenerator() {
+    const svgInput = document.getElementById('svg-input');
+    const inputFile = document.getElementById('input-file');
+    const inputSize = document.getElementById('input-size');
+    const sizeChips = document.querySelectorAll('.size-chip');
+    const bgRadios = document.querySelectorAll('input[name="bg-mode"]');
+    
+    const exportCanvas = document.getElementById('export-canvas');
+    const tabIconPreview = document.getElementById('tab-icon-preview');
+    const lblBtnSize = document.getElementById('lbl-btn-size');
+    const lblCanvasSize = document.getElementById('lbl-canvas-size');
+    const codeSnippet = document.getElementById('code-snippet');
+
+    const btnDlPng = document.getElementById('btn-dl-png');
+    const btnDlIco = document.getElementById('btn-dl-ico');
+    const btnCopyCode = document.getElementById('btn-copy-code');
+
+    const preview16 = document.getElementById('preview-16');
+    const preview32 = document.getElementById('preview-32');
+    const preview64 = document.getElementById('preview-64');
+    const preview128 = document.getElementById('preview-128');
+
+    if (!svgInput || !exportCanvas) return;
+
+    const DEFAULT_SVG = `<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100" height="100" rx="24" fill="#015EFB"/>
+  <path d="M30 50L45 65L70 35" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+    let activeSize = 32;
+
+    // ⚡ 纯前端算法：将 PNG 字节包封装为标准 ICO 二进制文件
+    const createIcoBlob = (pngDataArray) => {
+      const numImages = 1;
+      const headerSize = 6;
+      const directorySize = 16;
+      const dataOffset = headerSize + directorySize * numImages;
+
+      const imageSize = pngDataArray.length;
+      const totalSize = dataOffset + imageSize;
+
+      const buffer = new ArrayBuffer(totalSize);
+      const view = new DataView(buffer);
+
+      // ICO Header
+      view.setUint16(0, 0, true); // Reserved
+      view.setUint16(2, 1, true); // Type 1 = ICO
+      view.setUint16(4, numImages, true); // Image count
+
+      // Icon Directory Entry
+      const w = activeSize >= 256 ? 0 : activeSize;
+      const h = activeSize >= 256 ? 0 : activeSize;
+
+      view.setUint8(6, w); // Width
+      view.setUint8(7, h); // Height
+      view.setUint8(8, 0); // Palette count
+      view.setUint8(9, 0); // Reserved
+      view.setUint16(10, 1, true); // Color planes
+      view.setUint16(12, 32, true); // Bits per pixel
+      view.setUint32(14, imageSize, true); // Image size
+      view.setUint32(18, dataOffset, true); // Data offset
+
+      // Fill PNG bytes
+      const uint8View = new Uint8Array(buffer);
+      uint8View.set(pngDataArray, dataOffset);
+
+      return new Blob([buffer], { type: 'image/x-icon' });
+    };
+
+    const generateFavicons = () => {
+      const code = svgInput.value.trim() || DEFAULT_SVG;
+      const bgMode = document.querySelector('input[name="bg-mode"]:checked')?.value || 'transparent';
+
+      // 转换为 DataURL
+      const blob = new Blob([code], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const img = new Image();
+      img.onload = () => {
+        // 1. 渲染主 Canvas
+        exportCanvas.width = activeSize;
+        exportCanvas.height = activeSize;
+        const ctx = exportCanvas.getContext('2d');
+        ctx.clearRect(0, 0, activeSize, activeSize);
+
+        if (bgMode !== 'transparent') {
+          ctx.fillStyle = bgMode;
+          ctx.fillRect(0, 0, activeSize, activeSize);
+        }
+        ctx.drawImage(img, 0, 0, activeSize, activeSize);
+
+        const dataUrl = exportCanvas.toDataURL('image/png');
+        if (tabIconPreview) tabIconPreview.src = dataUrl;
+
+        // 2. 生成多尺寸对照预览
+        const renderMatrixItem = (targetImg, sz) => {
+          if (!targetImg) return;
+          const cvs = document.createElement('canvas');
+          cvs.width = sz;
+          cvs.height = sz;
+          const c = cvs.getContext('2d');
+          if (bgMode !== 'transparent') {
+            c.fillStyle = bgMode;
+            c.fillRect(0, 0, sz, sz);
+          }
+          c.drawImage(img, 0, 0, sz, sz);
+          targetImg.src = cvs.toDataURL('image/png');
+        };
+
+        renderMatrixItem(preview16, 16);
+        renderMatrixItem(preview32, 32);
+        renderMatrixItem(preview64, 64);
+        renderMatrixItem(preview128, 128);
+
+        // 3. 更新界面标签与 HTML 代码
+        if (lblBtnSize) lblBtnSize.innerText = `${activeSize}x${activeSize}`;
+        if (lblCanvasSize) lblCanvasSize.innerText = `${activeSize}x${activeSize}`;
+
+        if (codeSnippet) {
+          codeSnippet.value = `<link rel="icon" type="image/svg+xml" href="/favicon.svg">\n<link rel="icon" type="image/png" sizes="${activeSize}x${activeSize}" href="/favicon-${activeSize}x${activeSize}.png">\n<link rel="shortcut icon" href="/favicon.ico">`;
+        }
+
+        URL.revokeObjectURL(url);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+      };
+
+      img.src = url;
+    };
+
+    // 事件绑定：尺寸预设点击
+    sizeChips.forEach(chip => {
+      chip.onclick = () => {
+        sizeChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const sz = parseInt(chip.dataset.size);
+        activeSize = sz;
+        if (inputSize) inputSize.value = sz;
+        generateFavicons();
+      };
+    });
+
+    // 手动输入尺寸
+    if (inputSize) {
+      inputSize.oninput = (e) => {
+        const val = parseInt(e.target.value) || 32;
+        activeSize = Math.max(16, Math.min(1024, val));
+        sizeChips.forEach(c => {
+          if (parseInt(c.dataset.size) === activeSize) c.classList.add('active');
+          else c.classList.remove('active');
+        });
+        generateFavicons();
+      };
+    }
+
+    svgInput.oninput = generateFavicons;
+    bgRadios.forEach(r => r.onchange = generateFavicons);
+
+    // 上传文件
+    if (inputFile) {
+      inputFile.onclick = () => { inputFile.value = ''; };
+      inputFile.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          svgInput.value = evt.target?.result || '';
+          generateFavicons();
+        };
+        reader.readAsText(file);
+      };
+    }
+
+    // 下载 PNG
+    if (btnDlPng) {
+      btnDlPng.onclick = () => {
+        const dataUrl = exportCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `favicon-${activeSize}x${activeSize}.png`;
+        a.click();
+      };
+    }
+
+    // 下载 ICO
+    if (btnDlIco) {
+      btnDlIco.onclick = () => {
+        exportCanvas.toBlob((blob) => {
+          if (!blob) return;
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const pngArray = new Uint8Array(reader.result);
+            const icoBlob = createIcoBlob(pngArray);
+            const url = URL.createObjectURL(icoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'favicon.ico';
+            a.click();
+            URL.revokeObjectURL(url);
+          };
+          reader.readAsArrayBuffer(blob);
+        }, 'image/png');
+      };
+    }
+
+    // 复制 HTML 代码
+    if (btnCopyCode && codeSnippet) {
+      btnCopyCode.onclick = () => {
+        const txt = codeSnippet.value;
+        if (!txt) return;
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(txt).then(showOk).catch(fallback);
+        } else fallback();
+
+        function fallback() {
+          try {
+            codeSnippet.select();
+            document.execCommand('copy');
+            showOk();
+          } catch(e) { alert('请全选框内文本复制'); }
+        }
+
+        function showOk() {
+          const old = btnCopyCode.innerText;
+          btnCopyCode.innerText = '已复制!';
+          setTimeout(() => btnCopyCode.innerText = old, 2000);
+        }
+      };
+    }
+
+    svgInput.value = DEFAULT_SVG;
+    generateFavicons();
+  }
+
+  document.addEventListener('astro:page-load', setupFaviconGenerator);
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setupFaviconGenerator();
+  } else {
+    document.addEventListener('DOMContentLoaded', setupFaviconGenerator);
+  }
+</script>
+
+<style define:vars={{ themeColor }}>
+  .favicon-gen-viewport {
+    width: 100%;
+    min-height: calc(100vh - 4.5rem);
+    margin-top: 4.5rem;
+    padding: 1.5rem 0 3rem 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .gen-layout {
+    width: 94%;
+    max-width: 92rem;
+    display: grid;
+    grid-template-columns: 24rem 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .control-panel {
+    background: #0d0d11;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.25rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    color: #ffffff;
+    box-sizing: border-box;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #a1a1aa;
+    text-decoration: none;
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+  }
+  .back-link:hover { color: #ffffff; }
+  .back-link svg { width: 0.85rem; height: 0.85rem; }
+
+  .panel-title { font-size: 1.35rem; font-weight: 800; color: #ffffff; }
+  .panel-form { display: flex; flex-direction: column; gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.45rem; width: 100%; box-sizing: border-box; }
+  .form-group label { font-size: 0.78rem; font-weight: 700; color: #a1a1aa; }
+
+  .label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .upload-btn-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--themeColor);
+    cursor: pointer;
+  }
+  .upload-btn-inline svg { width: 0.8rem; height: 0.8rem; }
+
+  textarea {
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.6rem;
+    padding: 0.65rem 0.85rem;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    resize: none;
+  }
+  textarea:focus { border-color: var(--themeColor); }
+
+  /* 预设尺寸按钮 */
+  .size-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.35rem;
+  }
+  .size-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #a1a1aa;
+    padding: 0.35rem 0;
+    border-radius: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .size-chip.active {
+    background: var(--themeColor);
+    color: #ffffff;
+    border-color: var(--themeColor);
+  }
+
+  .custom-size-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.2rem;
+  }
+  .custom-label { font-size: 0.75rem; color: #a1a1aa; }
+  .custom-size-row input[type="number"] {
+    width: 4.5rem;
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.4rem;
+    padding: 0.3rem 0.5rem;
+    color: #ffffff;
+    font-size: 0.8rem;
+    outline: none;
+  }
+
+  /* 背景选择 */
+  .bg-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+  }
+  .radio-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.4rem;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .radio-chip input[type="radio"] { accent-color: var(--themeColor); }
+
+  /* 下载按键 */
+  .download-btn-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+  }
+  .btn-primary, .btn-secondary {
+    padding: 0.65rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .btn-primary { background: var(--themeColor); border: none; color: #ffffff; }
+  .btn-primary svg { width: 0.9rem; height: 0.9rem; }
+  .btn-secondary { background: var(--themeColor); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; }
+  .btn-secondary svg { width: 0.9rem; height: 0.9rem; }
+
+  .copy-link-btn {
+    background: transparent;
+    border: none;
+    color: var(--themeColor);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* 右侧预览 */
+  .preview-panel {
+    background: #0d0d11;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.25rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    box-sizing: border-box;
+    color: #ffffff;
+  }
+  .preview-title { font-size: 1.35rem; font-weight: 800; color: #ffffff; }
+  .preview-subtitle { font-size: 0.78rem; color: #a1a1aa; margin-top: 0.1rem; }
+
+  .preview-content { display: flex; flex-direction: column; gap: 1.5rem; }
+  .sim-block { display: flex; flex-direction: column; gap: 0.6rem; }
+  .block-label { font-size: 0.75rem; font-weight: 700; color: #a1a1aa; }
+
+  /* 模拟 Browser Tab */
+  .browser-tab-bar {
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem 0.75rem 0 0;
+    padding: 0.5rem 0.75rem 0 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .tab-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+    font-size: 0.72rem;
+    color: #a1a1aa;
+    max-width: 12rem;
+  }
+  .tab-item.active {
+    background: #09090b;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: none;
+  }
+  .tab-icon { width: 1rem; height: 1rem; object-fit: contain; }
+  .tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tab-close { font-size: 0.8rem; color: #6e6e73; margin-left: auto; }
+
+  /* 画布舞台 */
+  .canvas-stage-wrapper {
+    width: 100%;
+    min-height: 10rem;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    box-sizing: border-box;
+  }
+
+  .bg-checkerboard {
+    background-color: #121215;
+    background-image: linear-gradient(45deg, #18181c 25%, transparent 25%), 
+                      linear-gradient(-45deg, #18181c 25%, transparent 25%), 
+                      linear-gradient(45deg, transparent 75%, #18181c 75%), 
+                      linear-gradient(-45deg, transparent 75%, #18181c 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  }
+
+  /* 尺寸对照阵列 */
+  .size-matrix {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+  }
+  .matrix-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    color: #a1a1aa;
+  }
+  .matrix-box {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .matrix-box img { max-width: 80%; max-height: 80%; object-fit: contain; }
+
+  :global(html.light-mode) .control-panel,
+  :global(html.light-mode) .preview-panel {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #1d1d1f;
+  }
+  :global(html.light-mode) .panel-title,
+  :global(html.light-mode) .preview-title { color: #1d1d1f; }
+  :global(html.light-mode) textarea,
+  :global(html.light-mode) .browser-tab-bar {
+    background: #f5f5f7;
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #1d1d1f;
+  }
+
+  @media (max-width: 64rem) {
+    .gen-layout { grid-template-columns: 1fr; }
+  }
+</style>

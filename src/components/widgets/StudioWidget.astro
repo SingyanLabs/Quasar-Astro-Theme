@@ -1,0 +1,24 @@
+---
+// src/components/widgets/StudioWidget.astro
+import { SITE_CONFIG } from '../../config.ts';
+
+const currentYear = new Date().getFullYear();
+---
+<div class="studio-card">
+  <p class="studio-title">© {currentYear} {SITE_CONFIG.copyRight}</p>
+  <ul class="studio-details">
+    <li><span class="red-star">*</span> {SITE_CONFIG.redStar1}</li>
+    <li><span class="red-star">*</span> {SITE_CONFIG.redStar2}</li>
+    <li><span class="red-star">*</span> {SITE_CONFIG.redStar3}</li>
+  </ul>
+</div>
+
+<style>
+  .studio-card { width: 100%; padding: 2px 4px 0 4px; color: #AAA; text-align: left; pointer-events: auto; will-change: transform, opacity, filter; }
+  .studio-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 900; font-size: 0.95rem; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .studio-details { list-style: none; font-size: 0.8rem; color: #aaaaaa; line-height: 1.8; }
+  .red-star { color: #ff3e18; font-weight: bold; margin-right: 6px; }
+
+  :global(html.light-mode) .studio-card { color:#999 !important; }
+  :global(html.light-mode) .studio-details { color: #86868b !important; }
+</style>

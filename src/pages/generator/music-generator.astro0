@@ -1,0 +1,530 @@
+---
+// src/pages/music-generator.astro
+import Navbar from '../../components/Navbar.astro';
+import { SITE_CONFIG } from '../../config';
+---
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MD & 歌词 自动生成工具 — {SITE_CONFIG.title}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- JS 依赖库：ID3 标签解析 + JSZip 打包 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js" is:inline></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" is:inline></script>
+
+    <script is:inline>
+      const syncTheme = () => {
+        if (localStorage.getItem('theme') === 'light') {
+          document.documentElement.classList.add('light-mode');
+        } else {
+          document.documentElement.classList.remove('light-mode');
+        }
+      };
+      syncTheme();
+    </script>
+  </head>
+
+  <body>
+    <Navbar />
+
+    <main class="gen-container">
+      <div class="gen-card">
+        <h2>🎵 批量音乐元数据 & 歌词转 MD 工具</h2>
+        <p class="gen-desc">直接拖入或选择音乐文件，系统将自动解析元数据、智能匹配/提取歌词，并一键打包生成项目所需的 <code>.md</code> 和 <code>.lrc</code> 文件。</p>
+
+        <!-- 配置区域：前缀 + 歌词开关 -->
+        <div class="gen-config">
+          <div class="config-item">
+            <label for="path-prefix">资源存放路径前缀：</label>
+            <input type="text" id="path-prefix" value="/music/" placeholder="/music/" />
+          </div>
+
+          <!-- 🎯 新增：是否拉取/导出歌词的开关 -->
+          <div class="config-item">
+            <label class="checkbox-label">
+              <input type="checkbox" id="toggle-lyrics" checked />
+              <span>自动提取/在线匹配 LRC 歌词 (.lrc)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 拖拽上传区域 -->
+        <div class="drop-zone" id="drop-zone">
+          <svg class="upload-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+          <p>将音频文件（.mp3, .flac, .m4a, .wav）拖拽到此处</p>
+          <span>或者 <button type="button" id="btn-select">选择文件</button></span>
+          <input type="file" id="file-input" multiple accept="audio/*" style="display: none;" />
+        </div>
+
+        <!-- 解析预览列表 -->
+        <div class="preview-section" id="preview-section" style="display: none;">
+          <div class="preview-header">
+            <h3>解析预览 (<span id="parsed-count">0</span> 首)</h3>
+            <button id="btn-download-zip" class="btn-primary">📦 一键打包下载 MD、歌词 & 封面 (.zip)</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="parsed-table">
+              <thead>
+                <tr>
+                  <th>文件名</th>
+                  <th>解析歌名</th>
+                  <th>解析歌手</th>
+                  <th>解析专辑</th>
+                  <th>内嵌封面</th>
+                  <th>歌词状态</th>
+                </tr>
+              </thead>
+              <tbody id="parsed-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <script is:inline>
+      const initGenerator = () => {
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const btnSelect = document.getElementById('btn-select');
+        const previewSection = document.getElementById('preview-section');
+        const parsedTbody = document.getElementById('parsed-tbody');
+        const parsedCount = document.getElementById('parsed-count');
+        const btnDownloadZip = document.getElementById('btn-download-zip');
+        const pathPrefixInput = document.getElementById('path-prefix');
+        const toggleLyricsCheckbox = document.getElementById('toggle-lyrics');
+
+        let parsedResults = [];
+
+        btnSelect.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+          handleFiles(Array.from(e.target.files));
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+        dropZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('dragover');
+          if (e.dataTransfer.files.length > 0) {
+            handleFiles(Array.from(e.dataTransfer.files));
+          }
+        });
+
+        // 🎯 智能拉取/匹配歌词函数
+        async function fetchLrcLyrics(title, artist, tags) {
+          // 1. 尝试从音频 ID3 内嵌标签中读取
+          if (tags) {
+            let embeddedLrc = null;
+            if (tags.USLT) {
+              const uslt = tags.USLT;
+              if (typeof uslt === 'string') embeddedLrc = uslt;
+              else if (uslt.data && uslt.data.lyrics) embeddedLrc = uslt.data.lyrics;
+              else if (uslt.lyrics) embeddedLrc = uslt.lyrics;
+            } else if (tags.lyrics) {
+              embeddedLrc = tags.lyrics;
+            }
+
+            if (embeddedLrc && embeddedLrc.trim()) {
+              return { lyrics: embeddedLrc.trim(), source: '内嵌' };
+            }
+          }
+
+          // 2. 若无内嵌歌词，尝试调用开放歌词 API 智能匹配
+          if (!title || title === '未知曲目') return null;
+
+          try {
+            const cleanTitle = title.replace(/\.(mp3|flac|m4a|wav)$/i, '').trim();
+            const cleanArtist = (artist && artist !== '未知歌手') ? artist.trim() : '';
+
+            // 精准匹配请求
+            let queryUrl = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(cleanArtist)}&track_name=${encodeURIComponent(cleanTitle)}`;
+            let res = await fetch(queryUrl);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.syncedLyrics) return { lyrics: data.syncedLyrics, source: '网络动态匹配' };
+              if (data.plainLyrics) return { lyrics: data.plainLyrics, source: '网络动态匹配' };
+            }
+
+            // 模糊搜索备选
+            const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle + ' ' + cleanArtist)}`;
+            res = await fetch(searchUrl);
+            if (res.ok) {
+              const searchResults = await res.json();
+              if (Array.isArray(searchResults) && searchResults.length > 0) {
+                const match = searchResults[0];
+                const found = match.syncedLyrics || match.plainLyrics;
+                if (found) return { lyrics: found, source: '网络模糊匹配' };
+              }
+            }
+          } catch (e) {
+            console.warn('歌词自动匹配跳过或超时:', e);
+          }
+
+          return null;
+        }
+
+        async function handleFiles(files) {
+          const audioFiles = files.filter(f => /\.(mp3|flac|m4a|wav|ogg|aac)$/i.test(f.name));
+          if (audioFiles.length === 0) {
+            alert('请选择有效的音频文件！');
+            return;
+          }
+
+          const shouldFetchLyrics = toggleLyricsCheckbox.checked;
+
+          parsedResults = [];
+          parsedTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">正在解析音频元数据与匹配歌词...</td></tr>';
+          previewSection.style.display = 'block';
+
+          let completed = 0;
+
+          for (const file of audioFiles) {
+            const rawFileName = file.name;
+            const baseName = rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName;
+            const ext = rawFileName.substring(rawFileName.lastIndexOf('.'));
+
+            let tags = {};
+            let coverBlob = null;
+            let coverExt = 'jpg';
+
+            // 1. 读取 ID3 标签
+            await new Promise((resolve) => {
+              if (window.jsmediatags) {
+                window.jsmediatags.read(file, {
+                  onSuccess: function(tag) {
+                    tags = tag.tags || {};
+                    if (tags.picture) {
+                      const { data, format } = tags.picture;
+                      const mime = format || 'image/jpeg';
+                      coverExt = mime.includes('png') ? 'png' : 'jpg';
+                      const byteArray = new Uint8Array(data);
+                      coverBlob = new Blob([byteArray], { type: mime });
+                    }
+                    resolve();
+                  },
+                  onError: function() {
+                    resolve();
+                  }
+                });
+              } else {
+                resolve();
+              }
+            });
+
+            const finalTitle = tags.title || baseName;
+            const finalArtist = tags.artist || '未知歌手';
+            const finalAlbum = tags.album || '未知專輯';
+
+            // 2. 根据开关决定是否匹配/提取歌词
+            let lrcResult = null;
+            if (shouldFetchLyrics) {
+              lrcResult = await fetchLrcLyrics(finalTitle, finalArtist, tags);
+            }
+
+            parsedResults.push({
+              rawFileName,
+              baseName,
+              ext,
+              title: finalTitle,
+              artist: finalArtist,
+              album: finalAlbum,
+              coverBlob,
+              coverExt,
+              lrcContent: lrcResult ? lrcResult.lyrics : null,
+              lrcSource: lrcResult ? lrcResult.source : null
+            });
+
+            completed++;
+            renderTable();
+          }
+        }
+
+        function renderTable() {
+          parsedTbody.innerHTML = '';
+          parsedCount.innerText = parsedResults.length;
+          const isLyricsEnabled = toggleLyricsCheckbox.checked;
+
+          parsedResults.forEach((item) => {
+            let lyricStatusTag = '<span style="color: rgba(255,255,255,0.4);">已关</span>';
+            if (isLyricsEnabled) {
+              if (item.lrcContent) {
+                lyricStatusTag = `<span style="color: #4cd964;">✅ ${item.lrcSource}</span>`;
+              } else {
+                lyricStatusTag = `<span style="color: #ff3b30;">❌ 未找到</span>`;
+              }
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><code>${item.rawFileName}</code></td>
+              <td>${item.title}</td>
+              <td>${item.artist}</td>
+              <td>${item.album}</td>
+              <td>${item.coverBlob ? '✅ 已提取' : '❌ 无内嵌'}</td>
+              <td>${lyricStatusTag}</td>
+            `;
+            parsedTbody.appendChild(tr);
+          });
+        }
+
+        // 打包 Zip 下载
+        btnDownloadZip.addEventListener('click', async () => {
+          if (parsedResults.length === 0) return;
+          if (!window.JSZip) {
+            alert('JSZip 依赖库未能加载！');
+            return;
+          }
+
+          const zip = new JSZip();
+          const prefix = pathPrefixInput.value.trim() || '/music/';
+          const cleanPrefix = prefix.endsWith('/') ? prefix : prefix + '/';
+          const isLyricsEnabled = toggleLyricsCheckbox.checked;
+
+          parsedResults.forEach((item) => {
+            let coverPath = `${cleanPrefix}cover-default.jpg`;
+            let lyricPath = `${cleanPrefix}${item.baseName}.lrc`;
+
+            // 1. 如果有封面，打包进 zip
+            if (item.coverBlob) {
+              const coverFileName = `${item.baseName}.${item.coverExt}`;
+              zip.file(coverFileName, item.coverBlob);
+              coverPath = `${cleanPrefix}${coverFileName}`;
+            }
+
+            // 2. 如果开启歌词并且找到了歌词，导出 .lrc 到 zip
+            if (isLyricsEnabled && item.lrcContent) {
+              zip.file(`${item.baseName}.lrc`, item.lrcContent);
+            }
+
+            // 3. 构造标准 MD Frontmatter 内容
+            const mdContent = `---
+title: "${item.title.replace(/"/g, '\\"')}"
+artist: "${item.artist.replace(/"/g, '\\"')}"
+album: "${item.album.replace(/"/g, '\\"')}"
+audioUrl: "${cleanPrefix}${item.rawFileName}"
+lyricUrl: "${lyricPath}"
+coverUrl: "${coverPath}"
+---
+`;
+            // 添加 .md 文件到 zip
+            zip.file(`${item.baseName}.md`, mdContent);
+          });
+
+          // 触发打包并下载
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `music-pack-${Date.now()}.zip`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        });
+      };
+
+      document.addEventListener('DOMContentLoaded', initGenerator);
+      document.addEventListener('astro:page-load', initGenerator);
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  .gen-container {
+    max-width: 960px;
+    margin: 100px auto 40px auto;
+    padding: 0 20px;
+  }
+
+  .gen-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 32px;
+    color: #ffffff;
+  }
+
+  .gen-card h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .gen-desc {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .gen-config {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 24px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .config-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+  }
+
+  .config-item input[type="text"] {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #fff;
+    font-family: monospace;
+  }
+
+  .checkbox-label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    font-weight: 600;
+  }
+
+  .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--themeColor, #015EFB);
+    cursor: pointer;
+  }
+
+  .drop-zone {
+    border: 2px dashed rgba(255, 255, 255, 0.25);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+  }
+
+  .drop-zone.dragover {
+    border-color: var(--themeColor, #015EFB);
+    background: rgba(1, 94, 251, 0.1);
+  }
+
+  .upload-icon {
+    width: 48px;
+    height: 48px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 12px;
+  }
+
+  .drop-zone p {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .drop-zone span {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .drop-zone button {
+    background: none;
+    border: none;
+    color: var(--themeColor, #015EFB);
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .preview-section {
+    margin-top: 32px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 24px;
+  }
+
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .preview-header h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .btn-primary {
+    background: #ffffff;
+    color: #000000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .btn-primary:hover {
+    transform: scale(1.04);
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .parsed-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+
+  .parsed-table th, .parsed-table td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .parsed-table th {
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 700;
+  }
+
+  .parsed-table code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  html.light-mode .gen-card {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #1d1d1f;
+  }
+
+  html.light-mode .gen-desc { color: rgba(0, 0, 0, 0.6); }
+  html.light-mode .gen-config { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.08); }
+  html.light-mode .config-item input[type="text"] { background: #fff; color: #000; border-color: rgba(0, 0, 0, 0.2); }
+  html.light-mode .drop-zone { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.2); }
+  html.light-mode .btn-primary { background: #1d1d1f; color: #fff; }
+  html.light-mode .parsed-table th { color: rgba(0, 0, 0, 0.5); }
+  html.light-mode .parsed-table td { border-bottom-color: rgba(0, 0, 0, 0.08); }
+</style>

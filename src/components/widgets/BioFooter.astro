@@ -1,0 +1,101 @@
+---
+// src/components/widgets/BioFooter.astro
+import { SITE_CONFIG } from '../../config.ts';
+---
+<div class="footer-caption">
+  <p class="bio-tagline anim-tagline-item">
+    <span class="blue-dot"></span> {SITE_CONFIG.bioHeader}
+  </p>
+  <h2 class="bio-title" id="bio-title-el">{SITE_CONFIG.bioTitle}</h2>
+  <p class="bio-desc" id="bio-desc-el">{SITE_CONFIG.bioDesc}</p>
+</div>
+
+<style>
+  .footer-caption {
+    /* ⚡ 摒弃 absolute，改用 fixed 锚定真实的视觉窗口 */
+    position: fixed;
+    bottom: 0;
+    left: 4%;
+    z-index: 2;
+    max-width: 480px;
+    pointer-events: none;
+    box-sizing: border-box;
+    /* ⚡ 参考抽屉栏源码机制：基于底边0，利用 padding 向上动态垫出安全高度 */
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bio-tagline {
+    font-size: 0.9rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #888888;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    will-change: transform, opacity, filter;
+  }
+
+  .blue-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background-color: #102ea0;
+    border-radius: 50%;
+  }
+
+  .bio-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+    word-break: break-word;
+  }
+
+  .bio-desc {
+    font-size: 0.95rem;
+    color: #777777;
+    line-height: 1.6;
+    word-break: break-word;
+  }
+
+  :global(.char-span) {
+    display: inline-block;
+    white-space: pre;
+    will-change: transform, opacity, filter;
+  }
+
+  :global(html.light-mode) .bio-tagline, 
+  :global(html.light-mode) .bio-desc {
+    color: #86868b !important;
+  }
+
+  :global(html.light-mode) .bio-title {
+    color: #1d1d1f !important;
+  }
+
+  @media (max-width: 768px) {
+    .footer-caption {
+      left: 6%;
+      right: 6%;
+      max-width: 100%;
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+    
+    .bio-tagline {
+      margin-bottom: 6px;
+    }
+
+    .bio-title {
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+
+    .bio-desc {
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+  }
+</style>

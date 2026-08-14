@@ -1,0 +1,102 @@
+---
+// src/layouts/BaseLayout.astro
+import { SITE_CONFIG } from '../config.ts';
+import ThemePerfInit from '../components/head/ThemePerfInit.astro';
+import Navbar from '../components/Navbar.astro';
+import { ClientRouter } from 'astro:transitions';
+
+interface Props {
+  title?: string;
+}
+const { title = SITE_CONFIG.title } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <!-- 放置在 <head> 最上方，确保在页面渲染 HTML 前优先读取 localStorage -->
+    <ThemePerfInit />
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
+    
+    <!-- 视图过渡与动画核心库 -->
+    <ClientRouter />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
+
+    <script is:inline>
+      const syncSystemTheme = () => {
+        if (localStorage.getItem('theme') === 'light') {
+          document.documentElement.classList.add('light-mode');
+        } else {
+          document.documentElement.classList.remove('light-mode');
+        }
+      };
+      // 兼容 SPA 路由跳转后的状态维持
+      document.addEventListener('astro:after-swap', syncSystemTheme);
+    </script>
+  </head>
+  <body>
+    <!-- 全局导航 -->
+    <Navbar />
+    
+    <!-- 路由插槽 -->
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    background-color: #030303;
+    color: #ffffff;
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* 浅色模式全局覆盖 */
+  html.light-mode body {
+    background-color: #f5f5f7 !important;
+    color: #1d1d1f !important;
+  }
+
+  /* 全局复用玻璃拟物卡片基类 */
+  .glass-widget {
+    pointer-events: auto;
+    width: 100%;
+    padding: 22px 24px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%), rgba(16, 16, 22, 0.55);
+    backdrop-filter: blur(24px) saturate(190%);
+    -webkit-backdrop-filter: blur(24px) saturate(190%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 22px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    transition: all 0.4s ease;
+    will-change: transform, opacity, filter;
+  }
+
+  .glass-widget:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+  }
+
+  html.light-mode .glass-widget {
+    background: rgba(255, 255, 255, 0.72) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06) !important;
+  }
+</style>

@@ -1,0 +1,632 @@
+---
+// src/pages/generator/intro.astro
+// title: "Intro 开场动画生成器"
+// description: "自定义开场艺术字文本、物理弹跳落点与色彩模式，实时预览 GSAP 抛物线跃迁与全屏吞噬动画，并一键导出组件代码。"
+// badge: "Intro"
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { SITE_CONFIG } from '../../config';
+
+if (import.meta.env.PROD) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+const hexToRgb = (hex: string = '#015EFB') => {
+  const cleanHex = hex.replace('#', '');
+  const num = parseInt(cleanHex, 16);
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+};
+
+const themeColor = SITE_CONFIG.themeColor || '#015EFB';
+const themeColorRgb = hexToRgb(themeColor);
+---
+
+<BaseLayout title="Intro 开场动画生成器">
+  <main class="intro-gen-viewport">
+    <div class="gen-layout">
+      <!-- 控制面板 -->
+      <aside class="control-panel">
+        <div class="panel-header">
+          <a href="/generator" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            返回工具箱
+          </a>
+          <h1 class="panel-title">Intro 开场动画生成器</h1>
+        </div>
+
+        <div class="panel-form">
+          <div class="form-group">
+            <label for="input-text">开场文本</label>
+            <input 
+              type="text" 
+              id="input-text" 
+              value="Quasar" 
+              maxlength="12" 
+              placeholder="请输入文本..." 
+              autocomplete="off"
+            />
+          </div>
+
+          <!-- 动态指定弹跳字母 -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="select-n1">第 1 落点字符</label>
+              <select id="select-n1" class="form-select"></select>
+            </div>
+            <div class="form-group">
+              <label for="select-n2">第 2 落点字符</label>
+              <select id="select-n2" class="form-select"></select>
+            </div>
+            <div class="form-group">
+              <label for="select-stem">终点(Stem)字符</label>
+              <select id="select-stem" class="form-select"></select>
+            </div>
+          </div>
+
+          <!-- 色彩模式切换 -->
+          <div class="form-group">
+            <label>物理弹跳点色彩模式</label>
+            <div class="color-mode-toggle">
+              <label class="radio-label">
+                <input type="radio" name="color-mode" value="theme" checked />
+                <span>跟随全局主题色 (SITE_CONFIG)</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="color-mode" value="custom" />
+                <span>指定独立颜色</span>
+              </label>
+            </div>
+
+            <div class="color-picker-group" id="custom-color-container" style="display: none;">
+              <input type="color" id="input-color" value={themeColor} />
+              <input type="text" id="input-color-hex" value={themeColor} maxlength="7" />
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button type="button" id="btn-replay" class="btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6M23 20v-6h-6"/>
+                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
+              </svg>
+              播放动画
+            </button>
+            <button type="button" id="btn-copy" class="btn-secondary">复制代码</button>
+          </div>
+
+          <div class="form-group">
+            <label>导出的组件代码 (IntroWord.astro)</label>
+            <textarea id="code-output" readonly rows="13"></textarea>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 实时预览舞台 -->
+      <section class="preview-stage">
+        <div class="stage-tag">LIVE PREVIEW</div>
+        
+        <div id="stage-overlay">
+          <div class="word-wrapper" id="preview-word"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
+
+<script is:inline>
+  function setupIntroGenerator() {
+    const inputText = document.getElementById('input-text');
+    const inputColor = document.getElementById('input-color');
+    const inputColorHex = document.getElementById('input-color-hex');
+    const colorModeRadios = document.querySelectorAll('input[name="color-mode"]');
+    const customColorContainer = document.getElementById('custom-color-container');
+
+    const selectN1 = document.getElementById('select-n1');
+    const selectN2 = document.getElementById('select-n2');
+    const selectStem = document.getElementById('select-stem');
+    const btnReplay = document.getElementById('btn-replay');
+    const btnCopy = document.getElementById('btn-copy');
+    const codeOutput = document.getElementById('code-output');
+    const previewWord = document.getElementById('preview-word');
+    const stageOverlay = document.getElementById('stage-overlay');
+
+    if (!inputText || !previewWord) return;
+
+    let activeTimeline = null;
+
+    const updateSelectOptions = (text) => {
+      const chars = text.split('');
+      const buildOptions = (selectedIdx) => {
+        return chars.map((c, i) => `<option value="${i}" ${i === selectedIdx ? 'selected' : ''}>第 ${i + 1} 字 (${c})</option>`).join('');
+      };
+
+      const defaultN1 = Math.min(2, chars.length - 1);
+      const defaultN2 = chars.length - 1;
+      const defaultStem = Math.min(1, chars.length - 1);
+
+      selectN1.innerHTML = buildOptions(parseInt(selectN1.value) < chars.length ? parseInt(selectN1.value) : defaultN1);
+      selectN2.innerHTML = buildOptions(parseInt(selectN2.value) < chars.length ? parseInt(selectN2.value) : defaultN2);
+      selectStem.innerHTML = buildOptions(parseInt(selectStem.value) < chars.length ? parseInt(selectStem.value) : defaultStem);
+    };
+
+    // 严格按要求的模板生成组件代码
+    const generateStrictCodeSnippet = (text, isThemeMode, customColor, idxStem, idxN1, idxN2) => {
+      const chars = text.split('');
+      const spanLines = chars.map((c, i) => {
+        let idAttr = '';
+        if (i === idxStem) idAttr = ' id="i-stem"';
+        else if (i === idxN1) idAttr = ' id="letter-n1"';
+        else if (i === idxN2) idAttr = ' id="letter-n2"';
+        return `    <span class="char"${idAttr}>${c}</span>`;
+      }).join('\n');
+
+      const themeColorVal = isThemeMode 
+        ? "SITE_CONFIG.themeColor || '#015EFB'" 
+        : `'${customColor}'`;
+
+      return `---
+// src/components/intro/IntroWord.astro
+import { SITE_CONFIG } from '../../config';
+
+const themeColor = ${themeColorVal};
+---
+
+<div class="fixed-canvas">
+  <div class="word" id="intro-word">
+${spanLines}
+    <div id="blue-dot"></div>
+  </div>
+</div>`;
+    };
+
+    const renderDom = () => {
+      const text = inputText.value.trim() || 'Quasar';
+      const isThemeMode = document.querySelector('input[name="color-mode"]:checked')?.value === 'theme';
+      const colorVal = inputColor ? inputColor.value : '#015EFB';
+
+      if (customColorContainer) {
+        customColorContainer.style.display = isThemeMode ? 'none' : 'grid';
+      }
+
+      updateSelectOptions(text);
+
+      const idxN1 = parseInt(selectN1.value) || 0;
+      const idxN2 = parseInt(selectN2.value) || 0;
+      const idxStem = parseInt(selectStem.value) || 0;
+
+      if (codeOutput) {
+        codeOutput.value = generateStrictCodeSnippet(text, isThemeMode, colorVal, idxStem, idxN1, idxN2);
+      }
+
+      if (stageOverlay) {
+        if (window.gsap) window.gsap.killTweensOf(stageOverlay);
+        stageOverlay.style.display = 'flex';
+        stageOverlay.style.opacity = '1';
+      }
+
+      const chars = text.split('');
+      previewWord.innerHTML = '';
+
+      chars.forEach((char, idx) => {
+        const span = document.createElement('span');
+        span.className = 'gen-char';
+        if (idx === idxStem) span.id = 'preview-stem';
+        if (idx === idxN1) span.id = 'preview-n1';
+        if (idx === idxN2) span.id = 'preview-n2';
+        span.innerText = char;
+        previewWord.appendChild(span);
+      });
+
+      const dot = document.createElement('div');
+      dot.id = 'preview-dot';
+      
+      const computedThemeColor = getComputedStyle(document.documentElement).getPropertyValue('--themeColor').trim() || '#015EFB';
+      dot.style.backgroundColor = isThemeMode ? computedThemeColor : colorVal;
+      
+      previewWord.appendChild(dot);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          run1to1Animation();
+        });
+      });
+    };
+
+    const run1to1Animation = () => {
+      if (!window.gsap) return;
+      const gsap = window.gsap;
+
+      if (activeTimeline) {
+        activeTimeline.kill();
+        activeTimeline = null;
+      }
+
+      const dot = document.getElementById('preview-dot');
+      const chars = previewWord.querySelectorAll('.gen-char');
+      if (!dot || !chars.length) return;
+
+      gsap.killTweensOf([dot, ...chars]);
+      gsap.set(chars, { clearProps: 'transform,scaleY,scaleX' });
+      gsap.set(dot, { clearProps: 'transform,scaleY,scaleX,rotation,x,y' });
+
+      const idxN1 = parseInt(selectN1.value) || 0;
+      const idxN2 = parseInt(selectN2.value) || 0;
+      const idxStem = parseInt(selectStem.value) || 0;
+
+      const stem = chars[idxStem] || chars[0];
+      const n1 = chars[idxN1] || chars[0];
+      const n2 = chars[idxN2] || chars[0];
+
+      const dotWidth = dot.offsetWidth || 18;
+      const offsetCorrection = dotWidth / 2;
+
+      const stemX = stem.offsetLeft + stem.offsetWidth / 2 - offsetCorrection;
+      const n1X = n1.offsetLeft + n1.offsetWidth / 2 - offsetCorrection;
+      const n2X = n2.offsetLeft + n2.offsetWidth / 2 - offsetCorrection;
+
+      const nY = n1.offsetTop + 6;
+      const stemY = stem.offsetTop + 4;
+
+      gsap.set([stem, n1, n2], { transformOrigin: "50% 100%" });
+      gsap.set(dot, { transformOrigin: "50% 50%", opacity: 1, scale: 1, borderRadius: "4px" });
+
+      let dotRot = 0;
+      activeTimeline = gsap.timeline();
+
+      activeTimeline.set(dot, { x: n1X, y: -160, opacity: 1 })
+        .to(dot, { y: nY, duration: 0.55, ease: "power2.in" })
+        .add("hit1")
+        .to(n1, { scaleY: 0.55, scaleX: 1.2, duration: 0.1, ease: "power2.out" }, "hit1")
+        .to(dot, { scaleY: 0.6, scaleX: 1.4, duration: 0.1, ease: "power2.out" }, "hit1")
+        .add("launch1")
+        .to(n1, { scaleY: 1, scaleX: 1, duration: 0.6, ease: "elastic.out(1.2, 0.3)" }, "launch1")
+        .to(dot, { scaleY: 1, scaleX: 1, duration: 0.25, ease: "power2.out" }, "launch1");
+
+      let p1 = { p: 0 };
+      activeTimeline.to(p1, {
+        p: 1, duration: 0.8, ease: "none",
+        onUpdate: () => {
+          const p = p1.p;
+          const x = n1X + (n2X - n1X) * p;
+          const y = nY - 90 * 4 * p * (1 - p);
+          gsap.set(dot, { x: x, y: y, rotation: dotRot + 180 * p });
+        },
+        onComplete: () => { dotRot += 180; }
+      }, "launch1");
+
+      activeTimeline.add("hit2", "launch1+=0.8")
+        .to(n2, { scaleY: 0.55, scaleX: 1.2, duration: 0.1, ease: "power2.out" }, "hit2")
+        .to(dot, { scaleY: 0.6, scaleX: 1.4, duration: 0.1, ease: "power2.out" }, "hit2")
+        .add("launch2")
+        .to(n2, { scaleY: 1, scaleX: 1, duration: 0.6, ease: "elastic.out(1.2, 0.3)" }, "launch2")
+        .to(dot, { scaleY: 1, scaleX: 1, duration: 0.25, ease: "power2.out" }, "launch2");
+
+      let p2 = { p: 0 };
+      activeTimeline.to(p2, {
+        p: 1, duration: 0.7, ease: "none",
+        onUpdate: () => {
+          const p = p2.p;
+          const x = n2X + (stemX - n2X) * p;
+          const baseY = nY + (stemY - nY) * p;
+          const y = baseY - 75 * 4 * p * (1 - p);
+          gsap.set(dot, { x: x, y: y, rotation: dotRot + 180 * p });
+        },
+        onComplete: () => { dotRot += 180; }
+      }, "launch2");
+
+      activeTimeline.add("hit3", "launch2+=0.7")
+        .to(stem, { scaleY: 0.65, scaleX: 1.15, duration: 0.1, ease: "power2.out" }, "hit3")
+        .to(dot, { scaleY: 0.6, scaleX: 1.4, duration: 0.1, ease: "power2.out" }, "hit3")
+        .add("launch3")
+        .to(stem, { scaleY: 1, scaleX: 1, duration: 0.6, ease: "elastic.out(1.2, 0.3)" }, "launch3")
+        .to(dot, { scaleY: 1, scaleX: 1, duration: 0.25, ease: "power2.out" }, "launch3");
+
+      const targetRot = Math.ceil(dotRot / 90) * 90;
+      activeTimeline.to(dot, { rotation: targetRot, duration: 0.1, ease: "power2.out" })
+        .to(dot, {
+          scale: 300,
+          borderRadius: "50%",
+          duration: 1.3,
+          ease: "expo.inOut"
+        }, "+=0.2")
+        .to(stageOverlay, {
+          opacity: 0,
+          duration: 0.5,
+          ease: "power2.inOut"
+        }, "-=0.5");
+    };
+
+    inputText.oninput = renderDom;
+    selectN1.onchange = renderDom;
+    selectN2.onchange = renderDom;
+    selectStem.onchange = renderDom;
+
+    colorModeRadios.forEach(radio => {
+      radio.onchange = renderDom;
+    });
+
+    if (inputColor && inputColorHex) {
+      inputColor.oninput = (e) => {
+        inputColorHex.value = e.target.value.toUpperCase();
+        renderDom();
+      };
+      inputColorHex.oninput = (e) => {
+        inputColor.value = e.target.value;
+        renderDom();
+      };
+    }
+
+    if (btnReplay) btnReplay.onclick = renderDom;
+
+    // ⚡ 防崩溃剪贴板复制事件 (包含 IP/HTTP 限制下的降级兼容)
+    if (btnCopy && codeOutput) {
+      btnCopy.onclick = () => {
+        const textToCopy = codeOutput.value;
+        if (!textToCopy) return;
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(textToCopy).then(showCopySuccess).catch(fallbackCopy);
+        } else {
+          fallbackCopy();
+        }
+
+        function fallbackCopy() {
+          try {
+            codeOutput.select();
+            codeOutput.setSelectionRange(0, 99999);
+            const successful = document.execCommand('copy');
+            if (successful) showCopySuccess();
+            else alert('复制失败，请手动全选文本框内容复制');
+          } catch (err) {
+            alert('复制失败，请手动全选文本框内容复制');
+          }
+        }
+
+        function showCopySuccess() {
+          const originalText = btnCopy.innerText;
+          btnCopy.innerText = '已复制！';
+          btnCopy.style.backgroundColor = 'var(--themeColor)';
+          setTimeout(() => { 
+            btnCopy.innerText = originalText; 
+            btnCopy.style.backgroundColor = '';
+          }, 2000);
+        }
+      };
+    }
+
+    renderDom();
+  }
+
+  document.addEventListener('astro:page-load', setupIntroGenerator);
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setupIntroGenerator();
+  } else {
+    document.addEventListener('DOMContentLoaded', setupIntroGenerator);
+  }
+</script>
+
+<style define:vars={{ themeColor, themeColorRgb }}>
+  .intro-gen-viewport {
+    width: 100%;
+    min-height: calc(100vh - 4.5rem);
+    margin-top: 4.5rem;
+    padding: 2rem 0 4rem 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .gen-layout {
+    width: 92%;
+    max-width: 82rem;
+    display: grid;
+    grid-template-columns: 23rem 1fr;
+    gap: 1.75rem;
+    align-items: start;
+  }
+
+  .control-panel {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    box-sizing: border-box;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #86868b;
+    text-decoration: none;
+    font-size: 0.82rem;
+    margin-bottom: 0.4rem;
+  }
+  .back-link:hover { color: #ffffff; }
+  .back-link svg { width: 0.9rem; height: 0.9rem; }
+
+  .panel-title { font-size: 1.4rem; font-weight: 800; }
+  .panel-form { display: flex; flex-direction: column; gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; box-sizing: border-box; }
+  .form-group label { font-size: 0.78rem; font-weight: 700; color: #aaaaaa; }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .form-select,
+  .form-group input[type="text"],
+  .form-group textarea {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    color: #ffffff;
+    font-size: 0.8rem;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .form-select { cursor: pointer; }
+  .form-select option { background: #111115; color: #ffffff; }
+
+  .form-group input[type="text"]:focus,
+  .form-select:focus,
+  .form-group textarea:focus { border-color: var(--themeColor); }
+
+  .color-mode-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: #cccccc;
+    cursor: pointer;
+  }
+  .radio-label input[type="radio"] {
+    accent-color: var(--themeColor);
+    cursor: pointer;
+  }
+
+  .color-picker-group {
+    display: grid;
+    grid-template-columns: 2.8rem 1fr;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 0.4rem;
+    box-sizing: border-box;
+  }
+  .color-picker-group input[type="color"] {
+    width: 100%;
+    height: 2.2rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .btn-primary, .btn-secondary {
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  .btn-primary { background: var(--themeColor); border: none; color: #ffffff; }
+  .btn-primary svg { width: 0.88rem; height: 0.88rem; }
+  .btn-secondary { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; }
+
+  textarea { font-family: monospace; font-size: 0.72rem !important; resize: none; line-height: 1.35; }
+
+  .preview-stage {
+    position: relative;
+    background: #09090b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    height: 32rem;
+    overflow: hidden;
+    box-shadow: inset 0 0 2rem rgba(0, 0, 0, 0.8);
+  }
+
+  .stage-tag {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #44444c;
+    letter-spacing: 0.08em;
+    z-index: 10;
+  }
+
+  #stage-overlay {
+    width: 100%;
+    height: 100%;
+    background: #030303;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  :global(.word-wrapper) {
+    position: relative;
+    display: flex;
+    gap: 4px;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2.2rem, 5vw, 4.2rem);
+    letter-spacing: -0.05em;
+  }
+
+  :global(.gen-char) {
+    display: inline-block !important;
+    background: linear-gradient(180deg, #ffffff 60%, #999999 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    user-select: none;
+    will-change: transform;
+  }
+
+  :global(#preview-dot) {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    top: 0;
+    left: 0;
+    will-change: transform;
+    z-index: 99 !important;
+  }
+
+  :global(html.light-mode) .control-panel {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.08);
+    color: #1d1d1f;
+  }
+  :global(html.light-mode) .form-group input[type="text"],
+  :global(html.light-mode) .form-select,
+  :global(html.light-mode) .form-group textarea {
+    background: #f5f5f7;
+    border-color: rgba(0, 0, 0, 0.12);
+    color: #1d1d1f;
+  }
+  :global(html.light-mode) .color-mode-toggle {
+    background: #f5f5f7;
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+  :global(html.light-mode) .radio-label { color: #1d1d1f; }
+  :global(html.light-mode) .form-select option { background: #ffffff; color: #1d1d1f; }
+  :global(html.light-mode) .btn-secondary {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+    color: #1d1d1f;
+  }
+
+  @media (max-width: 64rem) {
+    .gen-layout { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>

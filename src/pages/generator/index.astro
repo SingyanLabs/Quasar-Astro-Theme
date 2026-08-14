@@ -1,0 +1,240 @@
+---
+// src/pages/generator/index.astro
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { SITE_CONFIG } from '../../config';
+
+if (import.meta.env.PROD) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+// ⚡ 核心机制：自动扫描 /src/pages/generator/ 目录下所有非 index.astro 的工具页面
+const rawToolModules = import.meta.glob('/src/pages/generator/*.astro', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+
+const tools = Object.keys(rawToolModules)
+  .filter((filePath) => !filePath.endsWith('/index.astro'))
+  .map((filePath) => {
+    const rawContent = (rawToolModules[filePath] as string) || '';
+    const slug = filePath.split('/').pop()?.replace(/\.astro$/, '') || '';
+
+    // 正则提取 Frontmatter 信息
+    const fmMatch = rawContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    let title = slug;
+    let description = '暂无说明';
+    let badge = '配置工具';
+
+    if (fmMatch && fmMatch[1]) {
+      const fmText = fmMatch[1];
+      const titleMatch = fmText.match(/title:\s*["']?([^"'\r\n]+)["']?/);
+      const descMatch = fmText.match(/description:\s*["']?([^"'\r\n]+)["']?/);
+      const badgeMatch = fmText.match(/badge:\s*["']?([^"'\r\n]+)["']?/);
+
+      if (titleMatch) title = titleMatch[1];
+      if (descMatch) description = descMatch[1];
+      if (badgeMatch) badge = badgeMatch[1];
+    }
+
+    return {
+      slug,
+      url: `/generator/${slug}`,
+      title,
+      description,
+      badge,
+    };
+  });
+
+const hexToRgb = (hex: string = '#015EFB') => {
+  const cleanHex = hex.replace('#', '');
+  const num = parseInt(cleanHex, 16);
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+};
+
+const themeColor = SITE_CONFIG.themeColor || '#015EFB';
+const themeColorRgb = hexToRgb(themeColor);
+---
+
+<BaseLayout title="主题配置工具箱">
+  <main class="generator-hub-viewport">
+    <div class="generator-hub-container">
+      <header class="hub-header">
+        <p class="hub-tagline">
+          <span class="blue-dot"></span> Visual Generator Suite (DEV ONLY)
+        </p>
+        <h1 class="hub-title">主题配置工具箱</h1>
+        <p class="hub-subtitle">
+          可视化调整站点动态效果与主题参数，快速导出可直接替换的代码与配置。
+        </p>
+      </header>
+
+      <div class="tools-grid">
+        {
+          tools.map((tool) => (
+            <a href={tool.url} class="tool-card">
+              <div class="card-badge">{tool.badge}</div>
+              <div class="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <h2 class="card-title">{tool.title}</h2>
+              <p class="card-desc">{tool.description}</p>
+              <div class="card-footer">
+                <span>进入配置工具</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </main>
+</BaseLayout>
+
+<style define:vars={{ themeColor, themeColorRgb }}>
+  .generator-hub-viewport {
+    width: 100%;
+    min-height: calc(100vh - 4.5rem);
+    margin-top: 4.5rem;
+    padding: 3rem 0 5rem 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .generator-hub-container {
+    width: 90%;
+    max-width: 72rem;
+  }
+
+  .hub-header {
+    margin-bottom: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .hub-tagline {
+    margin-bottom: 0px;
+    font-size: 0.82rem;
+    color: #888888;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+  }
+
+  .blue-dot {
+    width: 0.38rem;
+    height: 0.38rem;
+    background-color: var(--themeColor);
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0.5rem rgba(var(--themeColorRgb), 0.6);
+  }
+
+  .hub-title {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    font-size: 2.8rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    background: linear-gradient(180deg, #ffffff 60%, #999999 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hub-subtitle {
+    margin-top: 0px;
+    font-size: 1.05rem;
+    color: #86868b;
+    font-weight: 400;
+    max-width: 40rem;
+    line-height: 1.6;
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    gap: 1.5rem;
+  }
+
+  .tool-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    padding: 2rem;
+    text-decoration: none;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .tool-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(var(--themeColorRgb), 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.5);
+  }
+
+  .card-badge {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--themeColor);
+    background: rgba(var(--themeColorRgb), 0.12);
+    border: 1px solid rgba(var(--themeColorRgb), 0.25);
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.5rem;
+  }
+
+  .card-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+  .card-icon svg { width: 1.35rem; height: 1.35rem; }
+
+  .card-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.6rem; }
+  .card-desc { font-size: 0.88rem; color: #86868b; line-height: 1.55; margin-bottom: 1.75rem; flex-grow: 1; }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--themeColor);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 1rem;
+  }
+  .arrow-icon { width: 1rem; height: 1rem; transition: transform 0.25s ease; }
+  .tool-card:hover .arrow-icon { transform: translateX(0.25rem); }
+
+  :global(html.light-mode) .hub-title {
+    background: linear-gradient(180deg, #1d1d1f 60%, #6e6e73 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  :global(html.light-mode) .tool-card {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.08);
+    color: #1d1d1f;
+  }
+  :global(html.light-mode) .card-desc { color: #6e6e73; }
+  :global(html.light-mode) .card-icon { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.08); color: #1d1d1f; }
+</style>

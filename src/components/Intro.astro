@@ -1,25 +1,15 @@
 ---
 // src/components/Intro.astro
-import { SITE_CONFIG } from '../config';
+import IntroWord from './intro/IntroWord.astro';
 ---
 
 <div id="intro-container">
-  <div class="fixed-canvas">
-    <div class="word" id="intro-word">
-      <span class="char">Q</span>
-      <span class="char" id="i-stem">u</span>
-      <span class="char" id="letter-n1">a</span>
-      <span class="char">s</span>
-      <span class="char">a</span>
-      <span class="char" id="letter-n2">r</span>
-      <div id="blue-dot"></div>
-    </div>
-  </div>
+  <IntroWord />
 </div>
 
-<!-- 在 DOM 渲染瞬间同步执行：已播放过时立即隐藏，禁止 Paint 绘制蒙层 -->
+<!-- DOM 渲染瞬间同步执行：已播放过或性能降级时立即隐藏 -->
 <script is:inline>
-  if (window._introHasPlayed) {
+  if (window._introHasPlayed || document.documentElement.classList.contains('perf-degraded')) {
     const introEl = document.getElementById('intro-container');
     if (introEl) introEl.style.display = 'none';
   }
@@ -27,159 +17,15 @@ import { SITE_CONFIG } from '../config';
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
 
-<script is:inline>
-  window._isPageFullyLoaded = false;
-  window.addEventListener('load', () => { window._isPageFullyLoaded = true; });
-
-  setTimeout(() => { 
-    window._isPageFullyLoaded = true; 
-    window._isEarthTexturesLoaded = true;
-  }, 8000);
-
-  if (!window._introInitialized) {
-    window._introInitialized = true;
-
-    document.addEventListener('astro:page-load', () => {
-      const container = document.getElementById('intro-container');
-      if (!container) return;
-
-      if (window._introHasPlayed) {
-        container.style.display = 'none';
-        return;
-      }
-
-      const dot = document.getElementById('blue-dot');
-      const stem = document.getElementById('i-stem');
-      const n1 = document.getElementById('letter-n1');
-      const n2 = document.getElementById('letter-n2');
-
-      if (!dot || !stem || !n1 || !n2) return;
-
-      const offsetCorrection = 12; 
-      
-      const stemX = stem.offsetLeft + stem.offsetWidth / 2 - offsetCorrection;
-      const n1X = n1.offsetLeft + n1.offsetWidth / 2 - offsetCorrection;
-      const n2X = n2.offsetLeft + n2.offsetWidth / 2 - offsetCorrection;
-      
-      const nY = n1.offsetTop + 20; 
-      const stemY = stem.offsetTop + 16; 
-
-      gsap.set([stem, n1, n2], { transformOrigin: "50% 100%" });
-      gsap.set(dot, { transformOrigin: "50% 50%" });
-
-      window._dotRot = 0; 
-
-      const tlInitial = gsap.timeline();
-
-      // 阶段一：抛物线物理引擎
-      tlInitial.set(dot, { x: n1X, y: -400, opacity: 1 })
-        .to(dot, { y: nY, duration: 0.6, ease: "power2.in" });
-        
-      tlInitial.add("hit1")
-        .to(n1, { scaleY: 0.55, scaleX: 1.2, duration: 0.1, ease: "power2.out" }, "hit1")
-        .to(dot, { scaleY: 0.6, scaleX: 1.4, duration: 0.1, ease: "power2.out" }, "hit1")
-        .add("launch1") 
-        .to(n1, { scaleY: 1, scaleX: 1, duration: 0.7, ease: "elastic.out(1.2, 0.3)" }, "launch1")
-        .to(dot, { scaleY: 1, scaleX: 1, duration: 0.3, ease: "power2.out" }, "launch1");
-
-      let p1 = { p: 0 };
-      tlInitial.to(p1, {
-        p: 1, duration: 0.9, ease: "none", 
-        onUpdate: () => {
-          const p = p1.p;
-          const x = n1X + (n2X - n1X) * p; 
-          const y = nY - 180 * 4 * p * (1 - p); 
-          gsap.set(dot, { x: x, y: y, rotation: window._dotRot + 180 * p }); 
-        },
-        onComplete: () => { window._dotRot += 180; }
-      }, "launch1"); 
-
-      tlInitial.add("hit2", "launch1+=0.9") 
-        .to(n2, { scaleY: 0.55, scaleX: 1.2, duration: 0.1, ease: "power2.out" }, "hit2")
-        .to(dot, { scaleY: 0.6, scaleX: 1.4, duration: 0.1, ease: "power2.out" }, "hit2")
-        .add("launch2")
-        .to(n2, { scaleY: 1, scaleX: 1, duration: 0.7, ease: "elastic.out(1.2, 0.3)" }, "launch2")
-        .to(dot, { scaleY: 1, scaleX: 1, duration: 0.3, ease: "power2.out" }, "launch2");
-
-      let p2 = { p: 0 };
-      tlInitial.to(p2, {
-        p: 1, duration: 0.8, ease: "none", 
-        onUpdate: () => {
-          const p = p2.p;
-          const x = n2X + (stemX - n2X) * p; 
-          const baseY = nY + (stemY - nY) * p; 
-          const y = baseY - 150 * 4 * p * (1 - p); 
-          gsap.set(dot, { x: x, y: y, rotation: window._dotRot + 180 * p });
-        },
-        onComplete: () => { window._dotRot += 180; }
-      }, "launch2");
-
-      tlInitial.add("hit3", "launch2+=0.8")
-        .to(stem, { scaleY: 0.65, scaleX: 1.15, duration: 0.1, ease: "power2.out" }, "hit3")
-        .to(dot, { scaleY: 0.6, scaleX: 1.4, duration: 0.1, ease: "power2.out" }, "hit3")
-        .add("launch3")
-        .to(stem, { scaleY: 1, scaleX: 1, duration: 0.7, ease: "elastic.out(1.2, 0.3)" }, "launch3")
-        .to(dot, { scaleY: 1, scaleX: 1, duration: 0.3, ease: "power2.out" }, "launch3")
-        .add(checkLoadStateLoop, "launch3");
-
-      // 阶段二：等待加载重力微跳
-      function checkLoadStateLoop() {
-        if (window._isPageFullyLoaded && window._isEarthTexturesLoaded) {
-          triggerExpand(); 
-          return;
-        }
-        const loopTl = gsap.timeline();
-        let pObj = { p: 0 };
-        loopTl.to(pObj, {
-          p: 1, duration: 0.45, ease: "none",
-          onUpdate: () => {
-            const p = pObj.p;
-            const y = stemY - 14 * 4 * p * (1 - p); 
-            gsap.set(dot, { y: y, rotation: window._dotRot + 90 * p });
-          },
-          onComplete: () => { window._dotRot += 90; }
-        });
-        loopTl.add("hit")
-          .to(stem, { scaleY: 0.75, scaleX: 1.1, duration: 0.1, ease: "power2.out" }, "hit")
-          .to(dot, { scaleY: 0.7, scaleX: 1.3, duration: 0.1, ease: "power2.out" }, "hit")
-          .add("launch")
-          .to(stem, { scaleY: 1, scaleX: 1, duration: 0.4, ease: "elastic.out(1.5, 0.4)" }, "launch")
-          .to(dot, { scaleY: 1, scaleX: 1, duration: 0.25, ease: "power2.out" }, "launch")
-          .add(checkLoadStateLoop, "launch"); 
-      }
-
-      // 阶段三：全屏非线性爆发吞噬
-      function triggerExpand() {
-        const tlOut = gsap.timeline();
-        const targetRot = Math.ceil(window._dotRot / 90) * 90; 
-
-        tlOut.to(dot, { rotation: targetRot, duration: 0.1, ease: "power2.out" }) 
-             .to(dot, {
-               scale: 450, 
-               borderRadius: "50%", 
-               duration: 1.6,
-               ease: "expo.inOut"
-             }, 0)
-             .to(container, {
-               opacity: 0,
-               duration: 0.8,
-               ease: "power2.inOut",
-               onComplete: () => {
-                 container.style.display = 'none';
-                 window._introHasPlayed = true; 
-                 window.dispatchEvent(new Event('intro-complete'));
-               }
-             }, 0.8);
-      }
-    });
-  }
+<script>
+  import { initIntroEngine } from '../assets/scripts/intro-engine.js';
+  initIntroEngine();
 </script>
 
-<style define:vars={{ themeColor: SITE_CONFIG.themeColor }}>
+<style>
   #intro-container {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100vw;
     height: 100vh;
     background-color: #030303; 
@@ -190,37 +36,7 @@ import { SITE_CONFIG } from '../config';
     overflow: hidden;
   }
 
-  .fixed-canvas {
-    position: relative;
-  }
-
-  .word {
-    position: relative;
-    display: flex;
-    gap: 4px; 
-    font-family: 'Noto Sans SC', sans-serif;
-    font-weight: 900;
-    font-size: 8rem; 
-    letter-spacing: -0.05em;
-  }
-
-  .char {
-    background: linear-gradient(180deg, #ffffff 60%, #999999 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    will-change: transform;
-    user-select: none;
-  }
-
-  #blue-dot {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    background-color: var(--themeColor);
-    border-radius: 5px; 
-    opacity: 0;
-    top: 0;
-    left: 0;
-    will-change: transform;
+  :global(html.light-mode) #intro-container {
+    background-color: #030303 !important;
   }
 </style>

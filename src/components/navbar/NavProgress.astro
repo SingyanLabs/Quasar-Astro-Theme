@@ -1,0 +1,96 @@
+---
+---
+<!-- 文章阅读进度 -->
+<div class="article-reading-info" id="article-reading-info">
+  <span class="info-divider">|</span>
+  <div class="reading-progress-circle" title="阅读进度">
+    <svg viewBox="0 0 36 36" class="progress-svg">
+      <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+      <path class="circle-bar" id="reading-progress-bar" stroke-dasharray="100, 100" stroke-dashoffset="100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+    </svg>
+  </div>
+  <div class="chapter-text-wrapper">
+    <span class="current-chapter-text" id="current-chapter-text"></span>
+  </div>
+</div>
+
+<!-- 音乐播放进度 -->
+<div class="nav-music-info" id="nav-music-info">
+  <span class="info-divider">|</span>
+  <div class="music-progress-circle" title="播放进度">
+    <svg viewBox="0 0 36 36" class="progress-svg">
+      <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+      <path class="circle-bar" id="nav-music-progress-bar" stroke-dasharray="100, 100" stroke-dashoffset="100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+    </svg>
+  </div>
+  <div class="music-text-wrapper">
+    <span class="current-music-text" id="nav-music-title"></span>
+  </div>
+</div>
+
+<!-- 专辑加载状态 -->
+<div class="album-reading-info" id="album-cache-status">
+  <span class="info-divider">|</span>
+  <div class="album-spinner" id="nav-spinner">
+    <svg viewBox="0 0 50 50" class="spinner-svg">
+      <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" class="spinner-path"></circle>
+    </svg>
+  </div>
+  <div class="album-text-wrapper">
+    <span class="current-album-text" id="status-text-display"></span>
+  </div>
+</div>
+
+<style>
+  .article-reading-info, .nav-music-info, .album-reading-info { display: none; align-items: center; gap: 6px; opacity: 0; min-width: 0; flex-shrink: 1; transition: opacity 0.22s ease, transform 0.22s ease; }
+  
+  /* 强制激活状态下显示音乐进度圈与标题 */
+  .article-reading-info.active,
+  .nav-music-info.active { display: flex !important; opacity: 1 !important; }
+  
+  :global([data-is-album="false"]) .album-reading-info { display: none !important; }
+  :global([data-is-album="true"]) .album-reading-info.active { display: flex !important; opacity: 1 !important; }
+
+  .info-divider { color: rgba(255, 255, 255, 0.18); font-weight: 300; margin: 0 2px; flex-shrink: 0; }
+  .reading-progress-circle, .music-progress-circle { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .progress-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .circle-bg { fill: none; stroke: rgba(255, 255, 255, 0.12); stroke-width: 4; }
+  .circle-bar { fill: none; stroke: var(--themeColor, #015EFB); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.1s linear; }
+
+  .album-spinner { width: 0; height: 16px; opacity: 0; transform: scale(0.5); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+  .album-spinner.active { width: 16px; opacity: 1; transform: scale(1); }
+  .album-spinner .spinner-svg { width: 16px; height: 16px; animation: navSpinnerRotate 0.85s linear infinite; }
+  .album-spinner .spinner-path { stroke: var(--themeColor, #015EFB) !important; stroke-linecap: round; stroke-dasharray: 90, 150; stroke-dashoffset: 0; }
+  @keyframes navSpinnerRotate { 100% { transform: rotate(360deg); } }
+
+  .chapter-text-wrapper, .music-text-wrapper, .album-text-wrapper { display: inline-flex; align-items: center; overflow: hidden; height: 22px; max-width: 280px; min-width: 0; transition: max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+  
+  :global(.has-both-info) .chapter-text-wrapper,
+  :global(.has-both-info) .music-text-wrapper { max-width: 135px; }
+
+  .current-chapter-text, .current-music-text, .current-album-text { font-size: 0.82rem; font-weight: 500; color: #cccccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.01em; font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif; display: inline-block; will-change: transform, opacity; transform: translateZ(0); backface-visibility: hidden; }
+  
+  :global(.light-mode) .info-divider { color: rgba(0, 0, 0, 0.15); }
+  :global(.light-mode) .circle-bg { stroke: rgba(0, 0, 0, 0.08); }
+  :global(.light-mode) .current-chapter-text, :global(.light-mode) .current-music-text, :global(.light-mode) .current-album-text { color: #444444; }
+
+  @media (max-width: 768px) {
+    .info-divider { display: none !important; }
+    .chapter-text-wrapper, .music-text-wrapper, .album-text-wrapper {
+      max-width: 46vw !important;
+    }
+    .current-chapter-text, .current-music-text, .current-album-text {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    /* ⚡ 移动端展开搜索时：隐去章节与音乐标题，为搜索栏避让 */
+    :global(.quasar-navbar.search-active) .article-reading-info,
+    :global(.quasar-navbar.search-active) .nav-music-info,
+    :global(.quasar-navbar.search-active) .album-reading-info {
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transform: scale(0.92) !important;
+    }
+  }
+</style>

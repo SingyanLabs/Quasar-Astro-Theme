@@ -1,0 +1,134 @@
+---
+---
+<div class="nav-right">
+  <!-- 返回顶部 -->
+  <button class="icon-btn back-to-top-btn" id="back-to-top-btn" aria-label="Back to Top" title="返回顶部">
+    <svg viewBox="0 0 24 24" fill="none" class="action-icon" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+  <!-- 播放 / 暂停按钮 -->
+  <button class="icon-btn nav-play-btn" id="nav-play-btn" aria-label="Toggle Play" title="播放 / 暂停">
+    <svg class="pause-countdown-svg" viewBox="0 0 36 36">
+      <circle class="pause-countdown-bg" cx="18" cy="18" r="16"></circle>
+      <circle class="pause-countdown-bar" id="nav-pause-countdown-bar" cx="18" cy="18" r="16"></circle>
+    </svg>
+    <svg class="action-icon icon-nav-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    <svg class="action-icon icon-nav-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+  </button>
+
+  <!-- 桌面端专属：歌词按钮 -->
+  <button class="icon-btn nav-lyric-btn desktop-only-btn" id="nav-lyric-btn" aria-label="Toggle Lyrics" title="显示 / 隐藏歌词">
+    <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      <path d="M8 8h8M8 12h5"></path>
+    </svg>
+  </button>
+
+  <!-- 桌面端专属：音量控制 -->
+  <div class="nav-volume-wrapper desktop-only-btn" id="nav-volume-wrapper">
+    <button class="icon-btn volume-btn" id="nav-volume-btn" aria-label="Volume" title="音量调控">
+      <svg class="action-icon icon-vol-high" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      </svg>
+      <svg class="action-icon icon-vol-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="23" y1="9" x2="17" y2="15"></line>
+        <line x1="17" y1="9" x2="23" y2="15"></line>
+      </svg>
+    </button>
+    <div class="volume-popover" id="nav-volume-popover">
+      <input type="range" class="volume-slider" id="nav-volume-slider" min="0" max="1" step="0.01" value="0.8" />
+    </div>
+  </div>
+
+  <!-- 搜索触发按钮 -->
+  <button class="icon-btn search-trigger" id="search-trigger-btn" aria-label="Toggle Search" title="搜索">
+    <svg viewBox="0 0 24 24" fill="none" class="action-icon icon-search" xmlns="http://www.w3.org/2000/svg"><path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" class="action-icon icon-close" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <!-- 桌面端专属：主题切换 -->
+  <button class="icon-btn theme-toggle desktop-only-btn" id="theme-toggle-btn" aria-label="Toggle Theme">
+    <svg viewBox="0 0 24 24" fill="none" class="action-icon icon-sun" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2.35"/><path d="M12 2V4M12 20V22M4 12H2M22 12H20M19.0711 19.0711L17.6569 17.6569M6.34315 6.34315M4.92893 4.92893M19.0711 4.92893L17.6569 6.34315M6.34315 17.6569L4.92893 19.0711" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" class="action-icon icon-moon" xmlns="http://www.w3.org/2000/svg"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+
+  <!-- 桌面端专属：性能模式切换 -->
+  <button class="icon-btn perf-status-toggle desktop-only-btn" id="perf-toggle-btn" aria-label="Toggle Animation Quality">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-check" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M22 4L12 14.01l-3-3"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-warn" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  </button>
+
+  <!-- ⚡ 移动端专属：折叠菜单汉堡按钮 -->
+  <button class="icon-btn mobile-hamburger-btn" id="mobile-menu-toggle" aria-label="Toggle Mobile Menu">
+    <svg viewBox="0 0 24 24" fill="none" class="action-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+</div>
+
+<style>
+  .nav-right { display: flex; align-items: center; gap: 12px; position: relative; z-index: 5; flex-shrink: 0; }
+  .icon-btn { background: transparent; border: none; color: #cccccc; cursor: pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; position: relative; }
+  .icon-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.1); }
+  .action-icon { width: 18px; height: 18px; }
+
+  .search-trigger .icon-search { display: block; }
+  .search-trigger .icon-close { display: none; }
+  :global(.search-active) .search-trigger .icon-search { display: none; }
+  :global(.search-active) .search-trigger .icon-close { display: block; }
+
+  .nav-play-btn, .nav-lyric-btn, .nav-volume-wrapper { display: none; opacity: 0; pointer-events: none; will-change: transform, opacity; transform: translateZ(0); backface-visibility: hidden; }
+  
+  .nav-play-btn { cursor: pointer !important; }
+  .nav-play-btn .icon-nav-play { display: block; }
+  .nav-play-btn .icon-nav-pause { display: none; }
+  .nav-play-btn.is-playing .icon-nav-play { display: none; }
+  .nav-play-btn.is-playing .icon-nav-pause { display: block; }
+
+  .pause-countdown-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); pointer-events: none; opacity: 0; transition: opacity 0.25s ease; }
+  .pause-countdown-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 2; }
+  .pause-countdown-bar { fill: none; stroke: var(--themeColor, #015EFB); stroke-width: 2; stroke-dasharray: 100.53; stroke-dashoffset: 0; stroke-linecap: round; opacity: 0; will-change: stroke-dashoffset, opacity, transform; transform: translateZ(0); }
+
+  .nav-lyric-btn.active, .nav-lyric-btn.active .action-icon { color: var(--themeColor, #015EFB) !important; }
+  .nav-lyric-btn.active { background: rgba(255, 255, 255, 0.1); }
+
+  .nav-volume-wrapper { position: relative; align-items: center; }
+  .volume-popover { position: absolute; top: calc(100% + 12px); right: -10px; background: rgba(20, 20, 25, 0.92); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.12); padding: 10px 14px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); opacity: 0; visibility: hidden; transform: translateY(-6px) scale(0.95); transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; }
+  .nav-volume-wrapper:hover .volume-popover, .volume-popover:hover { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+  .volume-slider { width: 90px; height: 4px; accent-color: var(--themeColor, #015EFB); cursor: pointer; }
+
+  .back-to-top-btn { opacity: 0; visibility: hidden; transform: scale(0.8); pointer-events: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+  .back-to-top-btn.visible { opacity: 1; visibility: visible; transform: scale(1); pointer-events: auto; }
+
+  .theme-toggle .icon-sun, .theme-toggle .icon-moon { position: absolute; }
+  .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg) scale(0.5); }
+  
+  .perf-status-toggle .icon-perf-check { display: block; }
+  .perf-status-toggle .icon-perf-warn { display: none; will-change: color, opacity; transform: translateZ(0); }
+
+  /* 汉堡按钮默认在桌面端隐藏 */
+  .mobile-hamburger-btn { display: none !important; }
+
+  /* 动画与模式适配 */
+  @keyframes pulseWarnDark { 0%, 100% { color: #ffffff; opacity: 0.4; } 50% { color: #ff3e18; opacity: 1; } }
+  @keyframes pulseWarnLight { 0%, 100% { color: #1d1d1f; opacity: 0.35; } 50% { color: #ff3e18; opacity: 1; } }
+
+  :global(.light-mode) .icon-btn { color: #1d1d1f !important; opacity: 1 !important; }
+  :global(.light-mode) .icon-btn:hover { background: rgba(0, 0, 0, 0.06); color: #000000 !important; }
+  :global(.light-mode) .action-icon:not(.icon-perf-warn) { color: #1d1d1f !important; opacity: 1 !important; }
+  :global(.light-mode) .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+  :global(.light-mode) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg) scale(1); }
+  :global(.light-mode) .volume-popover { background: rgba(255, 255, 255, 0.92); border-color: rgba(0, 0, 0, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
+
+  :global(.perf-degraded) .perf-status-toggle .icon-perf-check { display: none; }
+  :global(.perf-degraded) .perf-status-toggle .icon-perf-warn { display: block !important; animation: pulseWarnDark 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important; filter: drop-shadow(0 0 6px rgba(255, 62, 24, 0.6)); }
+
+  /* ⚡ 移动端设计：隐藏桌面专用的按钮，显示汉堡折叠按钮 */
+  @media (max-width: 768px) {
+    .desktop-only-btn { display: none !important; }
+    .mobile-hamburger-btn { display: flex !important; }
+    .nav-right { gap: 6px; }
+  }
+</style>

@@ -1,5 +1,5 @@
 ---
-// src/pages/moments-split.astro
+// src/pages/moments.astro
 import { getCollection, render } from 'astro:content';
 import { SITE_CONFIG } from '../config.ts';
 import Navbar from '../components/Navbar.astro';
@@ -123,7 +123,6 @@ const availableMonths = [
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Moments | {SITE_CONFIG.title}</title>
     
@@ -180,6 +179,7 @@ const availableMonths = [
               class={`timeline-item animate-item ${index === 0 ? 'active' : ''}`}
               style={`animation-delay: ${index * 0.04}s`}
               data-id={item.id}
+              data-title={item.title}  
               data-year={item.year}
               data-month={item.month}
             >
@@ -204,7 +204,7 @@ const availableMonths = [
         <div class="detail-scroll-container" id="detail-container">
           
           {momentsData.map((item, index) => (
-            <div class={`detail-card ${index === 0 ? 'active' : ''}`} data-detail-id={item.id}>
+            <div class={`detail-card ${index === 0 ? 'active' : ''}`} data-detail-id={item.id} data-title={item.title}>
               
               <div class="detail-user-header animate-el">
   <div class="avatar-box">
@@ -328,11 +328,142 @@ const availableMonths = [
     <!-- 引用的獨立 JS 邏輯組件 -->
     <MomentsScript />
 
+    <!-- 跨页搜索跳转原生触发引擎（增强型空格/URL编码兼容） -->
+    <script is:inline>
+      (function() {
+        // 归一化清洗函数：兼容标准空格、%20、连字符 -、下划线 _ 及大小写
+        const cleanKey = (str) => {
+          if (!str) return '';
+          try { str = decodeURIComponent(str); } catch(e) {}
+          return str.toLowerCase()
+            .trim()
+            .replace(/^[#?]/, '')
+            .replace(/^moments\//, '')
+            .replace(/\.(md|mdx)$/, '')
+            .replace(/%20/g, ' ')
+            .replace(/[-_\s]+/g, ' '); // ⚡ 核心修复：统一将空格、连字符-、下划线_压平为单空格
+        };
+
+        // 极致去符号降级对比函数
+        const strictCleanKey = (str) => {
+          return cleanKey(str).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
+        };
+
+        const fetchTargetKey = () => {
+          const storeKey = sessionStorage.getItem('quasar_jump_key');
+          if (storeKey) {
+            sessionStorage.removeItem('quasar_jump_key');
+            return storeKey;
+          }
+          const urlParams = new URLSearchParams(window.location.search);
+          const searchParam = urlParams.get('id') || urlParams.get('key') || urlParams.get('target') || urlParams.get('title') || urlParams.get('q');
+          if (searchParam) return searchParam;
+
+          const hashKey = window.location.hash;
+          if (hashKey && hashKey.length > 1) return hashKey.slice(1);
+
+          return null;
+        };
+
+        const performJump = (rawKey) => {
+          const key = cleanKey(rawKey);
+          const strictKey = strictCleanKey(rawKey);
+          if (!key) return false;
+
+          const items = Array.from(document.querySelectorAll('.timeline-item'));
+          if (!items.length) return false;
+
+          let matchedItem = null;
+
+          // 1. 归一化精确匹配 ID / Title
+          for (const item of items) {
+            const itemId = cleanKey(item.dataset.id || '');
+            const itemTitle = cleanKey(item.dataset.title || '');
+            if (itemId === key || itemTitle === key) {
+              matchedItem = item;
+              break;
+            }
+          }
+
+          // 2. 极致纯文本/符号忽略碰撞比对（防御含特殊符号与空格组合的文件名）
+          if (!matchedItem && strictKey) {
+            for (const item of items) {
+              const itemId = strictCleanKey(item.dataset.id || '');
+              const itemTitle = strictCleanKey(item.dataset.title || '');
+              if (itemId === strictKey || itemTitle === strictKey) {
+                matchedItem = item;
+                break;
+              }
+            }
+          }
+
+          // 3. 包含关系模糊匹配
+          if (!matchedItem) {
+            for (const item of items) {
+              const itemId = cleanKey(item.dataset.id || '');
+              const itemTitle = cleanKey(item.dataset.title || '');
+              if ((itemId && (itemId.includes(key) || key.includes(itemId))) ||
+                  (itemTitle && (itemTitle.includes(key) || key.includes(itemTitle)))) {
+                matchedItem = item;
+                break;
+              }
+            }
+          }
+
+          // 4. DOM 节点全文包含匹配
+          if (!matchedItem) {
+            for (const item of items) {
+              const fullText = cleanKey(item.textContent || '');
+              if (fullText.includes(key)) {
+                matchedItem = item;
+                break;
+              }
+            }
+          }
+
+          if (matchedItem) {
+            matchedItem.click();
+
+            setTimeout(() => {
+              matchedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+              const mId = matchedItem.dataset.id;
+              const card = document.querySelector(`.detail-card[data-detail-id="${mId}"]`);
+              if (card) {
+                card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+              }
+            }, 60);
+            return true;
+          }
+
+          return false;
+        };
+
+        const triggerJumpProcess = () => {
+          const key = fetchTargetKey();
+          if (key) {
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                performJump(key);
+              }, 120);
+            });
+          }
+        };
+
+        window.addEventListener('quasar:moment-jump', (e) => {
+          if (e.detail && e.detail.key) performJump(e.detail.key);
+        });
+
+        document.addEventListener('DOMContentLoaded', triggerJumpProcess);
+        document.addEventListener('astro:page-load', triggerJumpProcess);
+        window.addEventListener('hashchange', triggerJumpProcess);
+      })();
+    </script>
+
   </body>
 </html>
 
 <style>
-  /* 基礎與佈局樣式 */
+  /* 基础与布局样式 */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background-color: #030303; color: #ffffff; font-family: 'Noto Sans SC', sans-serif; overflow: hidden; }
   .split-viewport { display: flex; width: 100vw; height: calc(100vh - 72px); margin-top: 72px; }
@@ -416,7 +547,7 @@ const availableMonths = [
     word-break: break-word;
   }
   
-  /* 圖片網格系統 */
+  /* 图片网格系统 */
   .detail-media-grid { display: grid; gap: 8px; margin-bottom: 24px; border-radius: 10px; overflow: hidden; width: 100%; }
   
   .detail-media-grid.count-1 { grid-template-columns: 320px; max-width: 320px; }
@@ -501,7 +632,7 @@ const availableMonths = [
   .like-heart { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
   .comment-like-btn.liked .like-heart { transform: scale(1.15); }
 
-  /* Lightbox 樣式 */
+  /* Lightbox 样式 */
   .media-frame-container { flex-grow: 1; display: block; overflow: hidden; position: relative; width: 100%; height: 75vh; margin: 15px 0; }
   .lightbox-layer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; margin: auto; width: 100%; height: 100%; object-fit: contain !important; border-radius: 12px; transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
   .lightbox-loading-placeholder { position: absolute; top: 0; left: 0; right: 0; bottom: 0; margin: auto; width: 36px; height: 36px; border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #ffffff; border-radius: 50%; animation: spin 0.85s cubic-bezier(0.6, 0.2, 0.2, 0.8) infinite; z-index: 5; }
@@ -538,7 +669,7 @@ const availableMonths = [
   .nav-btn.next { right: -20px; }
   .nav-btn svg { width: 18px; height: 18px; }
 
-  /* 效能降級適配 */
+  /* 效能降级适配 */
   :global(html.perf-degraded) .animate-sidebar { animation: none !important; opacity: 1 !important; }
   :global(html.perf-degraded) .animate-item { animation: none !important; opacity: 1 !important; }
   :global(html.perf-degraded) .lightbox-backdrop { backdrop-filter: none !important; background: rgba(3, 3, 3, 0.94) !important; }
@@ -550,7 +681,7 @@ const availableMonths = [
   :global(html.perf-degraded) .timeline-item { transition: none !important; }
   :global(html.perf-degraded) .timeline-item:hover { transform: none !important; }
 
-  /* 明亮模式適配 */
+  /* 明亮模式适配 */
   :global(html.light-mode) .split-viewport { background: #f5f5f7; }
   :global(html.light-mode) .sidebar-timeline { background: #ffffff; border-right-color: rgba(0,0,0,0.08); }
   :global(html.light-mode) .timeline-header { border-bottom-color: rgba(0,0,0,0.06); }

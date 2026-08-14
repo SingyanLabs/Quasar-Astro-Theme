@@ -3,7 +3,12 @@
 import { SITE_CONFIG, NAVBAR_CONFIG } from '../config';
 import PerformanceGuard from './PerformanceGuard.astro';
 
-// 🎯 SSR 服务端精准识别当前页面类型
+import NavLogo from './navbar/NavLogo.astro';
+import NavProgress from './navbar/NavProgress.astro';
+import NavCenter from './navbar/NavCenter.astro';
+import NavActions from './navbar/NavActions.astro';
+import NavMobileMenu from './navbar/NavMobileMenu.astro';
+
 const currentPath = Astro.url.pathname.replace(/\/$/, '');
 const isAlbumPage = currentPath === '/albums';
 ---
@@ -13,633 +18,76 @@ const isAlbumPage = currentPath === '/albums';
   id="quasar-navbar-element" 
   define:vars={{ themeColor: SITE_CONFIG.themeColor }}
   data-is-album={isAlbumPage ? "true" : "false"}
-  data-restored={NAVBAR_CONFIG.perfRestored}
-  data-manual-degraded={NAVBAR_CONFIG.perfManualDegraded}
-  data-light={NAVBAR_CONFIG.themeLight}
-  data-dark={NAVBAR_CONFIG.themeDark}
+  data-restored={NAVBAR_CONFIG.perfRestored || "已恢复高性能模式"}
+  data-manual-degraded={NAVBAR_CONFIG.perfManualDegraded || "已手动开启低性能模式"}
+  data-light={NAVBAR_CONFIG.themeLight || "已切换至浅色模式"}
+  data-dark={NAVBAR_CONFIG.themeDark || "已切换至深色模式"}
 >
- <div id="search-data-store" data-json={JSON.stringify(NAVBAR_CONFIG.searchData)} style="display: none;"></div>
- <div class="liquid-glass-bg"></div>
+  <div class="liquid-glass-bg"></div>
 
- <div class="nav-container">
-   <!-- 左侧区块：Logo + 文章章节 / 相册同步状态 -->
-   <div class="nav-left">
-     <a href="/" class="brand-link" id="nav-logo" title={SITE_CONFIG.title}>
-       <Fragment set:html={SITE_CONFIG.logoIconPath} />
-       <span class="brand-text">{SITE_CONFIG.title}</span>
-     </a>
+  <div class="nav-container">
+    <div class="nav-left" id="nav-left-container">
+      <NavLogo />
+      <NavProgress />
+    </div>
 
-     <!-- 文章阅读进度 + 当前动态章节名 -->
-     <div class="article-reading-info" id="article-reading-info">
-       <span class="info-divider">|</span>
-       <div class="reading-progress-circle" title="阅读进度">
-         <svg viewBox="0 0 36 36" class="progress-svg">
-           <path
-             class="circle-bg"
-             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-           ></path>
-           <path
-             class="circle-bar"
-             id="reading-progress-bar"
-             stroke-dasharray="100, 100"
-             stroke-dashoffset="100"
-             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-           ></path>
-         </svg>
-       </div>
-       <div class="chapter-text-wrapper">
-         <span class="current-chapter-text" id="current-chapter-text"></span>
-       </div>
-     </div>
+    <NavCenter />
+    <NavActions />
+  </div>
 
-     <!-- 相册同步状态 + 加载转圈 -->
-     <div class="album-reading-info" id="album-cache-status">
-       <span class="info-divider">|</span>
-       <div class="album-spinner" id="nav-spinner">
-         <svg viewBox="0 0 50 50" class="spinner-svg">
-           <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" class="spinner-path"></circle>
-         </svg>
-       </div>
-       <div class="album-text-wrapper">
-         <span class="current-album-text" id="status-text-display"></span>
-       </div>
-     </div>
-   </div>
+  <!-- 移动端折叠抽屉组件 -->
+  <NavMobileMenu />
 
-   <!-- 中间内容包装层 -->
-   <div class="nav-content-wrapper">
-     <!-- 标签页导航 -->
-     <nav class="nav-center" id="nav-center">
-       {NAVBAR_CONFIG.navItems.map((item) => (
-         <a href={item.url} class="nav-link">
-           <span class="link-text">{item.label}</span>
-         </a>
-       ))}
-     </nav>
-
-     <!-- 动态提示语面板 -->
-     <div class="perf-warning-notice" id="nav-perf-alert">
-       <div class="countdown-circle-wrapper">
-         <svg class="countdown-svg" viewBox="0 0 20 20">
-           <circle class="countdown-bg" cx="10" cy="10" r="8"></circle>
-           <circle class="countdown-bar" id="countdown-circle-bar" cx="10" cy="10" r="8"></circle>
-         </svg>
-       </div>
-       <span id="perf-alert-text"></span>
-     </div>
-
-     <!-- 搜索框 -->
-     <div class="search-box-wrapper" id="search-box-wrapper">
-       <input type="text" class="search-input" id="search-input" placeholder={NAVBAR_CONFIG.searchBox} autocomplete="off" />
-       <div class="search-results-panel" id="search-results-panel"></div>
-     </div>
-   </div>
-
-   <!-- 右侧功能按钮 -->
-   <div class="nav-right">
-     <button class="icon-btn back-to-top-btn" id="back-to-top-btn" aria-label="Back to Top" title="返回顶部">
-       <svg viewBox="0 0 24 24" fill="none" class="action-icon" xmlns="http://www.w3.org/2000/svg">
-         <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-       </svg>
-     </button>
-
-     <button class="icon-btn search-trigger" id="search-trigger-btn" aria-label="Toggle Search">
-       <svg viewBox="0 0 24 24" fill="none" class="action-icon" xmlns="http://www.w3.org/2000/svg">
-         <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-       </svg>
-     </button>
-
-     <button class="icon-btn theme-toggle" id="theme-toggle-btn" aria-label="Toggle Theme">
-       <svg viewBox="0 0 24 24" fill="none" class="action-icon icon-sun" xmlns="http://www.w3.org/2000/svg">
-         <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2.35"/>
-         <path d="M12 2V4M12 20V22M4 12H2M22 12H20M19.0711 19.0711L17.6569 17.6569M6.34315 6.34315L4.92893 4.92893M19.0711 4.92893L17.6569 6.34315M6.34315 17.6569L4.92893 19.0711" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-       </svg>
-       <svg viewBox="0 0 24 24" fill="none" class="action-icon icon-moon" xmlns="http://www.w3.org/2000/svg">
-         <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-       </svg>
-     </button>
-
-     <button class="icon-btn perf-status-toggle" id="perf-toggle-btn" aria-label="Toggle Animation Quality">
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-check" stroke-linecap="round" stroke-linejoin="round">
-         <circle cx="12" cy="12" r="10"/><path d="M22 4L12 14.01l-3-3"/>
-       </svg>
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-warn" stroke-linecap="round" stroke-linejoin="round">
-         <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-       </svg>
-     </button>
-   </div>
- </div>
-
- <div class="nav-progress-bar" id="nav-progress"></div>
- 
- <PerformanceGuard />
+  <div class="nav-progress-bar" id="nav-progress"></div>
+  <PerformanceGuard />
 </header>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
 
-<script is:inline>
-  document.addEventListener('astro:page-load', () => {
-    const searchTrigger = document.getElementById('search-trigger-btn');
-    const searchWrapper = document.getElementById('search-box-wrapper');
-    const searchInput = document.getElementById('search-input');
-    const navCenter = document.getElementById('nav-center');
-    const themeBtn = document.getElementById('theme-toggle-btn');
-    
-    const navbarMain = document.getElementById('quasar-navbar-element');
-    const perfBtn = document.getElementById('perf-toggle-btn');
-    const perfAlert = document.getElementById('nav-perf-alert');
-    const perfAlertText = document.getElementById('perf-alert-text');
-    const countdownBar = document.getElementById('countdown-circle-bar');
-
-    const backToTopBtn = document.getElementById('back-to-top-btn');
-    const articleReadingInfo = document.getElementById('article-reading-info');
-    const albumCacheStatus = document.getElementById('album-cache-status');
-    const statusTextDisplay = document.getElementById('status-text-display');
-    const navSpinner = document.getElementById('nav-spinner');
-    const progressBar = document.getElementById('reading-progress-bar');
-    const chapterText = document.getElementById('current-chapter-text');
-    
-    let isSearchOpen = false;
-    let alertTimer = null;
-    let lastActiveChapter = ''; 
-
-    // 🛡️ 客户端状态防御：非相册页强制死锁重置
-    const currentPath = window.location.pathname.replace(/\/$/, '');
-    if (currentPath !== '/albums') {
-      if (albumCacheStatus) {
-        albumCacheStatus.classList.remove('active');
-        albumCacheStatus.style.setProperty('display', 'none', 'important');
-      }
-      if (navSpinner) navSpinner.classList.remove('active');
-      if (statusTextDisplay) statusTextDisplay.innerText = '';
-    }
-
-    function triggerNavbarNotice(msg, duration = 4000, isRedAlert = false) {
-      if (perfAlertText) perfAlertText.innerText = msg;
-      clearTimeout(alertTimer);
-
-      if (isRedAlert) {
-        perfAlert.classList.add('is-red-warning');
-      } else {
-        perfAlert.classList.remove('is-red-warning');
-      }
-
-      if (countdownBar) {
-        gsap.killTweensOf(countdownBar);
-        gsap.set(countdownBar, { strokeDashoffset: 0 });
-        gsap.to(countdownBar, {
-          strokeDashoffset: 50.26,
-          duration: duration / 1000,
-          ease: "none"
-        });
-      }
-
-      gsap.to(navCenter, { opacity: 0, scale: 0.98, pointerEvents: 'none', duration: 0.35, ease: "power2.out" });
-      gsap.to(perfAlert, { opacity: 1, scale: 1, pointerEvents: 'auto', duration: 0.35, ease: "power2.out" });
-
-      alertTimer = setTimeout(() => {
-        gsap.to(perfAlert, { opacity: 0, scale: 0.98, pointerEvents: 'none', duration: 0.35, ease: "power2.in" });
-        gsap.to(navCenter, { opacity: 1, scale: 1, pointerEvents: 'auto', duration: 0.35, ease: "power2.out" });
-      }, duration);
-    }
-
-    if (backToTopBtn) {
-      backToTopBtn.addEventListener('click', () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-    }
-
-    const updateArticleScrollState = () => {
-      const scrollY = window.scrollY;
-
-      if (backToTopBtn) {
-        if (scrollY > 120) {
-          backToTopBtn.classList.add('visible');
-        } else {
-          backToTopBtn.classList.remove('visible');
-        }
-      }
-
-      const markdownContainer = document.querySelector('.markdown-body') || document.querySelector('.main-article-content');
-
-      if (!markdownContainer) {
-        if (articleReadingInfo) articleReadingInfo.classList.remove('active');
-        return;
-      }
-
-      if (articleReadingInfo) articleReadingInfo.classList.add('active');
-
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progressPercent = totalHeight > 0 ? Math.min(100, Math.max(0, (scrollY / totalHeight) * 100)) : 0;
-
-      if (progressBar) {
-        const offset = 100 - progressPercent;
-        progressBar.style.strokeDashoffset = offset.toString();
-      }
-
-      const headings = Array.from(markdownContainer.querySelectorAll('h1, h2, h3, h4'));
-      if (headings.length > 0 && chapterText) {
-        let currentSection = '';
-        const offsetThreshold = 140;
-
-        for (const heading of headings) {
-          const rect = heading.getBoundingClientRect();
-          if (rect.top <= offsetThreshold) {
-            currentSection = heading.innerText || heading.textContent || '';
-          } else {
-            break;
-          }
-        }
-
-        if (!currentSection && headings[0]) {
-          const firstRect = headings[0].getBoundingClientRect();
-          if (firstRect.top > offsetThreshold) {
-            currentSection = '正文概述';
-          }
-        }
-
-        if (currentSection && currentSection !== lastActiveChapter) {
-          lastActiveChapter = currentSection;
-
-          if (window.gsap) {
-            gsap.killTweensOf(chapterText);
-            
-            if (!chapterText.innerText.trim()) {
-              chapterText.innerText = currentSection;
-              gsap.fromTo(chapterText, 
-                { opacity: 0, y: 8, filter: 'blur(3px)' }, 
-                { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.35, ease: "power2.out" }
-              );
-            } else {
-              gsap.to(chapterText, {
-                opacity: 0,
-                y: -6,
-                filter: 'blur(3px)',
-                duration: 0.18,
-                ease: "power2.in",
-                onComplete: () => {
-                  chapterText.innerText = currentSection;
-                  gsap.fromTo(chapterText, 
-                    { opacity: 0, y: 6, filter: 'blur(3px)' }, 
-                    { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.28, ease: "power2.out" }
-                  );
-                }
-              });
-            }
-          } else {
-            chapterText.innerText = currentSection;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('scroll', updateArticleScrollState, { passive: true });
-    updateArticleScrollState();
-
-    if (searchTrigger) {
-      searchTrigger.addEventListener('mouseenter', () => {
-        if (!isSearchOpen) {
-          isSearchOpen = true;
-          gsap.to(searchWrapper, { width: 360, opacity: 1, duration: 0.75, ease: "expo.out" });
-          gsap.to(navCenter, { opacity: 0.15, scale: 0.95, duration: 0.4, ease: "power2.out" });
-          setTimeout(() => searchInput.focus(), 50); 
-        }
-      });
-    }
-
-    document.addEventListener('click', (e) => {
-      if (isSearchOpen && !searchWrapper.contains(e.target) && !searchTrigger.contains(e.target)) {
-        isSearchOpen = false;
-        gsap.to(searchWrapper, { width: 0, opacity: 0, duration: 0.4, ease: "expo.in" });
-        gsap.to(navCenter, { opacity: 1, scale: 1, duration: 0.4, ease: "power2.out" });
-        searchInput.value = ''; 
-      }
-    });
-
-    window.addEventListener('quasar-perf-status', (e) => {
-      const { status, text } = e.detail;
-      sessionStorage.setItem('quasar-perf', status);
-      
-      if (status === 'degraded') {
-        if (navbarMain) navbarMain.classList.add('perf-degraded');
-        document.documentElement.classList.add('perf-degraded');
-        window.dispatchEvent(new CustomEvent('earth-quality-engine', { detail: { mode: 'low' } }));
-        if (text) triggerNavbarNotice(text, 7000, true);
-      } else if (status === 'high') {
-        if (navbarMain) navbarMain.classList.remove('perf-degraded');
-        document.documentElement.classList.remove('perf-degraded');
-        window.dispatchEvent(new CustomEvent('earth-quality-engine', { detail: { mode: 'high' } }));
-        if (navbarMain) triggerNavbarNotice(navbarMain.dataset.restored, 4000, false);
-      }
-    });
-
-    if (perfBtn) {
-      perfBtn.addEventListener('click', () => {
-        const isCurrentlyDegraded = document.documentElement.classList.contains('perf-degraded');
-        if (isCurrentlyDegraded) {
-          window.dispatchEvent(new CustomEvent('quasar-perf-force'));
-        } else {
-          window.dispatchEvent(new CustomEvent('quasar-perf-status', {
-            detail: { status: 'degraded', text: navbarMain ? navbarMain.dataset.manualDegraded : '' }
-          }));
-        }
-        gsap.fromTo(perfBtn, { scale: 0.8 }, { scale: 1, duration: 0.4, ease: "back.out(2)" });
-      });
-    }
-
-    if (themeBtn) {
-      themeBtn.addEventListener('click', () => {
-        document.documentElement.classList.toggle('light-mode');
-        const isLight = document.documentElement.classList.contains('light-mode');
-        localStorage.setItem('theme', isLight ? 'light' : 'dark');
-        gsap.fromTo(themeBtn, { scale: 0.8 }, { scale: 1, duration: 0.3, ease: "elastic.out(1.5, 0.5)" });
-        
-        const noticeMsg = isLight ? (navbarMain ? navbarMain.dataset.light : '') : (navbarMain ? navbarMain.dataset.dark : '');
-        triggerNavbarNotice(noticeMsg, 3500, false);
-      });
-    }
-  });
+<script>
+  import { initNavbarEngine } from '../assets/scripts/navbar-engine.js';
+  document.addEventListener('astro:page-load', initNavbarEngine);
 </script>
 
 <style>
- .quasar-navbar { 
-   position: fixed; 
-   top: 0; 
-   left: 0; 
-   width: 100vw; 
-   height: 72px; 
-   z-index: 100; 
-   font-family: 'Noto Sans SC', sans-serif; 
- }
+  :global(html) {
+    scrollbar-gutter: stable;
+  }
+
+  .quasar-navbar { 
+    position: fixed; top: 0; left: 0; width: 100vw; height: 72px; z-index: 100; font-family: 'Noto Sans SC', sans-serif; 
+  }
  
- .liquid-glass-bg { 
-   position: absolute; 
-   inset: 0; 
-   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%), rgba(16, 16, 22, 0.65); 
-   backdrop-filter: blur(24px) saturate(200%); 
-   -webkit-backdrop-filter: blur(24px) saturate(200%);
-   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-   pointer-events: none; 
-   z-index: 1; 
-   transition: background 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease; 
- }
+  .liquid-glass-bg { 
+    position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.15) 100%), rgba(10, 10, 16, 0.72); 
+    backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.45);
+    pointer-events: none; z-index: 1; transition: background 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease; 
+  }
 
- .nav-container { position: relative; z-index: 2; max-width: 90%; margin: 0 auto; height: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; }
+  .nav-container { 
+    position: relative; z-index: 2; width: 100vw; max-width: 93.66vw; margin: 0 auto; height: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; box-sizing: border-box;
+  }
  
- /* 🎯 极紧凑防宽间距布局：Logo 与状态提示间距紧贴 */
- .nav-left { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 40vw; }
- .brand-link { display: flex; align-items: center; gap: 8px; margin: 0; text-decoration: none; color: #ffffff; transition: opacity 0.2s ease; flex-shrink: 0; }
- .brand-link svg, :global(.brand-link svg) { width: 22px; height: 22px; flex-shrink: 0; display: block; }
- .brand-text { font-weight: 900; font-size: 1.15rem; letter-spacing: 0.02em; white-space: nowrap; flex-shrink: 0; }
+  .nav-left { display: flex; align-items: center; gap: 6px; flex-shrink: 1; max-width: 38vw; min-width: 0; }
 
- .article-reading-info,
- .album-reading-info {
-   display: none !important;
-   align-items: center;
-   gap: 6px;
-   opacity: 0;
-   transform: translateX(-6px);
-   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
- }
- 
- .article-reading-info.active {
-   display: flex !important;
-   opacity: 1;
-   transform: translateX(0);
- }
+  .nav-progress-bar { position: absolute; bottom: -1px; left: 0; height: 2px; width: 0%; background: var(--themeColor); opacity: 0; }
 
- /* 🔴 SSR 绝对物理隔离：只要不是相册页 (data-is-album="false")，彻底死封画廊提示的渲染！ */
- :global([data-is-album="false"]) .album-reading-info {
-   display: none !important;
- }
+  /* 浅色模式与低性能模式底座 */
+  :global(.light-mode) body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
+  :global(.light-mode) .liquid-glass-bg { 
+    background: rgba(255, 255, 255, 0.78); border-bottom: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    backdrop-filter: blur(24px) saturate(190%); -webkit-backdrop-filter: blur(24px) saturate(190%);
+  }
 
- :global([data-is-album="true"]) .album-reading-info.active {
-   display: flex !important;
-   opacity: 1;
-   transform: translateX(0);
- }
+  :global(.perf-degraded) * { box-shadow: none !important; text-shadow: none !important; filter: none !important; will-change: auto !important; }
+  :global(.perf-degraded) .liquid-glass-bg { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: #0a0a0e !important; }
+  :global(.perf-degraded.light-mode) .liquid-glass-bg { background: #ffffff !important; }
 
- .info-divider {
-   color: rgba(255, 255, 255, 0.18);
-   font-weight: 300;
-   margin: 0 2px;
- }
-
- .reading-progress-circle {
-   width: 18px;
-   height: 18px;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   flex-shrink: 0;
- }
- .progress-svg {
-   width: 100%;
-   height: 100%;
-   transform: rotate(-90deg);
- }
- .circle-bg {
-   fill: none;
-   stroke: rgba(255, 255, 255, 0.12);
-   stroke-width: 4;
- }
- .circle-bar {
-   fill: none;
-   stroke: var(--themeColor);
-   stroke-width: 4;
-   stroke-linecap: round;
-   transition: stroke-dashoffset 0.1s linear;
- }
-
- .album-spinner {
-   width: 0;
-   height: 16px;
-   opacity: 0;
-   transform: scale(0.5);
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   flex-shrink: 0;
-   overflow: hidden;
-   transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
-               opacity 0.25s ease, 
-               transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
- }
- .album-spinner.active {
-   width: 16px;
-   opacity: 1;
-   transform: scale(1);
- }
- .album-spinner .spinner-svg {
-   width: 16px;
-   height: 16px;
-   animation: navSpinnerRotate 0.85s linear infinite;
- }
- 
- .album-spinner .spinner-path {
-   stroke: var(--themeColor, #015EFB) !important;
-   stroke-linecap: round;
-   stroke-dasharray: 90, 150;
-   stroke-dashoffset: 0;
- }
- @keyframes navSpinnerRotate {
-   100% { transform: rotate(360deg); }
- }
-
- .chapter-text-wrapper,
- .album-text-wrapper {
-   display: inline-flex;
-   align-items: center;
-   overflow: hidden;
-   height: 22px;
-   max-width: 260px;
- }
- .current-chapter-text,
- .current-album-text {
-   font-size: 0.82rem;
-   font-weight: 500;
-   color: #cccccc;
-   white-space: nowrap;
-   overflow: hidden;
-   text-overflow: ellipsis;
-   letter-spacing: 0.01em;
-   font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
-   display: inline-block;
- }
- 
- .nav-content-wrapper { 
-   position: absolute; 
-   left: 50%; 
-   top: 50%; 
-   transform: translate(-50%, -50%); 
-   display: flex; 
-   align-items: center; 
-   justify-content: center; 
-   height: 100%; 
-   pointer-events: none; 
-   z-index: 3;
- }
- .nav-center { display: flex; align-items: center; gap: 32px; transition: all 0.35s ease; will-change: transform, opacity; pointer-events: auto; }
- 
- .perf-warning-notice { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.98); width: max-content; pointer-events: none; opacity: 0; font-size: 0.85rem; font-weight: 500; color: #ffffff; letter-spacing: 0.02em; text-shadow: 0 0 12px rgba(255, 255, 255, 0.1); will-change: transform, opacity; display: flex; align-items: center; gap: 8px; }
- .perf-warning-notice.is-red-warning { color: #ff3e18 !important; text-shadow: 0 0 12px rgba(255, 62, 24, 0.2) !important; }
-
- .countdown-circle-wrapper { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; position: relative; }
- .countdown-svg { width: 16px; height: 16px; transform: rotate(-90deg); }
- .countdown-bg { fill: none; stroke: rgba(255, 255, 255, 0.15); stroke-width: 2.5; }
- :global(.light-mode) .countdown-bg { stroke: rgba(0, 0, 0, 0.08); }
- .countdown-bar { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 50.26; stroke-dashoffset: 0; }
-
- .nav-link { position: relative; text-decoration: none; color: #999999; font-size: 0.85rem; font-weight: 500; padding: 8px 0; transition: color 0.3s ease; }
- .nav-link:hover { color: #ffffff; }
- .nav-link::after { content: ''; position: absolute; bottom: 2px; left: 0; width: 100%; height: 1.5px; background-color: #ffffff; transform: scaleX(0); transform-origin: left; transition: transform 0.4s ease; }
- .nav-link:hover::after { transform: scaleX(1); }
- .search-box-wrapper { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 0; height: 36px; opacity: 0; z-index: 10; display: flex; align-items: center; pointer-events: none; }
- .search-box-wrapper[style*="width: 360px"] { pointer-events: auto; }
- .search-input { width: 100%; height: 100%; background: rgba(255, 255, 255, 0.08); border: none; border-radius: 18px; padding: 0 16px; color: #ffffff; font-size: 0.85rem; outline: none; border: 1px solid rgba(255, 255, 255, 0.06); }
- .search-results-panel { position: absolute; top: calc(100% + 10px); left: 0; width: 100%; max-height: 0; background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(16px); border-radius: 12px; opacity: 0; transition: all 0.4s ease; }
- 
- .nav-right { display: flex; align-items: center; gap: 16px; position: relative; z-index: 5; }
- .icon-btn { background: transparent; border: none; color: #cccccc; cursor: pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: all 0.2s ease; position: relative; }
- .icon-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.1); }
- .action-icon { width: 18px; height: 18px; }
-
- .back-to-top-btn {
-   opacity: 0;
-   visibility: hidden;
-   transform: scale(0.8);
-   pointer-events: none;
-   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
- }
- .back-to-top-btn.visible {
-   opacity: 1;
-   visibility: visible;
-   transform: scale(1);
-   pointer-events: auto;
- }
- 
- @keyframes pulseWarnDark {
-   0%, 100% { color: #ffffff; opacity: 0.4; }
-   50% { color: #ff3e18; opacity: 1; }
- }
-
- @keyframes pulseWarnLight {
-   0%, 100% { color: #1d1d1f; opacity: 0.35; }
-   50% { color: #ff3e18; opacity: 1; }
- }
-
- .perf-status-toggle .icon-perf-check { display: block; }
- .perf-status-toggle .icon-perf-warn { 
-   display: none;
-   will-change: color, opacity;
-   transform: translateZ(0);
- }
-
- :global(.perf-degraded) .quasar-navbar .perf-status-toggle .icon-perf-check,
- .quasar-navbar.perf-degraded .perf-status-toggle .icon-perf-check { display: none; }
-
- :global(.perf-degraded) .quasar-navbar .perf-status-toggle .icon-perf-warn,
- .quasar-navbar.perf-degraded .perf-status-toggle .icon-perf-warn { 
-   display: block !important; 
-   animation: pulseWarnDark 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important;
-   filter: drop-shadow(0 0 6px rgba(255, 62, 24, 0.6));
- }
-
- :global(html.perf-degraded.light-mode) .quasar-navbar .perf-status-toggle .icon-perf-warn,
- :global(html.light-mode.perf-degraded) .quasar-navbar .perf-status-toggle .icon-perf-warn,
- :global(.light-mode) .quasar-navbar.perf-degraded .perf-status-toggle .icon-perf-warn {
-   display: block !important;
-   animation: pulseWarnLight 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important;
-   filter: drop-shadow(0 0 5px rgba(255, 62, 24, 0.45));
- }
-
- .theme-toggle .icon-sun, .theme-toggle .icon-moon { position: absolute; }
- .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg) scale(0.5); }
- .nav-progress-bar { position: absolute; bottom: -1px; left: 0; height: 2px; width: 0%; background: var(--themeColor); opacity: 0; }
-
- /* 明亮模式通用适配 */
- :global(.light-mode) body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
- :global(.light-mode) .liquid-glass-bg { 
-   background: rgba(255, 255, 255, 0.78); 
-   border-bottom: 1px solid rgba(0, 0, 0, 0.08); 
-   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-   backdrop-filter: blur(24px) saturate(190%); 
-   -webkit-backdrop-filter: blur(24px) saturate(190%);
- }
- :global(.light-mode) .brand-link { color: #1d1d1f; }
- :global(.light-mode) .nav-link { color: #555555; }
- :global(.light-mode) .nav-link:hover { color: #000000; }
- :global(.light-mode) .nav-link::after { background-color: #000000; }
- 
- :global(.light-mode) .info-divider { color: rgba(0, 0, 0, 0.15); }
- :global(.light-mode) .circle-bg { stroke: rgba(0, 0, 0, 0.08); }
- :global(.light-mode) .current-chapter-text,
- :global(.light-mode) .current-album-text { color: #444444; }
-
- :global(.light-mode) .perf-warning-notice { color: #1d1d1f; text-shadow: none; }
- 
- :global(.light-mode) .icon-btn { color: #1d1d1f !important; opacity: 1 !important; }
- :global(.light-mode) .icon-btn:hover { background: rgba(0, 0, 0, 0.06); color: #000000 !important; }
- 
- :global(.light-mode) .action-icon:not(.icon-perf-warn) { 
-   color: #1d1d1f !important; 
-   opacity: 1 !important; 
- }
- 
- :global(.light-mode) .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg) scale(0.5); }
- :global(.light-mode) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg) scale(1); }
- :global(.light-mode) .status-divider { color: rgba(0, 0, 0, 0.1); }
-
- /* 低性能模式降级 */
- :global(.perf-degraded) .liquid-glass-bg {
-   backdrop-filter: none !important;
-   -webkit-backdrop-filter: none !important;
-   background: #0a0a0e !important;
-   box-shadow: none !important;
- }
- :global(.perf-degraded.light-mode) .liquid-glass-bg {
-   background: #ffffff !important;
-   box-shadow: none !important;
- }
+  /* ⚡ 移动端屏幕极简适配 */
+  @media (max-width: 768px) {
+    .nav-container { padding: 0 16px; }
+    .nav-left { max-width: 60vw; }
+  }
 </style>

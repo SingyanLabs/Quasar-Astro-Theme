@@ -1,0 +1,35 @@
+---
+import { SITE_CONFIG } from '../../config';
+---
+<a href="/" class="brand-link" id="nav-logo" title={SITE_CONFIG.title}>
+  <Fragment set:html={SITE_CONFIG.logoIconPath} />
+  <span class="brand-text" id="brand-text-el">{SITE_CONFIG.title}</span>
+</a>
+
+<style>
+  .brand-link { display: flex; align-items: center; gap: 8px; margin: 0; text-decoration: none; color: #ffffff; transition: opacity 0.2s ease; flex-shrink: 0; }
+  .brand-link svg, :global(.brand-link svg) { width: 22px; height: 22px; flex-shrink: 0; display: block; }
+  .brand-text { line-height: 22px; font-weight: 900; font-size: 1.15rem; letter-spacing: 0.02em; white-space: nowrap; flex-shrink: 0; transition: opacity 0.25s ease, transform 0.25s ease, width 0.25s ease, margin 0.25s ease; }
+  
+  :global(.light-mode) .brand-link { color: #1d1d1f; }
+
+  /* ⚡ 移动端响应式处理 */
+  @media (max-width: 768px) {
+    /* 1. 播放音乐/阅读文章时隐藏 Logo 标题 */
+    :global(.has-active-info) .brand-text,
+    :global(.quasar-navbar:has(.nav-music-info.active)) .brand-text,
+    :global(.quasar-navbar:has(.article-reading-info.active)) .brand-text {
+      display: none !important;
+    }
+
+    /* 2. ⚡ 展开搜索框时：Logo 标题顺滑淡出并让出空间 */
+    :global(.quasar-navbar.search-active) .brand-text {
+      opacity: 0 !important;
+      transform: translateX(-6px) scale(0.9) !important;
+      pointer-events: none !important;
+      width: 0 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+    }
+  }
+</style>

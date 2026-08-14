@@ -1,0 +1,113 @@
+---
+// src/components/widgets/QuoteWidget.astro
+import { SITE_CONFIG } from '../../config.ts';
+
+const defaultQuotes = [
+  "星河璀璨，皆為序章。—— 莎士比亞",
+  "保持熱愛，奔赴山海。",
+  "在星空之下，傾聽時間的脈搏。"
+];
+const quotesList = (SITE_CONFIG as any).quotes || defaultQuotes;
+---
+<div class="glass-widget quote-card">
+  <div class="quote-header">
+    <span class="quote-tag">DAILY QUOTE</span>
+    <button id="refresh-quote-btn" class="breathing-sphere-btn" title="點擊切換">
+      <span class="ring-core"></span>
+      <span class="ring-outer" id="ring-outer-el"></span>
+    </button>
+  </div>
+  <div class="quote-body">
+    <p class="quote-content" id="widget-quote-text"></p>
+    <div class="quote-author-wrapper">
+      <span class="quote-author" id="widget-quote-author"></span>
+    </div>
+  </div>
+</div>
+
+<script is:inline define:vars={{ quotesList }}>
+  document.addEventListener('astro:page-load', () => {
+    const parseQuote = (item) => {
+      if (!item) return { text: '', author: '' };
+      if (typeof item === 'object' && item.text) return { text: item.text, author: item.author || '' };
+      if (typeof item === 'string') {
+        if (item.includes('——')) return { text: item.split('——')[0].trim(), author: item.split('——')[1].trim() };
+        if (item.includes('|')) return { text: item.split('|')[0].trim(), author: item.split('|')[1].trim() };
+        return { text: item.trim(), author: '' };
+      }
+      return { text: String(item), author: '' };
+    };
+
+    let currentQuoteIdx = 0;
+    const quoteTextEl = document.getElementById('widget-quote-text');
+    const quoteAuthorEl = document.getElementById('widget-quote-author');
+    const refreshQuoteBtn = document.getElementById('refresh-quote-btn');
+    const ringOuterEl = document.getElementById('ring-outer-el');
+
+    const updateQuoteDisplay = (idx) => {
+      const parsed = parseQuote(quotesList[idx]);
+      if (quoteTextEl) quoteTextEl.innerText = parsed.text;
+      if (quoteAuthorEl) quoteAuthorEl.innerText = parsed.author ? `— ${parsed.author}` : '';
+    };
+
+    const switchNextQuote = () => {
+      if (!quotesList || quotesList.length <= 1) return;
+      if (typeof gsap !== 'undefined') {
+        gsap.to([quoteTextEl, quoteAuthorEl], {
+          opacity: 0, y: -4, duration: 0.2,
+          onComplete: () => {
+            currentQuoteIdx = (currentQuoteIdx + 1) % quotesList.length;
+            updateQuoteDisplay(currentQuoteIdx);
+            gsap.to([quoteTextEl, quoteAuthorEl], { opacity: 1, y: 0, duration: 0.3 });
+          }
+        });
+      } else {
+        currentQuoteIdx = (currentQuoteIdx + 1) % quotesList.length;
+        updateQuoteDisplay(currentQuoteIdx);
+      }
+    };
+
+    updateQuoteDisplay(0);
+
+    let breathCount = 0;
+    if (ringOuterEl) {
+      ringOuterEl.addEventListener('animationiteration', () => {
+        breathCount++;
+        if (breathCount >= 5) { breathCount = 0; switchNextQuote(); }
+      });
+    }
+
+    if (refreshQuoteBtn && quotesList && quotesList.length > 0) {
+      refreshQuoteBtn.addEventListener('click', () => {
+        breathCount = 0;
+        refreshQuoteBtn.classList.add('is-clicked');
+        switchNextQuote();
+        setTimeout(() => refreshQuoteBtn.classList.remove('is-clicked'), 400);
+      });
+    }
+  });
+</script>
+
+<style>
+  .quote-card { padding: 18px 22px; }
+  .quote-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .quote-tag { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.4); }
+  
+  .breathing-sphere-btn { position: relative; width: 22px; height: 22px; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; padding: 0; }
+  .ring-core { position: absolute; width: 7px; height: 7px; border-radius: 50%; background-color: var(--themeColor, #015EFB); box-shadow: 0 0 6px var(--themeColor, #015EFB); animation: ring-core-breath 2.4s infinite ease-in-out; }
+  .ring-outer { position: absolute; width: 7px; height: 7px; border-radius: 50%; background-color: var(--themeColor, #015EFB); opacity: 0.33; animation: ring-outer-breath 2.4s infinite ease-in-out; }
+  
+  @keyframes ring-core-breath { 0%, 100% { transform: scale(0.9); opacity: 1; } 50% { transform: scale(1.3); opacity: 1; } }
+  @keyframes ring-outer-breath { 0%, 100% { transform: scale(1); opacity: 0.33; } 50% { transform: scale(2.4); opacity: 0.33; } }
+  .breathing-sphere-btn.is-clicked .ring-core, .breathing-sphere-btn.is-clicked .ring-outer { animation: ring-click-pop 0.4s ease-out; }
+  @keyframes ring-click-pop { 0% { transform: scale(1); } 50% { transform: scale(1.8); } 100% { transform: scale(1); } }
+  
+  .quote-body { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+  .quote-content { font-size: 0.85rem; color: #dddddd; line-height: 1.5; letter-spacing: 0.02em; }
+  .quote-author-wrapper { display: flex; justify-content: flex-end; width: 100%; margin-top: 2px; }
+  .quote-author { font-size: 0.68rem; color: rgba(255, 255, 255, 0.3); font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif; letter-spacing: 0.03em; text-align: right; }
+
+  :global(html.light-mode) .quote-content { color: #1d1d1f !important; }
+  :global(html.light-mode) .quote-author { color: rgba(0, 0, 0, 0.3) !important; }
+  :global(html.light-mode) .quote-tag { color: rgba(0, 0, 0, 0.45) !important; }
+</style>

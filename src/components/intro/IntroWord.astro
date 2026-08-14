@@ -1,0 +1,64 @@
+---
+// src/components/intro/IntroWord.astro
+import { SITE_CONFIG } from '../../config';
+
+const themeColor = SITE_CONFIG.themeColor || '#015EFB';
+---
+
+<div class="fixed-canvas">
+  <div class="word" id="intro-word">
+    <span class="char">Q</span>
+    <span class="char" id="i-stem">u</span>
+    <span class="char" id="letter-n1">a</span>
+    <span class="char">s</span>
+    <span class="char">a</span>
+    <span class="char" id="letter-n2">r</span>
+    <div id="blue-dot"></div>
+  </div>
+</div>
+
+<!-- 把 Intro 动画生成器导出的 组件代码 替换掉上面的所有代码 -->
+<!-- 以下代码请保持不动，避免出现BUG -->
+<style define:vars={{ themeColor }}>
+  .fixed-canvas {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .word {
+    position: relative;
+    display: flex;
+    gap: clamp(2px, 0.8vw, 4px); 
+    font-family: 'Noto Sans SC', sans-serif;
+    font-weight: 900;
+    font-size: clamp(2.8rem, 12vw, 8rem); 
+    letter-spacing: -0.05em;
+  }
+
+  .char {
+    background: linear-gradient(180deg, #ffffff 60%, #999999 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    user-select: none;
+  }
+
+  :global(html.light-mode) .char {
+    background: linear-gradient(180deg, #ffffff 60%, #cccccc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  #blue-dot {
+    position: absolute;
+    width: clamp(10px, 3.5vw, 24px);
+    height: clamp(10px, 3.5vw, 24px);
+    background-color: var(--themeColor);
+    border-radius: clamp(2px, 0.8vw, 5px); 
+    opacity: 0;
+    top: 0;
+    left: 0;
+    will-change: transform;
+  }
+</style>
