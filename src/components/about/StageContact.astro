@@ -1,0 +1,41 @@
+---
+// src/components/about/StageContact.astro
+import { ABOUT_CONFIG } from '../../config';
+---
+<section class="story-stage" id="stage-contact">
+  <div class="stage-inner flex-center">
+    
+    <div class="contact-content-holder">
+      <h2 class="contact-main-header">{ABOUT_CONFIG.contact.title}</h2>
+      <p class="contact-main-sub">{ABOUT_CONFIG.contact.subtitle}</p>
+    </div>
+
+    <div class="contact-layout-container">
+      <div class="social-links-grid">
+        {ABOUT_CONFIG.contact.links.map((link) => (
+          <a href={link.url} target="_blank" rel="noopener noreferrer" class="social-glass-card anim-s6-card">
+            <div class="social-icon-wrapper" set:html={link.iconSvg} />
+            <span class="social-name">{link.name}</span>
+          </a>
+        ))}
+      </div>
+
+      <div class="wechat-reward-card anim-s6-reward">
+        <div class="reward-inner-glow"></div>
+        <div class="qr-code-wrapper">
+          {ABOUT_CONFIG.contact.wechatRewardImg ? (
+            <img src={ABOUT_CONFIG.contact.wechatRewardImg} alt="微信赞赏码" class="qr-code-img" />
+          ) : (
+            <div class="qr-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="7" y="7" width="3" height="3"></rect><rect x="14" y="7" width="3" height="3"></rect><rect x="7" y="14" width="3" height="3"></rect><line x1="14" y1="14" x2="14" y2="14.01"></line><line x1="17" y1="14" x2="17" y2="14.01"></line><line x1="14" y1="17" x2="17" y2="17"></line>
+              </svg>
+              <span>未配置赞赏码</span>
+            </div>
+          )}
+        </div>
+        <div class="reward-caption">微信贊賞碼 / Reward QR</div>
+      </div>
+    </div>
+  </div>
+</section>

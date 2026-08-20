@@ -1,0 +1,23 @@
+---
+import { SITE_CONFIG, ABOUT_CONFIG } from '../../config';
+---
+<section class="story-stage active" id="stage-capabilities">
+  <div class="stage-inner flex-center">
+    <div class="avatar-wrapper anim-s1-avatar">
+      <img src={SITE_CONFIG.avatar.src} alt={SITE_CONFIG.avatar.alt} class="about-avatar-img" />
+    </div>
+    
+    <h1 class="stage-title-large anim-s1-title">About Me.</h1>
+    
+    <div class="skills-grid-wrapper">
+      {ABOUT_CONFIG.skills.map((skill) => (
+        <div class="unified-glass-card anim-s1-card">
+          <div class="card-inner-brand">{skill.title}</div>
+          <div class="card-inner-sub">{skill.sub}</div>
+        </div>
+      ))}
+    </div>
+
+    <p class="manifesto-claim anim-s1-claim">{ABOUT_CONFIG.manifesto}</p>
+  </div>
+</section>

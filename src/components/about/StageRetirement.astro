@@ -1,0 +1,130 @@
+---
+import { ABOUT_CONFIG } from '../../config';
+
+// 拆分与解析留给服务端构建期间计算，减轻客户端负荷
+const [yearEn, yearZh] = ABOUT_CONFIG.retirement.labels.year.split(' / ');
+const [monthEn, monthZh] = ABOUT_CONFIG.retirement.labels.month.split(' / ');
+const [dayEn, dayZh] = ABOUT_CONFIG.retirement.labels.day.split(' / ');
+const [leftTitleEn, leftTitleZh] = ABOUT_CONFIG.retirement.leftTitle.split(' / ');
+---
+<section 
+  class="story-stage" 
+  id="stage-retirement" 
+  data-start-date={ABOUT_CONFIG.retirement.startDate}
+  data-target-date={ABOUT_CONFIG.retirement.targetDate}
+>
+  <div class="stage-inner flex-center">
+    <div class="retirement-content-holder anim-s4-title-fade">
+      <h2 class="retirement-main-header">{ABOUT_CONFIG.retirement.title}</h2>
+      <p class="retirement-main-sub">{ABOUT_CONFIG.retirement.subtitle}</p>
+    </div>
+
+    <div class="bento-container">
+      <!-- 左側 -->
+      <div class="bento-card bento-left anim-s4-card-unit">
+        <div class="bento-left-brand">
+          <span class="brand-en">{leftTitleEn}</span>
+          {leftTitleZh && <span class="brand-zh">{leftTitleZh}</span>}
+        </div>
+        <p class="bento-left-desc">{ABOUT_CONFIG.retirement.description}</p>
+      </div>
+
+      <!-- 中間 -->
+      <div class="bento-middle-column">
+        <div class="bento-mid-row">
+          <div class="bento-mid-row-inner anim-s4-card-unit">
+            <div class="bento-mid-value-group">
+              <svg class="bento-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span class="countdown-value" id="val-year">00</span>
+            </div>
+            <div class="bento-mid-label-group">
+              <span class="label-en">{yearEn}</span>
+              <span class="label-zh">{yearZh}</span>
+            </div>
+          </div>
+        </div>
+        <div class="bento-mid-row">
+          <div class="bento-mid-row-inner anim-s4-card-unit">
+            <div class="bento-mid-value-group">
+              <svg class="bento-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+              <span class="countdown-value" id="val-month">00</span>
+            </div>
+            <div class="bento-mid-label-group">
+              <span class="label-en">{monthEn}</span>
+              <span class="label-zh">{monthZh}</span>
+            </div>
+          </div>
+        </div>
+        <div class="bento-mid-row">
+          <div class="bento-mid-row-inner anim-s4-card-unit">
+            <div class="bento-mid-value-group">
+              <svg class="bento-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 16 14"></polyline></svg>
+              <span class="countdown-value" id="val-day">00</span>
+            </div>
+            <div class="bento-mid-label-group">
+              <span class="label-en">{dayEn}</span>
+              <span class="label-zh">{dayZh}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右側 -->
+      <div class="bento-card bento-right anim-s4-card-unit">
+        <div class="station-clock-wrapper">
+          <div class="flap-group">
+            <div class="flap-card" id="card-h1">
+              <div class="card-half top"><div class="digit-inner">0</div></div>
+              <div class="card-half bottom"><div class="digit-inner">0</div></div>
+              <div class="flip-line"></div>
+            </div>
+            <div class="flap-card" id="card-h2">
+              <div class="card-half top"><div class="digit-inner">0</div></div>
+              <div class="card-half bottom"><div class="digit-inner">0</div></div>
+              <div class="flip-line"></div>
+            </div>
+          </div>
+          <span class="clock-colon">:</span>
+          <div class="flap-group">
+            <div class="flap-card" id="card-m1">
+              <div class="card-half top"><div class="digit-inner">0</div></div>
+              <div class="card-half bottom"><div class="digit-inner">0</div></div>
+              <div class="flip-line"></div>
+            </div>
+            <div class="flap-card" id="card-m2">
+              <div class="card-half top"><div class="digit-inner">0</div></div>
+              <div class="card-half bottom"><div class="digit-inner">0</div></div>
+              <div class="flip-line"></div>
+            </div>
+          </div>
+          <span class="clock-colon">:</span>
+          <div class="flap-group">
+            <div class="flap-card" id="card-s1">
+              <div class="card-half top"><div class="digit-inner">0</div></div>
+              <div class="card-half bottom"><div class="digit-inner">0</div></div>
+              <div class="flip-line"></div>
+            </div>
+            <div class="flap-card" id="card-s2">
+              <div class="card-half top"><div class="digit-inner">0</div></div>
+              <div class="card-half bottom"><div class="digit-inner">0</div></div>
+              <div class="flip-line"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="clock-caption">{ABOUT_CONFIG.retirement.clockCaption}</div>
+        <div class="bento-divider"></div>
+        
+        <div class="bento-progress-anchor">
+          <div class="progress-status-row">
+            <span class="progress-mini-label">Total Era Progression</span>
+            <span class="progress-percentage" id="progress-text">00.000000%</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

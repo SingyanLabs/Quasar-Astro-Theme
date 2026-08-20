@@ -1,0 +1,27 @@
+---
+import { ABOUT_CONFIG } from '../../config';
+---
+<section class="story-stage" id="stage-deepdive">
+  <div class="stage-inner flex-center">
+    <div class="spotlight-container">
+      <div class="spotlight" id="spotlight-1"></div>
+      <div class="spotlight" id="spotlight-2"></div>
+      <div class="spotlight" id="spotlight-3"></div>
+    </div>
+
+    <div class="deepdive-content-holder">
+      <h2 class="deepdive-main-header">{ABOUT_CONFIG.deepDives.sectionHeader}</h2>
+      <p class="deepdive-main-sub">{ABOUT_CONFIG.deepDives.sectionSub}</p>
+      
+      <div class="deepdive-pillars-matrix">
+        {ABOUT_CONFIG.deepDives.pillars.map((pillar) => (
+          <div class="pillar-glass-block">
+            <div class="pillar-inner-glow"></div>
+            <h3 class="pillar-title">{pillar.title}</h3>
+            <p class="pillar-desc">{pillar.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

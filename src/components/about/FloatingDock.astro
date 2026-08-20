@@ -1,0 +1,38 @@
+---
+// src/components/about/FloatingDock.astro
+import { ABOUT_CONFIG } from '../../config';
+---
+<div class="floating-dock-island" id="dock-island">
+  <div class="dock-blur-bg"></div>
+
+  <!-- 📱 移动端：独立悬浮弹出菜单 (位于胶囊上方，不挤压胶囊本身) -->
+  <div class="dock-popover-menu" id="dock-popover-menu">
+    {ABOUT_CONFIG.dockLabels.map((item, index) => (
+      <button class={index === 0 ? "dock-popover-item active" : "dock-popover-item"} data-target={item.target} data-index={index} data-label={item.label}>
+        <span class="dot"></span>
+        <span class="label">{item.label}</span>
+      </button>
+    ))}
+  </div>
+
+  <!-- 📱 移动端触发胶囊按钮 (固定胶囊形状，绝不变形) -->
+  <button class="dock-mobile-trigger" id="dock-mobile-trigger" aria-label="切换导航菜单">
+    <div class="dock-trigger-left">
+      <span class="dock-trigger-dot"></span>
+      <span class="dock-trigger-text" id="dock-trigger-text">1 / {ABOUT_CONFIG.dockLabels.length} · {ABOUT_CONFIG.dockLabels[0].label}</span>
+    </div>
+    <svg class="dock-trigger-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="18 15 12 9 6 15"></polyline>
+    </svg>
+  </button>
+
+  <!-- 💻 PC 端横排导航按钮 -->
+  <div class="dock-buttons-row">
+    {ABOUT_CONFIG.dockLabels.map((item, index) => (
+      <button class={index === 0 ? "dock-btn active" : "dock-btn"} data-target={item.target} data-index={index} data-label={item.label}>
+        <span class="dot"></span>
+        <span class="label">{item.label}</span>
+      </button>
+    ))}
+  </div>
+</div>

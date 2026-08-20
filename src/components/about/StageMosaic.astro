@@ -1,0 +1,21 @@
+---
+import { ABOUT_CONFIG } from '../../config';
+---
+<section class="story-stage" id="stage-mosaic">
+  <div class="stage-inner flex-center">
+    <div class="mosaic-content-holder">
+      <h2 class="mosaic-main-header">{ABOUT_CONFIG.mosaicHeader.title}</h2>
+      <p class="mosaic-main-sub">{ABOUT_CONFIG.mosaicHeader.subtitle}</p>
+    </div>
+
+    <div class="mosaic-cloud-flexbox">
+      {ABOUT_CONFIG.mosaicMatrix.map((item) => (
+        <div class="mosaic-drag-card" data-rot={item.rotate.replace('deg', '')}>
+          <div class="card-tag">{item.tag}</div>
+          <h4 class="card-title">{item.title}</h4>
+          <div class="card-glare"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

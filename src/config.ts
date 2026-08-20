@@ -140,12 +140,9 @@ export const ABOUT_CONFIG = {
     // 💻 前端与开源生态
     { title: "💻 Web 开发者", tag: "Developer", rotate: "-3deg" },
     { title: "🐧 Linux 爱好者", tag: "Open Source", rotate: "5deg" },
-    { title: "⚡ quasar  / Astro 玩家", tag: "Framework", rotate: "-4deg" },
+    { title: "⚡ Astro 玩家", tag: "Framework", rotate: "-4deg" },
     { title: "🛠️ Git / GitHub 控", tag: "DevTools", rotate: "6deg" },
     { title: "🌐 全栈探索中", tag: "Full Stack", rotate: "-2deg" },
-    { title: "⌨️ 机械键盘烧友", tag: "Hardware", rotate: "4deg" },
-    { title: "🎨 Tailwind CSS 爱好者", tag: "Styling", rotate: "-5deg" },
-    { title: "📦 Npm 轮子制造者", tag: "Packages", rotate: "3deg" },
     { title: "🐛 Bug 消除术士", tag: "Debugging", rotate: "-6deg" },
 
     // 🎨 审美、设计与视觉
@@ -154,7 +151,6 @@ export const ABOUT_CONFIG = {
     { title: "📐 极简主义", tag: "Aesthetics", rotate: "5deg" },
     { title: "🎬 视频剪辑", tag: "Creator", rotate: "-3deg" },
     { title: "🧩 交互细节控", tag: "Detail", rotate: "6deg" },
-    { title: "🖼️ 暗黑模式偏执狂", tag: "Dark Theme", rotate: "-2deg" },
     { title: "🖋️ 字体与排版控", tag: "Typography", rotate: "4deg" },
 
     // ☕ 生活、日常与态度
@@ -164,8 +160,6 @@ export const ABOUT_CONFIG = {
     { title: "🏃 城市漫游者", tag: "City Walk", rotate: "6deg" },
     { title: "🍵 慢节奏生活", tag: "Slow Life", rotate: "-2deg" },
     { title: "🍟 快乐能量补给", tag: "Foodie", rotate: "5deg" },
-    { title: "🎧 播客重度听众", tag: "Podcast", rotate: "-3deg" },
-    { title: "🪴 桌面美学搭建", tag: "Workspace", rotate: "4deg" },
 
     // 📚 生产力与思维灵感
     { title: "📝 Markdown 狂热", tag: "Productivity", rotate: "-6deg" },
@@ -173,12 +167,8 @@ export const ABOUT_CONFIG = {
     { title: "💡 灵感收集癖", tag: "Inspiration", rotate: "-5deg" },
     { title: "📊 结构化思维", tag: "Logic", rotate: "3deg" },
     { title: "🚀 独立开发者", tag: "Maker", rotate: "-4deg" },
-    { title: "🌱 保持终身好奇", tag: "Curiosity", rotate: "6deg" },
-    { title: "📑 文档书写强迫症", tag: "Docs", rotate: "-2deg" },
-    { title: "🤖 AI 协作探索", tag: "Future", rotate: "4deg" },
     { title: "🧠 跨学科思维", tag: "Mindset", rotate: "-5deg" },
     { title: "🔍 零瑕疵强迫症", tag: "Perfection", rotate: "3deg" },
-    { title: "⏳ 时间块管理", tag: "Time Mgmt", rotate: "-4deg" },
   ],
 
 // 第三章：核心能力
