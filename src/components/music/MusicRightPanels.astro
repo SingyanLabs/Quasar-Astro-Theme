@@ -1,0 +1,29 @@
+---
+// src/components/music/MusicRightPanels.astro
+---
+<div class="music-right-viewport">
+  <!-- 歌词面板 -->
+  <div class="music-view-panel active" id="panel-lyrics">
+    <div class="music-lyrics-scroll-container" id="lyrics-container">
+      <div class="music-lyrics-track" id="lyrics-wrapper">
+        <p class="music-lyric-row">正在加载歌词引擎...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 播放列表队列面板 -->
+  <div class="music-view-panel" id="panel-queue">
+    <div class="music-queue-box">
+      <div class="music-queue-header">
+        <div class="music-queue-title">播放列表</div>
+        <div class="music-queue-search">
+          <svg class="music-search-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input type="text" id="queue-search-input" placeholder="搜索歌曲、歌手..." aria-label="搜索歌曲或歌手" />
+        </div>
+      </div>
+      <div class="music-queue-scroll">
+        <ul class="music-song-list" id="queue-items-list"></ul>
+      </div>
+    </div>
+  </div>
+</div>
