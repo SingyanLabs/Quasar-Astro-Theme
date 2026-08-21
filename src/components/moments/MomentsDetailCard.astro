@@ -1,0 +1,92 @@
+---
+// src/components/moments/MomentsDetailCard.astro
+import { SITE_CONFIG } from '../../config.ts';
+
+interface Props {
+  item: {
+    id: string;
+    title: string;
+    subtitle: string;
+    time: string;
+    location: string;
+    images: string[];
+    likes: string[];
+    comments: { user: string; text: string }[];
+    bodyText: string;
+  };
+  isActive: boolean;
+}
+
+const { item, isActive } = Astro.props;
+---
+
+<div class={`detail-card ${isActive ? 'active' : ''}`} data-detail-id={item.id} data-title={item.title}>
+  
+  <div class="detail-user-header animate-el">
+    <div class="avatar-box">
+      {SITE_CONFIG.avatar?.src ? (
+        <img src={SITE_CONFIG.avatar.src} alt={SITE_CONFIG.author || "Avatar"} class="avatar-img" />
+      ) : (
+        <span>{SITE_CONFIG.author ? SITE_CONFIG.author.charAt(0).toUpperCase() : 'C'}</span>
+      )}
+    </div>
+    <div class="user-meta">
+      <h3 class="author-name">{SITE_CONFIG.logo}</h3>
+      <p class="detail-title-text">{SITE_CONFIG.subtitle}</p>
+    </div>
+  </div>
+
+  <p class="detail-desc animate-el" set:html={item.bodyText ? item.bodyText.replace(/\r\n|\r|\n/g, '<br />') : ''}></p>
+
+  <div class={`detail-media-grid count-${item.images.length} animate-el`}>
+    {item.images.map((img: string, imgIdx: number) => (
+      <div class="media-box" data-moment-id={item.id} data-index={imgIdx}>
+        <img src={img} alt="" loading="lazy" />
+      </div>
+    ))}
+  </div>
+
+  <div class="detail-time-row animate-el">
+    <div class="time-location-group">
+      <span>{item.time}</span>
+      {item.location && (
+        <span class="location-tag">
+          <svg viewBox="0 0 24 24" class="loc-icon"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+          {item.location}
+        </span>
+      )}
+    </div>
+    <button class="post-like-btn" type="button" aria-label="点赞动态">
+      <span class="like-heart">♥</span>
+    </button>
+  </div>
+
+  <div class="likes-section animate-el">
+    <div class="likes-icon-row">♥</div>
+    <div class="likes-avatars">
+      {item.likes.map((name: string) => (
+        <span class="avatar-tag">{name}</span>
+      ))}
+    </div>
+  </div>
+
+  <div class="comments-section animate-el">
+    {item.comments.length > 0 ? (
+      item.comments.map((c: { user: string; text: string }) => (
+        <div class="comment-row">
+          <div class="comment-main">
+            <span class="c-user">{c.user}:</span>
+            <span class="c-text">{c.text}</span>
+          </div>
+          <button class="comment-like-btn" type="button" aria-label="点赞评论">
+            <span class="like-heart">♡</span>
+            <span class="like-num">0</span>
+          </button>
+        </div>
+      ))
+    ) : (
+      <div class="comment-row" style="color:#888;">暂无评论</div>
+    )}
+  </div>
+
+</div>

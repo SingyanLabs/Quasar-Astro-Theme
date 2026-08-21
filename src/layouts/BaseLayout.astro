@@ -3,6 +3,8 @@
 import { SITE_CONFIG } from '../config.ts';
 import ThemePerfInit from '../components/head/ThemePerfInit.astro';
 import Navbar from '../components/Navbar.astro';
+import LazyLoad from '../components/common/LazyLoad.astro';
+import Lightbox from '../components/common/Lightbox.astro';
 import { ClientRouter } from 'astro:transitions';
 
 interface Props {
@@ -13,7 +15,6 @@ const { title = SITE_CONFIG.title } = Astro.props;
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
-    <!-- 放置在 <head> 最上方，确保在页面渲染 HTML 前优先读取 localStorage -->
     <ThemePerfInit />
 
     <meta charset="UTF-8" />
@@ -26,7 +27,6 @@ const { title = SITE_CONFIG.title } = Astro.props;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
     
-    <!-- 视图过渡与动画核心库 -->
     <ClientRouter />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" is:inline></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js" is:inline></script>
@@ -39,42 +39,27 @@ const { title = SITE_CONFIG.title } = Astro.props;
           document.documentElement.classList.remove('light-mode');
         }
       };
-      // 兼容 SPA 路由跳转后的状态维持
+      syncSystemTheme();
       document.addEventListener('astro:after-swap', syncSystemTheme);
     </script>
   </head>
   <body>
-    <!-- 全局导航 -->
     <Navbar />
     
-    <!-- 路由插槽 -->
     <main>
       <slot />
     </main>
+
+    <LazyLoad />
+    <Lightbox />
   </body>
 </html>
 
 <style is:global>
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background-color: #030303; color: #ffffff; font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif; overflow-x: hidden; }
+  html.light-mode body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
 
-  html, body {
-    background-color: #030303;
-    color: #ffffff;
-    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
-    overflow-x: hidden;
-  }
-
-  /* 浅色模式全局覆盖 */
-  html.light-mode body {
-    background-color: #f5f5f7 !important;
-    color: #1d1d1f !important;
-  }
-
-  /* 全局复用玻璃拟物卡片基类 */
   .glass-widget {
     pointer-events: auto;
     width: 100%;
@@ -86,18 +71,87 @@ const { title = SITE_CONFIG.title } = Astro.props;
     border-radius: 22px;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     transition: all 0.4s ease;
-    will-change: transform, opacity, filter;
+  }
+  .glass-widget:hover { border-color: rgba(255, 255, 255, 0.22); transform: translateY(-2px); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45); }
+  html.light-mode .glass-widget { background: rgba(255, 255, 255, 0.72) !important; border-color: rgba(0, 0, 0, 0.08) !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06) !important; }
+
+
+/* ==================== 全局极简胶囊滚动条 ==================== */
+/* 🟢 1. Chrome / WebKit / Safari / Edge 专属 (3px 极致精细) */
+@supports (selector(::-webkit-scrollbar)) {
+  ::-webkit-scrollbar {
+    width: 3px !important;
+    height: 3px !important;
   }
 
-  .glass-widget:hover {
-    border-color: rgba(255, 255, 255, 0.22);
-    transform: translateY(-2px);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+  ::-webkit-scrollbar-track {
+    background: transparent !important;
   }
 
-  html.light-mode .glass-widget {
-    background: rgba(255, 255, 255, 0.72) !important;
-    border-color: rgba(0, 0, 0, 0.08) !important;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06) !important;
+  /* 静止状态：完全透明隐藏 */
+  ::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 99px;
+    transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
+
+  /* 滚动中 (is-scrolling) 或 鼠标悬停区域时浮现 */
+  html.is-scrolling ::-webkit-scrollbar-thumb,
+  body.is-scrolling ::-webkit-scrollbar-thumb,
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.28);
+  }
+
+  /* 鼠标直接触碰滚动条：高亮加深 */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.65) !important;
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent !important;
+  }
+
+  /* ☀️ 明亮模式适配 */
+  html.light-mode.is-scrolling ::-webkit-scrollbar-thumb,
+  html.light-mode body.is-scrolling ::-webkit-scrollbar-thumb,
+  html.light-mode *:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.22);
+  }
+
+  html.light-mode ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.55) !important;
+  }
+}
+
+/* 🦊 2. Firefox 专属 (不支持 webkit-scrollbar 时回退) */
+@supports not (selector(::-webkit-scrollbar)) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  }
+
+  html.light-mode * {
+    scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+  }
+}
 </style>
+<!-- 自动隐藏逻辑脚本 -->
+<script is:inline>
+(function() {
+    let scrollTimer = null;
+    const handleScrollState = () => {
+      document.documentElement.classList.add('is-scrolling');
+      document.body.classList.add('is-scrolling');
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        document.documentElement.classList.remove('is-scrolling');
+        document.body.classList.remove('is-scrolling');
+      }, 800);
+    };
+    window.addEventListener('scroll', handleScrollState, { passive: true, capture: true });
+  })();
+</script>

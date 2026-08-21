@@ -1,0 +1,448 @@
+---
+// src/components/common/Lightbox.astro
+---
+<!-- 引入 EXIF 读取库 -->
+<script src="https://cdn.jsdelivr.net/npm/exifreader@4.21.0/dist/exif-reader.js" is:inline></script>
+
+<div id="lightbox" class="lightbox-modal" role="dialog" aria-modal="true">
+  <div class="lightbox-backdrop" id="lightbox-close-area"></div>
+  
+  <div class="lightbox-content">
+    <div class="lightbox-header">
+      <div class="meta-left">
+        <span id="lightbox-index" class="meta-badge"></span>
+        <span id="lightbox-date" class="meta-date"></span>
+        <span id="lightbox-location" class="meta-location" style="display: none;"></span>
+      </div>
+      <button id="lightbox-close-btn" class="lightbox-close-btn" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- 双图层缓冲区：支持两张图片同时无缝滑动 -->
+    <div class="media-frame-container">
+      <img id="lb-base-img" class="lightbox-layer opacity-hidden" alt="预览大图" draggable="false" />
+      <img id="lb-temp-img" class="lightbox-layer opacity-hidden" alt="切换预载图" draggable="false" />
+      <div id="lb-loader" class="lightbox-loading-placeholder" style="display: none;"></div>
+    </div>
+
+    <div class="lightbox-footer" id="lightbox-footer">
+      <div class="footer-meta">
+        <p id="footer-title" class="footer-title">动态大图预览</p>
+        <div id="lightbox-exif" class="exif-info-bar" style="display: none;">
+          <span id="exif-camera" class="exif-item"></span>
+          <span id="exif-param" class="exif-item"></span>
+        </div>
+      </div>
+      <a id="footer-link" href="#" target="_blank" rel="noopener noreferrer" class="footer-link">
+        新标签页打开
+      </a>
+    </div>
+
+    <button id="prev-btn" class="nav-btn prev" aria-label="上一张">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <button id="next-btn" class="nav-btn next" aria-label="下一张">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<script is:inline>
+  (function() {
+    let currentGallery = [];
+    let activeIndex = 0;
+    let isSwitching = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const isDegradedMode = () => document.documentElement.classList.contains('perf-degraded');
+
+    const parseAndShowExif = async (imgUrl) => {
+      const exifContainer = document.getElementById('lightbox-exif');
+      const exifCamera = document.getElementById('exif-camera');
+      const exifParam = document.getElementById('exif-param');
+      if (!exifContainer) return;
+
+      exifContainer.style.display = 'none';
+      if (exifCamera) exifCamera.textContent = '';
+      if (exifParam) exifParam.textContent = '';
+
+      if (typeof ExifReader === 'undefined' || !imgUrl || imgUrl.startsWith('data:')) return;
+
+      try {
+        const tags = await ExifReader.load(imgUrl, { async: true });
+        const make = tags.Make ? tags.Make.description : '';
+        const model = tags.Model ? tags.Model.description : '';
+        let camera = model;
+        if (make && model && !model.toLowerCase().includes(make.toLowerCase())) {
+          camera = `${make} ${model}`;
+        }
+
+        const focalLength = tags.FocalLength ? `${tags.FocalLength.description}mm` : '';
+        const fNumber = tags.FNumber ? `f/${tags.FNumber.description}` : '';
+        const exposureTime = tags.ExposureTime ? `${tags.ExposureTime.description}s` : '';
+        const iso = tags.ISOSpeedRatings || tags.ISO ? `ISO ${tags.ISOSpeedRatings?.description || tags.ISO?.description}` : '';
+
+        const params = [focalLength, fNumber, exposureTime, iso].filter(Boolean).join('  ');
+
+        if (camera || params) {
+          if (camera && exifCamera) exifCamera.textContent = `📷 ${camera}`;
+          if (params && exifParam) exifParam.textContent = `⚙️ ${params}`;
+          exifContainer.style.display = 'flex';
+        }
+      } catch (e) {}
+    };
+
+    const renderLightboxIndex = (index, direction = 'next') => {
+      if (!currentGallery || !currentGallery.length || isSwitching) return;
+      
+      const lightbox = document.getElementById('lightbox');
+      const lbBaseImg = document.getElementById('lb-base-img');
+      const lbTempImg = document.getElementById('lb-temp-img');
+      const lbLoader = document.getElementById('lb-loader');
+      const lbIndex = document.getElementById('lightbox-index');
+      const lbDate = document.getElementById('lightbox-date');
+      const lbLocation = document.getElementById('lightbox-location');
+      const footerLink = document.getElementById('footer-link');
+      const footerTitle = document.getElementById('footer-title');
+      const backdrop = document.getElementById('lightbox-close-area');
+
+      if (!lightbox || !lbBaseImg || !lbTempImg) return;
+
+      const isInitialOpen = !lightbox.classList.contains('active');
+      activeIndex = index;
+      const item = currentGallery[index];
+      const imgUrl = typeof item === 'string' ? item : item.src;
+      const isDegraded = isDegradedMode();
+
+      // 更新元信息
+      if (lbIndex) lbIndex.innerText = `#${index + 1} / ${currentGallery.length}`;
+      if (lbDate) lbDate.innerText = item.date || '';
+      
+      if (lbLocation) {
+        if (item.location) {
+          lbLocation.innerText = `📍 ${item.location}`;
+          lbLocation.style.display = 'inline-block';
+        } else {
+          lbLocation.style.display = 'none';
+        }
+      }
+
+      if (footerTitle) footerTitle.innerText = item.title || '大图预览';
+      if (footerLink) footerLink.href = imgUrl;
+
+      // 🔑 1. 首次打开弹窗：原位平滑放大入场（不含任何左右平移）
+      if (isInitialOpen) {
+        if (backdrop) backdrop.style.opacity = '';
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        // 彻底清除历史残余行内 CSS
+        if (window.gsap) {
+          gsap.set([lbBaseImg, lbTempImg], { clearProps: "all" });
+        }
+
+        lbBaseImg.className = 'lightbox-layer opacity-hidden';
+        if (lbLoader) lbLoader.style.display = 'block';
+
+        let hasTriggeredShow = false;
+        const showInitialImage = () => {
+          if (hasTriggeredShow) return;
+          hasTriggeredShow = true;
+
+          if (lbLoader) lbLoader.style.display = 'none';
+          lbBaseImg.classList.remove('opacity-hidden');
+
+          if (window.gsap && !isDegraded) {
+            // 全局框架透明度淡入
+            gsap.fromTo('.lightbox-content', 
+              { opacity: 0 }, 
+              { opacity: 1, duration: 0.35, ease: "power2.out" }
+            );
+            // 核心主图原位从 scale 0.88 平滑放大至 1
+            gsap.fromTo(lbBaseImg,
+              { scale: 0.88, opacity: 0, x: '0%' },
+              { scale: 1, opacity: 1, duration: 0.42, ease: "power3.out" }
+            );
+          }
+        };
+
+        lbBaseImg.onload = showInitialImage;
+        lbBaseImg.onerror = showInitialImage;
+
+        lbBaseImg.src = imgUrl;
+        if (lbBaseImg.complete) {
+          showInitialImage();
+        }
+
+        parseAndShowExif(imgUrl);
+      } else {
+        // 🔑 2. 左右切换图片：双图层平滑推轨滑动
+        isSwitching = true;
+
+        const currentImg = lbBaseImg;
+        const nextImg = lbTempImg;
+
+        const exitX = direction === 'next' ? '-100%' : '100%';
+        const enterX = direction === 'next' ? '100%' : '-100%';
+
+        nextImg.src = imgUrl;
+        nextImg.classList.remove('opacity-hidden');
+
+        if (window.gsap && !isDegraded) {
+          gsap.set(nextImg, { x: enterX, opacity: 0.6, display: 'block', scale: 1 });
+          gsap.set(currentImg, { x: '0%', opacity: 1, scale: 1 });
+
+          const tl = gsap.timeline({
+            onComplete: () => {
+              currentImg.src = imgUrl;
+              gsap.set(currentImg, { x: '0%', opacity: 1, scale: 1 });
+              gsap.set(nextImg, { x: '0%', opacity: 0, display: 'none' });
+              nextImg.classList.add('opacity-hidden');
+              nextImg.src = '';
+
+              parseAndShowExif(imgUrl);
+              isSwitching = false;
+            }
+          });
+
+          tl.to(currentImg, {
+            x: exitX,
+            opacity: 0,
+            duration: 0.36,
+            ease: "power3.out"
+          }, 0);
+
+          tl.to(nextImg, {
+            x: '0%',
+            opacity: 1,
+            duration: 0.36,
+            ease: "power3.out"
+          }, 0);
+
+        } else {
+          currentImg.src = imgUrl;
+          parseAndShowExif(imgUrl);
+          isSwitching = false;
+        }
+      }
+    };
+
+    window.openLightbox = (images, index = 0, meta = {}) => {
+      if (!images || !images.length) return;
+      currentGallery = images.map(img => {
+        if (typeof img === 'string') {
+          return { src: img, date: meta.date || '', location: meta.location || '', title: meta.title || '' };
+        }
+        return img;
+      });
+      renderLightboxIndex(index);
+    };
+
+    const closeLightbox = () => {
+      const lightbox = document.getElementById('lightbox');
+      const lbBaseImg = document.getElementById('lb-base-img');
+      const lbTempImg = document.getElementById('lb-temp-img');
+      const lbLoader = document.getElementById('lb-loader');
+      const exifContainer = document.getElementById('lightbox-exif');
+      const backdrop = document.getElementById('lightbox-close-area');
+      if (!lightbox) return;
+
+      const isDegraded = isDegradedMode();
+      const doClose = () => {
+        lightbox.classList.remove('active');
+        document.body.style.overflow = '';
+        if (lbBaseImg) {
+          lbBaseImg.src = '';
+          if (window.gsap) gsap.set(lbBaseImg, { clearProps: "all" });
+        }
+        if (lbTempImg) {
+          lbTempImg.src = '';
+          if (window.gsap) gsap.set(lbTempImg, { clearProps: "all" });
+        }
+        if (lbLoader) lbLoader.style.display = 'none';
+        if (exifContainer) exifContainer.style.display = 'none';
+        if (backdrop) backdrop.style.opacity = '';
+        isSwitching = false;
+      };
+
+      if (window.gsap) {
+        gsap.to('.lightbox-content', {
+          scale: isDegraded ? 1 : 0.95, y: isDegraded ? 0 : 15, opacity: 0, duration: isDegraded ? 0.05 : 0.3, ease: "power2.in"
+        });
+        gsap.to('.lightbox-backdrop', {
+          opacity: 0, duration: isDegraded ? 0.05 : 0.25, ease: "power2.in", onComplete: doClose
+        });
+      } else {
+        doClose();
+      }
+    };
+
+    const initLightboxEvents = () => {
+      const closeBtn = document.getElementById('lightbox-close-btn');
+      const closeArea = document.getElementById('lightbox-close-area');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const contentEl = document.querySelector('.lightbox-content');
+
+      if (closeBtn) closeBtn.onclick = closeLightbox;
+      if (closeArea) closeArea.onclick = closeLightbox;
+
+      if (prevBtn) prevBtn.onclick = () => { if (activeIndex > 0) renderLightboxIndex(activeIndex - 1, 'prev'); };
+      if (nextBtn) nextBtn.onclick = () => { if (activeIndex < currentGallery.length - 1) renderLightboxIndex(activeIndex + 1, 'next'); };
+
+      if (contentEl) {
+        contentEl.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 1) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+          }
+        }, { passive: true });
+
+        contentEl.addEventListener('touchend', (e) => {
+          if (e.changedTouches.length !== 1) return;
+
+          const deltaX = e.changedTouches[0].clientX - touchStartX;
+          const deltaY = e.changedTouches[0].clientY - touchStartY;
+
+          if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+            if (deltaX < 0 && activeIndex < currentGallery.length - 1) {
+              renderLightboxIndex(activeIndex + 1, 'next');
+            } else if (deltaX > 0 && activeIndex > 0) {
+              renderLightboxIndex(activeIndex - 1, 'prev');
+            }
+          } 
+          else if (deltaY > 100 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+            closeLightbox();
+          }
+        }, { passive: true });
+      }
+
+      document.removeEventListener('keydown', handleKeydown);
+      document.addEventListener('keydown', handleKeydown);
+    };
+
+    function handleKeydown(e) {
+      const lightbox = document.getElementById('lightbox');
+      if (!lightbox || !lightbox.classList.contains('active')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft' && activeIndex > 0) renderLightboxIndex(activeIndex - 1, 'prev');
+      if (e.key === 'ArrowRight' && activeIndex < currentGallery.length - 1) renderLightboxIndex(activeIndex + 1, 'next');
+    }
+
+    document.addEventListener('DOMContentLoaded', initLightboxEvents);
+    document.addEventListener('astro:page-load', initLightboxEvents);
+    
+    window.removeEventListener('quasar:open-lightbox', window.__quasarOpenLbHandler);
+    window.__quasarOpenLbHandler = (e) => {
+      if (e.detail) window.openLightbox(e.detail.images, e.detail.index || 0, e.detail.meta || {});
+    };
+    window.addEventListener('quasar:open-lightbox', window.__quasarOpenLbHandler);
+  })();
+</script>
+
+<style is:global>
+  .media-frame-container { flex-grow: 1; display: block; overflow: hidden; position: relative; width: 100%; height: 75vh; margin: 15px 0; }
+  
+  .lightbox-layer { 
+    position: absolute; 
+    inset: 0; 
+    margin: auto; 
+    width: 100%; 
+    height: 100%; 
+    object-fit: contain !important; 
+    border-radius: 12px; 
+    will-change: transform, opacity; 
+  }
+
+  .lightbox-loading-placeholder { position: absolute; inset: 0; margin: auto; width: 36px; height: 36px; border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #ffffff; border-radius: 50%; animation: spin 0.85s cubic-bezier(0.6, 0.2, 0.2, 0.8) infinite; z-index: 5; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .opacity-hidden { opacity: 0 !important; }
+
+  .lightbox-modal { 
+    position: fixed; 
+    inset: 0; 
+    z-index: 9999; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    visibility: hidden; 
+    pointer-events: none; 
+    transition: visibility 0.35s ease; 
+  }
+  .lightbox-modal.active { 
+    visibility: visible; 
+    pointer-events: auto; 
+  }
+
+  .lightbox-backdrop { 
+    position: absolute; 
+    inset: 0; 
+    background: rgba(3, 3, 3, 0.78); 
+    backdrop-filter: blur(28px) saturate(220%); 
+    -webkit-backdrop-filter: blur(28px) saturate(220%); 
+    z-index: 1; 
+    opacity: 0; 
+    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1); 
+    transform: translateZ(0); 
+    will-change: opacity; 
+  }
+  .lightbox-modal.active .lightbox-backdrop { 
+    opacity: 1; 
+  }
+
+  .lightbox-content { position: relative; z-index: 2; width: 100%; max-width: 1100px; height: 88vh; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
+  .lightbox-header { display: flex; justify-content: space-between; align-items: center; width: 100%; z-index: 10; }
+  .meta-left { display: flex; align-items: center; gap: 10px; }
+  .meta-badge { background: rgba(255, 255, 255, 0.1); padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; font-family: 'Noto Sans SC'; color: #ffffff; }
+  .meta-date { font-size: 0.75rem; color: #888888; font-family: 'Noto Sans SC'; }
+  .meta-location { font-size: 0.75rem; color: #88aaff; background: rgba(136, 170, 255, 0.1); padding: 4px 10px; border-radius: 12px; font-family: 'Noto Sans SC'; }
+
+  .lightbox-close-btn { background: rgba(255, 255, 255, 0.1); border: none; width: 38px; height: 38px; border-radius: 50%; color: #ffffff; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; }
+  .lightbox-close-btn:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+  .lightbox-close-btn svg { width: 16px; height: 16px; }
+
+  .lightbox-footer { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 900px; margin: 0 auto; padding: 12px 24px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); color: #ffffff; z-index: 10; }
+  .footer-meta { display: flex; flex-direction: column; gap: 4px; }
+  .footer-title { font-size: 0.9rem; font-weight: 700; margin: 0; }
+  
+  .exif-info-bar { display: flex; gap: 14px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.75); font-family: 'Noto Sans SC', monospace; }
+  .exif-item { display: inline-flex; align-items: center; }
+
+  .footer-link { display: inline-flex; align-items: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; font-size: 0.8rem; font-weight: 500; padding: 8px 16px; border-radius: 30px; text-decoration: none; transition: all 0.2s ease; }
+  .footer-link:hover { background: rgba(255, 255, 255, 0.18); }
+
+  /* 导航按钮悬浮定位 */
+  .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); width: 50px; height: 50px; border-radius: 50%; color: #ffffff; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10; transition: all 0.3s ease; }
+  .nav-btn:hover { background: rgba(255, 255, 255, 0.18); transform: translateY(-50%) scale(1.08); }
+  .nav-btn.prev { left: -5rem; }
+  .nav-btn.next { right: -5rem; }
+  .nav-btn svg { width: 18px; height: 18px; }
+
+  @media (max-width: 768px) {
+    .nav-btn { display: none !important; }
+    .lightbox-content { padding: 16px; height: 92vh; }
+    .media-frame-container { height: 68vh; }
+    .lightbox-footer { padding: 10px 16px; }
+    .exif-info-bar { flex-direction: column; gap: 2px; }
+  }
+
+  /* 效能降级与明亮模式适配 */
+  html.perf-degraded .lightbox-backdrop { backdrop-filter: none !important; background: rgba(3, 3, 3, 0.94) !important; }
+  html.perf-degraded .lightbox-footer { backdrop-filter: none !important; background: rgba(20, 20, 20, 0.92) !important; }
+  html.perf-degraded .nav-btn { backdrop-filter: none !important; background: rgba(30, 30, 30, 0.92) !important; }
+
+  html.light-mode .lightbox-backdrop { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(36px) saturate(220%); }
+  html.light-mode .meta-badge { background: rgba(0, 0, 0, 0.06); color: #1d1d1f; }
+  html.light-mode .meta-date { color: #555555; }
+  html.light-mode .meta-location { color: #2b6cb0; background: rgba(43, 108, 176, 0.08); }
+  html.light-mode .lightbox-footer { background: rgba(0, 0, 0, 0.04); border: 1px solid rgba(0, 0, 0, 0.06); color: #1d1d1f; }
+  html.light-mode .exif-info-bar { color: #555555; }
+  html.light-mode .footer-link { background: rgba(0, 0, 0, 0.06); border: 1px solid rgba(0, 0, 0, 0.08); color: #1d1d1f; }
+  html.light-mode .lightbox-close-btn, html.light-mode .nav-btn { background: rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.04); color: #1d1d1f; }
+
+  html.light-mode.perf-degraded .lightbox-backdrop { backdrop-filter: none !important; background: rgba(240, 240, 243, 0.96) !important; }
+  html.light-mode.perf-degraded .lightbox-footer { backdrop-filter: none !important; background: rgba(230, 230, 235, 0.92) !important; }
+  html.light-mode.perf-degraded .nav-btn { backdrop-filter: none !important; background: rgba(220, 220, 225, 0.92) !important; }
+</style>

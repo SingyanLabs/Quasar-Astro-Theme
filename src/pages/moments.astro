@@ -1,727 +1,196 @@
 ---
 // src/pages/moments.astro
-import { getCollection, render } from 'astro:content';
-import { SITE_CONFIG } from '../config.ts';
-import Navbar from '../components/Navbar.astro';
-import MomentsScript from '../components/MomentsScript.astro';
-import { ClientRouter } from 'astro:transitions';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { SITE_CONFIG } from '../config'; // 引入你的配置文件路径
 
-const rawMoments = await getCollection('moments');
+const allMoments = await getCollection('moments');
 
-// 解析圖片列表（相容 Base64 資料）
-function normalizeImages(raw: any): string[] {
-  if (!raw) return [];
-  let list: string[] = [];
+const getYear = (m: any) => {
+  if (m.data.year) return String(m.data.year).replace(/年$/, '').trim();
+  const timeStr = String(m.data.time || m.data.date || '');
+  const match = timeStr.match(/(20\d{2}|\d{4})/);
+  return match ? match[1] : '';
+};
 
-  const processItem = (item: any) => {
-    if (typeof item === 'string') {
-      const str = item.trim();
-      if (str.startsWith('data:')) {
-        list.push(str);
-      } else {
-        const subItems = str.split(/[\s,]+/).filter(Boolean);
-        list.push(...subItems);
-      }
-    } else if (item) {
-      list.push(String(item));
-    }
-  };
+const getMonth = (m: any) => {
+  if (m.data.month) return String(m.data.month).trim();
+  const timeStr = String(m.data.time || m.data.date || '');
+  const match = timeStr.match(/(\d{1,2})月/);
+  if (match) return `${parseInt(match[1], 10)}月`;
+  const matchDash = timeStr.match(/-\d{2}-/);
+  if (matchDash) return `${parseInt(matchDash[0].replace(/-/g, ''), 10)}月`;
+  return '';
+};
 
-  if (Array.isArray(raw)) {
-    raw.forEach(processItem);
-  } else {
-    processItem(raw);
-  }
+const sortedMoments = allMoments.sort((a, b) => new Date(b.data.time || b.data.date).getTime() - new Date(a.data.time || a.data.date).getTime());
 
-  return list;
-}
-
-// 解析時間戳（用於倒序排序）
-function parseTimestamp(timeStr: string, dayStr: string): number {
-  if (!timeStr) return 0;
-  const match = timeStr.match(/(\d{4})[^\d]?(\d{1,2})?[^\d]?(\d{1,2})?/);
-  if (!match) return 0;
-  const y = parseInt(match[1], 10);
-  const m = match[2] ? parseInt(match[2], 10) - 1 : 0;
-  let d = match[3] ? parseInt(match[3], 10) : 1;
-  if (!match[3] && dayStr) {
-    const parsedDay = parseInt(dayStr, 10);
-    if (!isNaN(parsedDay)) d = parsedDay;
-  }
-  return new Date(y, m, d).getTime();
-}
-
-const unSortedData = await Promise.all(
-  rawMoments.map(async (entry) => {
-    await render(entry);
-    const timeStr = entry.data.time || '';
-
-    let year = entry.data.year ? String(entry.data.year) : '';
-    if (!year) {
-      const yearMatch = timeStr.match(/(\d{4})/);
-      year = yearMatch ? yearMatch[1] : '2026';
-    }
-
-    let month = entry.data.month ? String(entry.data.month) : '';
-    if (!month) {
-      const monthMatch = timeStr.match(/(?:年|-|\.|\/)0*(\d{1,2})/);
-      if (monthMatch) {
-        month = `${parseInt(monthMatch[1], 10)}月`;
-      } else {
-        month = '1月';
-      }
-    } else {
-      const mNum = parseInt(month, 10);
-      if (!isNaN(mNum)) {
-        month = `${mNum}月`;
-      }
-    }
-
-    const rawImages = entry.data.images || entry.data.image;
-    const parsedImages = normalizeImages(rawImages);
-
-    return {
-      id: entry.id,
-      title: entry.data.title || '',
-      subtitle: entry.data.subtitle || '',
-      day: entry.data.day || '',
-      month,
-      time: timeStr,
-      location: entry.data.location || '',
-      thumbnail: entry.data.thumbnail || '',
-      year,
-      images: parsedImages,
-      likes: Array.isArray(entry.data.likes) ? entry.data.likes : [],
-      comments: Array.isArray(entry.data.comments) ? entry.data.comments : [],
-      bodyText: entry.body || '',
-    };
-  })
-);
-
-const momentsData = unSortedData.sort((a, b) => parseTimestamp(b.time, b.day) - parseTimestamp(a.time, a.day));
-
-const availableYears = [...new Set(momentsData.map(m => m.year))].sort().reverse();
-
-const availableMonths = [
-  { label: "全部月份", value: "all" },
-  { label: "1月", value: "1月" },
-  { label: "2月", value: "2月" },
-  { label: "3月", value: "3月" },
-  { label: "4月", value: "4月" },
-  { label: "5月", value: "5月" },
-  { label: "6月", value: "6月" },
-  { label: "7月", value: "7月" },
-  { label: "8月", value: "8月" },
-  { label: "9月", value: "9月" },
-  { label: "10月", value: "10月" },
-  { label: "11月", value: "11月" },
-  { label: "12月", value: "12月" },
-];
+const years = Array.from(new Set(sortedMoments.map(getYear))).filter(Boolean).sort().reverse();
+const months = Array.from(new Set(sortedMoments.map(getMonth))).filter(Boolean).sort((a, b) => parseInt(a) - parseInt(b));
 ---
 
-<!DOCTYPE html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Moments | {SITE_CONFIG.title}</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
-    
-    <ClientRouter />
-
-    <script is:inline>
-      const syncSystemTheme = () => {
-        if (localStorage.getItem('theme') === 'light') {
-          document.documentElement.classList.add('light-mode');
-        } else {
-          document.documentElement.classList.remove('light-mode');
-        }
-      };
-      syncSystemTheme();
-      document.addEventListener('astro:after-swap', syncSystemTheme);
-    </script>
-  </head>
-  <body>
-
-    <Navbar />
-
-    <script type="application/json" id="moments-json" set:html={JSON.stringify(momentsData)}></script>
-
-    <div class="split-viewport">
-      
-      <!-- 左側時間軸與選單 -->
-      <aside class="sidebar-timeline animate-sidebar">
-        <div class="timeline-header animate-header">
-          <h2>Moments</h2>
-          
-          <div class="filter-selectors">
-            <select id="year-select" class="minimal-select" aria-label="選擇年份">
-              <option value="all">全部年份</option>
-              {availableYears.map(y => (
-                <option value={y}>{y}年</option>
-              ))}
-            </select>
-
-            <select id="month-select" class="minimal-select" aria-label="選擇月份">
-              {availableMonths.map(m => (
-                <option value={m.value}>{m.label}</option>
-              ))}
-            </select>
+<BaseLayout title={`Moments | ${SITE_CONFIG.title}`}>
+  <div class="split-viewport">
+    <aside class="sidebar-timeline animate-sidebar">
+      <div class="timeline-header">
+        <h2>Moments</h2>
+        <div class="filter-selectors">
+          <div class="custom-dropdown" id="year-dropdown" data-value="all">
+            <button type="button" class="custom-dropdown-btn" aria-label="选择年份">
+              <span class="dropdown-label">年份</span>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="custom-dropdown-menu">
+              <div class="custom-dropdown-item selected" data-value="all">全部年份</div>
+              {years.map(y => <div class="custom-dropdown-item" data-value={y}>{y}年</div>)}
+            </div>
           </div>
-        </div>
 
-        <div class="timeline-list" id="timeline-list">
-          {momentsData.map((item, index) => (
+          <div class="custom-dropdown" id="month-dropdown" data-value="all">
+            <button type="button" class="custom-dropdown-btn" aria-label="选择月份">
+              <span class="dropdown-label">月份</span>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="custom-dropdown-menu">
+              <div class="custom-dropdown-item selected" data-value="all">全月</div>
+              {months.map(m => <div class="custom-dropdown-item" data-value={m}>{m}</div>)}
+            </div>
+          </div>
+
+          <button id="view-mode-btn" class="minimal-btn mobile-only" aria-label="切换视图">
+            <svg class="icon-feed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <svg class="icon-list" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="timeline-list">
+        {sortedMoments.map((item, index) => {
+          const itemId = item.id || item.slug;
+          const itemYear = getYear(item);
+          const itemMonth = getMonth(item);
+          const thumbUrl = item.data.thumbnail || item.data.images?.[0];
+          return (
             <div 
               class={`timeline-item animate-item ${index === 0 ? 'active' : ''}`}
-              style={`animation-delay: ${index * 0.04}s`}
-              data-id={item.id}
-              data-title={item.title}  
-              data-year={item.year}
-              data-month={item.month}
+              data-id={itemId}
+              data-title={item.data.title}
+              data-year={itemYear}
+              data-month={itemMonth}
+              style={`animation-delay: ${index * 0.05}s`}
             >
               <div class="date-col">
-                <span class="day-num">{item.day}</span>
-                <span class="month-text">{item.month}</span>
+                <span class="day-num">{item.data.day || '01'}</span>
+                <span class="month-text">{itemMonth || '1月'}</span>
               </div>
               <div class="thumb-col">
-                <img src={item.thumbnail} alt={item.title} loading="lazy" />
+                <img data-src={thumbUrl} alt={item.data.title} class="lazy-img" />
               </div>
               <div class="info-col">
-                <h3 class="item-title">{item.title}</h3>
-                <p class="item-sub">{item.subtitle}</p>
+                <div class="item-title">{item.data.title}</div>
+                <div class="item-sub">{item.data.subtitle}</div>
               </div>
             </div>
-          ))}
-        </div>
-      </aside>
+          );
+        })}
+      </div>
+    </aside>
 
-      <!-- 右側詳情面板 -->
-      <main class="main-detail-area">
-        <div class="detail-scroll-container" id="detail-container">
-          
-          {momentsData.map((item, index) => (
-            <div class={`detail-card ${index === 0 ? 'active' : ''}`} data-detail-id={item.id} data-title={item.title}>
-              
+    <main class="main-detail-area">
+      <div class="detail-scroll-container">
+        {sortedMoments.map((item, index) => {
+          const itemId = item.id || item.slug;
+          return (
+            <article 
+              class={`detail-card ${index === 0 ? 'active' : ''}`} 
+              data-detail-id={itemId}
+            >
+              <!-- 🔑 动态绑定 SITE_CONFIG 头像与作者信息 -->
               <div class="detail-user-header animate-el">
-  <div class="avatar-box">
-    {SITE_CONFIG.avatar?.src ? (
-      <img src={SITE_CONFIG.avatar.src} alt={SITE_CONFIG.author || "Avatar"} class="avatar-img" />
-    ) : (
-      <span>{SITE_CONFIG.author ? SITE_CONFIG.author.charAt(0).toUpperCase() : 'C'}</span>
-    )}
-  </div>
+                <div class="avatar-box">
+                  {SITE_CONFIG.avatar?.src ? (
+                    <img src={SITE_CONFIG.avatar.src} alt={SITE_CONFIG.author || "Avatar"} class="avatar-img" />
+                  ) : (
+                    <span>{SITE_CONFIG.author ? SITE_CONFIG.author.charAt(0).toUpperCase() : 'C'}</span>
+                  )}
+                </div>
                 <div class="user-meta">
-                  <h3 class="author-name">{SITE_CONFIG.logo}</h3>
-                  <p class="detail-title-text">{SITE_CONFIG.subtitle}</p>
+                  <h3 class="author-name">{SITE_CONFIG.author || SITE_CONFIG.logo}</h3>
+                  <p class="detail-title-text">{item.data.title || SITE_CONFIG.subtitle}</p>
                 </div>
               </div>
 
-              <p class="detail-desc animate-el" set:html={item.bodyText ? item.bodyText.replace(/\r\n|\r|\n/g, '<br />') : ''}></p>
+              <div class="detail-desc animate-el">{item.body}</div>
 
-              <!-- 圖片網格 -->
-              <div class={`detail-media-grid count-${item.images.length} animate-el`}>
-                {item.images.map((img: string, imgIdx: number) => (
-                  <div class="media-box" data-moment-id={item.id} data-index={imgIdx}>
-                    <img src={img} alt="" loading="lazy" />
-                  </div>
-                ))}
-              </div>
+              {item.data.images && item.data.images.length > 0 && (
+                <div class={`detail-media-grid count-${Math.min(item.data.images.length, 9)} animate-el`}>
+                  {item.data.images.map((img: string, imgIdx: number) => (
+                    <div class="media-box" data-moment-id={itemId} data-index={imgIdx}>
+                      <img data-src={img} alt="" class="lazy-img" />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div class="detail-time-row animate-el">
                 <div class="time-location-group">
-                  <span>{item.time}</span>
-                  {item.location && (
+                  <span>{item.data.time}</span>
+                  {item.data.location && (
                     <span class="location-tag">
-                      <svg viewBox="0 0 24 24" class="loc-icon"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                      {item.location}
+                      <svg class="loc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      {item.data.location}
                     </span>
                   )}
                 </div>
-                <button class="post-like-btn" type="button" aria-label="點讚動態">
+                <button class="post-like-btn" aria-label="点赞">
                   <span class="like-heart">♥</span>
                 </button>
               </div>
 
-              <div class="likes-section animate-el">
-                <div class="likes-icon-row">♥</div>
-                <div class="likes-avatars">
-                  {item.likes.map((name: string) => (
-                    <span class="avatar-tag">{name}</span>
-                  ))}
+              {item.data.likes && item.data.likes.length > 0 && (
+                <div class="likes-section animate-el">
+                  <span class="likes-icon-row">♥</span>
+                  <div class="likes-avatars">
+                    {item.data.likes.map((u: string) => <span class="avatar-tag">{u}</span>)}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div class="comments-section animate-el">
-                {item.comments.length > 0 ? (
-                  item.comments.map((c: { user: string; text: string }) => (
+              {item.data.comments && item.data.comments.length > 0 && (
+                <div class="comments-section animate-el">
+                  {item.data.comments.map((c: any) => (
                     <div class="comment-row">
                       <div class="comment-main">
                         <span class="c-user">{c.user}:</span>
                         <span class="c-text">{c.text}</span>
                       </div>
-                      <button class="comment-like-btn" type="button" aria-label="點讚評論">
+                      <button class="comment-like-btn">
                         <span class="like-heart">♡</span>
                         <span class="like-num">0</span>
                       </button>
                     </div>
-                  ))
-                ) : (
-                  <div class="comment-row" style="color:#888;">暫無評論</div>
-                )}
-              </div>
-
-            </div>
-          ))}
-
-        </div>
-      </main>
-
-    </div>
-
-    <!-- 全螢幕 Lightbox -->
-    <div id="lightbox" class="lightbox-modal">
-      <div class="lightbox-backdrop" id="lightbox-close-area"></div>
-      
-      <div class="lightbox-content">
-        <div class="lightbox-header">
-          <div class="meta-left">
-            <span id="lightbox-index" class="meta-badge"></span>
-            <span id="lightbox-date" class="meta-date"></span>
-            <span id="lightbox-location" class="meta-location" style="display: none;"></span>
-          </div>
-          <button id="lightbox-close-btn" class="lightbox-close-btn" aria-label="關閉">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-
-        <div class="media-frame-container">
-          <img id="lb-base-img" class="lightbox-layer opacity-hidden" />
-          <div id="lb-loader" class="lightbox-loading-placeholder" style="display: none;"></div>
-        </div>
-
-        <div class="lightbox-footer" id="lightbox-footer">
-          <div class="footer-meta">
-            <p id="footer-title" class="footer-title">動態大圖預覽</p>
-            <div id="lightbox-exif" class="exif-info-bar" style="display: none;">
-              <span id="exif-camera" class="exif-item"></span>
-              <span id="exif-param" class="exif-item"></span>
-            </div>
-          </div>
-          <a id="footer-link" href="#" target="_blank" rel="noopener noreferrer" class="footer-link">
-            新分頁開啟
-          </a>
-        </div>
-
-        <button id="prev-btn" class="nav-btn prev" aria-label="上一張">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 19l-7-7 7-7"/></svg>
-        </button>
-        <button id="next-btn" class="nav-btn next" aria-label="下一張">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>
-        </button>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
       </div>
-    </div>
+    </main>
+  </div>
 
-    <!-- 引用的獨立 JS 邏輯組件 -->
-    <MomentsScript />
+  <script id="moments-json" type="application/json">
+    {JSON.stringify(sortedMoments.map(m => ({
+      id: m.id || m.slug,
+      title: m.data.title,
+      time: m.data.time,
+      location: m.data.location,
+      images: m.data.images || []
+    })))}
+  </script>
+</BaseLayout>
 
-    <!-- 跨页搜索跳转原生触发引擎（增强型空格/URL编码兼容） -->
-    <script is:inline>
-      (function() {
-        // 归一化清洗函数：兼容标准空格、%20、连字符 -、下划线 _ 及大小写
-        const cleanKey = (str) => {
-          if (!str) return '';
-          try { str = decodeURIComponent(str); } catch(e) {}
-          return str.toLowerCase()
-            .trim()
-            .replace(/^[#?]/, '')
-            .replace(/^moments\//, '')
-            .replace(/\.(md|mdx)$/, '')
-            .replace(/%20/g, ' ')
-            .replace(/[-_\s]+/g, ' '); // ⚡ 核心修复：统一将空格、连字符-、下划线_压平为单空格
-        };
-
-        // 极致去符号降级对比函数
-        const strictCleanKey = (str) => {
-          return cleanKey(str).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
-        };
-
-        const fetchTargetKey = () => {
-          const storeKey = sessionStorage.getItem('quasar_jump_key');
-          if (storeKey) {
-            sessionStorage.removeItem('quasar_jump_key');
-            return storeKey;
-          }
-          const urlParams = new URLSearchParams(window.location.search);
-          const searchParam = urlParams.get('id') || urlParams.get('key') || urlParams.get('target') || urlParams.get('title') || urlParams.get('q');
-          if (searchParam) return searchParam;
-
-          const hashKey = window.location.hash;
-          if (hashKey && hashKey.length > 1) return hashKey.slice(1);
-
-          return null;
-        };
-
-        const performJump = (rawKey) => {
-          const key = cleanKey(rawKey);
-          const strictKey = strictCleanKey(rawKey);
-          if (!key) return false;
-
-          const items = Array.from(document.querySelectorAll('.timeline-item'));
-          if (!items.length) return false;
-
-          let matchedItem = null;
-
-          // 1. 归一化精确匹配 ID / Title
-          for (const item of items) {
-            const itemId = cleanKey(item.dataset.id || '');
-            const itemTitle = cleanKey(item.dataset.title || '');
-            if (itemId === key || itemTitle === key) {
-              matchedItem = item;
-              break;
-            }
-          }
-
-          // 2. 极致纯文本/符号忽略碰撞比对（防御含特殊符号与空格组合的文件名）
-          if (!matchedItem && strictKey) {
-            for (const item of items) {
-              const itemId = strictCleanKey(item.dataset.id || '');
-              const itemTitle = strictCleanKey(item.dataset.title || '');
-              if (itemId === strictKey || itemTitle === strictKey) {
-                matchedItem = item;
-                break;
-              }
-            }
-          }
-
-          // 3. 包含关系模糊匹配
-          if (!matchedItem) {
-            for (const item of items) {
-              const itemId = cleanKey(item.dataset.id || '');
-              const itemTitle = cleanKey(item.dataset.title || '');
-              if ((itemId && (itemId.includes(key) || key.includes(itemId))) ||
-                  (itemTitle && (itemTitle.includes(key) || key.includes(itemTitle)))) {
-                matchedItem = item;
-                break;
-              }
-            }
-          }
-
-          // 4. DOM 节点全文包含匹配
-          if (!matchedItem) {
-            for (const item of items) {
-              const fullText = cleanKey(item.textContent || '');
-              if (fullText.includes(key)) {
-                matchedItem = item;
-                break;
-              }
-            }
-          }
-
-          if (matchedItem) {
-            matchedItem.click();
-
-            setTimeout(() => {
-              matchedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-              const mId = matchedItem.dataset.id;
-              const card = document.querySelector(`.detail-card[data-detail-id="${mId}"]`);
-              if (card) {
-                card.scrollIntoView({ block: 'start', behavior: 'smooth' });
-              }
-            }, 60);
-            return true;
-          }
-
-          return false;
-        };
-
-        const triggerJumpProcess = () => {
-          const key = fetchTargetKey();
-          if (key) {
-            requestAnimationFrame(() => {
-              setTimeout(() => {
-                performJump(key);
-              }, 120);
-            });
-          }
-        };
-
-        window.addEventListener('quasar:moment-jump', (e) => {
-          if (e.detail && e.detail.key) performJump(e.detail.key);
-        });
-
-        document.addEventListener('DOMContentLoaded', triggerJumpProcess);
-        document.addEventListener('astro:page-load', triggerJumpProcess);
-        window.addEventListener('hashchange', triggerJumpProcess);
-      })();
-    </script>
-
-  </body>
-</html>
-
-<style>
-  /* 基础与布局样式 */
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background-color: #030303; color: #ffffff; font-family: 'Noto Sans SC', sans-serif; overflow: hidden; }
-  .split-viewport { display: flex; width: 100vw; height: calc(100vh - 72px); margin-top: 72px; }
-  .sidebar-timeline { width: 420px; height: 100%; background: rgba(255, 255, 255, 0.01); border-right: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; flex-shrink: 0; }
-  
-  .timeline-header { padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.06); gap: 10px; }
-  .timeline-header h2 { font-size: 1.05rem; font-family: 'Noto Sans SC', sans-serif; color: #ffffff; white-space: nowrap; }
-
-  .filter-selectors { display: flex; gap: 6px; }
-  .minimal-select {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    font-size: 0.78rem;
-    font-family: 'Noto Sans SC', sans-serif;
-    padding: 6px 10px;
-    border-radius: 8px;
-    outline: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .minimal-select:hover {
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-  .minimal-select option {
-    background: #151515;
-    color: #ffffff;
-  }
-
-  .timeline-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  
-  @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes itemFadeIn {
-    from { opacity: 0; transform: translateY(15px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .animate-sidebar { animation: fadeSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-  .animate-item { opacity: 0; animation: itemFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-
-  .timeline-item { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); cursor: pointer; transition: all 0.25s ease; }
-  .timeline-item:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.12); transform: translateX(2px); }
-  .timeline-item.active { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.25); }
-  .date-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 42px; }
-  .day-num { font-size: 1.25rem; font-weight: 900; font-family: 'Noto Sans SC', sans-serif; line-height: 1.1; color: #ffffff; }
-  .month-text { font-size: 0.75rem; color: #aaaaaa; }
-  .thumb-col { width: 52px; height: 52px; border-radius: 6px; overflow: hidden; flex-shrink: 0; background: #111; }
-  .thumb-col img { width: 100%; height: 100%; object-fit: cover; }
-  .info-col { flex: 1; overflow: hidden; }
-  .item-title { font-size: 0.9rem; font-weight: 700; font-family: 'Noto Sans SC', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; color: #ffffff; }
-  .item-sub { font-size: 0.78rem; color: #aaaaaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  
-  .main-detail-area { flex: 1; height: 100%; display: flex; flex-direction: column; position: relative; background: #050505; }
-  .detail-scroll-container { flex: 1; overflow-y: auto; padding: 40px; display: flex; justify-content: center; position: relative; }
-  
-  .detail-card { display: none; width: 100%; max-width: 640px; padding-bottom: 60px; }
-  .detail-card.active { display: block; }
-
-  .detail-user-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
-  .avatar-box { width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #222, #555); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 900; font-family: 'Noto Sans SC', sans-serif; color: #ffffff;  overflow: hidden;  flex-shrink: 0;
-}
-
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block; }
-  .author-name { font-size: 1.05rem; font-weight: 700; font-family: 'Noto Sans SC', sans-serif; color: #ffffff; margin-bottom: 2px; }
-  .detail-title-text { font-size: 0.92rem; color: #aaaaaa; }
-  
-  .detail-desc { 
-    font-size: 1.06rem; 
-    line-height: 1.75; 
-    color: #f0f0f0; 
-    margin-bottom: 24px; 
-    white-space: pre-wrap !important; 
-    word-break: break-word;
-  }
-  
-  /* 图片网格系统 */
-  .detail-media-grid { display: grid; gap: 8px; margin-bottom: 24px; border-radius: 10px; overflow: hidden; width: 100%; }
-  
-  .detail-media-grid.count-1 { grid-template-columns: 320px; max-width: 320px; }
-  .detail-media-grid.count-1 .media-box { aspect-ratio: 4/5; width: 100%; border-radius: 10px; }
-  .detail-media-grid.count-1 .media-box img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; display: block; }
-
-  .detail-media-grid.count-2 { grid-template-columns: repeat(2, 1fr); max-width: 380px; }
-  .detail-media-grid.count-3 { grid-template-columns: repeat(3, 1fr); max-width: 440px; }
-  .detail-media-grid.count-4 { grid-template-columns: repeat(2, 1fr); max-width: 320px; }
-  .detail-media-grid.count-5, .detail-media-grid.count-6, 
-  .detail-media-grid.count-7, .detail-media-grid.count-8, 
-  .detail-media-grid.count-9 { grid-template-columns: repeat(3, 1fr); max-width: 440px; }
-
-  .media-box { aspect-ratio: 1/1; background: #151515; cursor: pointer; overflow: hidden; border-radius: 8px; transition: transform 0.3s ease; }
-  .media-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; pointer-events: none; display: block; }
-  .media-box:hover img { transform: scale(1.06); }
-  
-  .detail-time-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #aaaaaa; margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .time-location-group { display: flex; align-items: center; gap: 12px; }
-  
-  .location-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.78rem;
-    color: #88aaff;
-    background: rgba(136, 170, 255, 0.08);
-    border: 1px solid rgba(136, 170, 255, 0.15);
-    padding: 2px 8px;
-    border-radius: 6px;
-  }
-  .loc-icon { width: 12px; height: 12px; }
-
-  .post-like-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #888888;
-    font-size: 1.1rem;
-    padding: 2px 6px;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-  }
-  .post-like-btn:hover { color: #ff3e18; background: rgba(255, 255, 255, 0.05); }
-  .post-like-btn.liked { color: #ff3e18; }
-  .post-like-btn .like-heart { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-  .post-like-btn.liked .like-heart { transform: scale(1.2); }
-
-  .likes-section { background: rgba(255,255,255,0.02); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-  .likes-icon-row { color: #ff3e18; font-size: 1rem; }
-  .likes-avatars { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .avatar-tag { font-size: 0.82rem; background: rgba(255,255,255,0.06); padding: 3px 10px; border-radius: 6px; color: #cccccc; font-family: 'Noto Sans SC', sans-serif; }
-  .avatar-tag.my-like { background: rgba(255, 62, 24, 0.2); color: #ff8b78; font-weight: 700; border: 1px solid rgba(255, 62, 24, 0.3); }
-  
-  .comments-section { background: rgba(255,255,255,0.02); border-radius: 10px; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px; }
-  
-  .comment-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 0.92rem; line-height: 1.55; }
-  .comment-main { flex: 1; }
-  .c-user { color: #ffffff; font-weight: 700; margin-right: 8px; font-family: 'Noto Sans SC', sans-serif; }
-  .c-text { color: #dddddd; }
-
-  .comment-like-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: #888888;
-    font-size: 0.78rem;
-    font-family: 'Noto Sans SC', sans-serif;
-    padding: 3px 8px;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-  }
-  .comment-like-btn:hover { color: #ff3e18; background: rgba(255, 255, 255, 0.05); }
-  .comment-like-btn.liked { color: #ff3e18; }
-  .like-heart { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-  .comment-like-btn.liked .like-heart { transform: scale(1.15); }
-
-  /* Lightbox 样式 */
-  .media-frame-container { flex-grow: 1; display: block; overflow: hidden; position: relative; width: 100%; height: 75vh; margin: 15px 0; }
-  .lightbox-layer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; margin: auto; width: 100%; height: 100%; object-fit: contain !important; border-radius: 12px; transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-  .lightbox-loading-placeholder { position: absolute; top: 0; left: 0; right: 0; bottom: 0; margin: auto; width: 36px; height: 36px; border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #ffffff; border-radius: 50%; animation: spin 0.85s cubic-bezier(0.6, 0.2, 0.2, 0.8) infinite; z-index: 5; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .opacity-hidden { opacity: 0 !important; }
-
-  .lightbox-modal { position: fixed; inset: 0; z-index: 9999; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-  .lightbox-modal.active { opacity: 1; pointer-events: auto; }
-  .lightbox-backdrop { position: absolute; inset: 0; background: rgba(3, 3, 3, 0.78); backdrop-filter: blur(28px) saturate(220%); z-index: 1; }
-  .lightbox-content { position: relative; z-index: 2; width: 100%; max-width: 1100px; height: 88vh; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
-  .lightbox-header { display: flex; justify-content: space-between; align-items: center; width: 100%; z-index: 10; }
-  .meta-left { display: flex; align-items: center; gap: 10px; }
-  .meta-badge { background: rgba(255, 255, 255, 0.1); padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; font-family: 'Noto Sans SC'; color: #ffffff; }
-  .meta-date { font-size: 0.75rem; color: #888888; font-family: 'Noto Sans SC'; }
-  .meta-location { font-size: 0.75rem; color: #88aaff; background: rgba(136, 170, 255, 0.1); padding: 4px 10px; border-radius: 12px; font-family: 'Noto Sans SC'; }
-
-  .lightbox-close-btn { background: rgba(255, 255, 255, 0.1); border: none; width: 38px; height: 38px; border-radius: 50%; color: #ffffff; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; }
-  .lightbox-close-btn:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
-  .lightbox-close-btn svg { width: 16px; height: 16px; }
-
-  .lightbox-footer { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 900px; margin: 0 auto; padding: 12px 24px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); color: #ffffff; z-index: 10; }
-  .footer-meta { display: flex; flex-direction: column; gap: 4px; }
-  .footer-title { font-size: 0.9rem; font-weight: 700; margin: 0; }
-  
-  .exif-info-bar { display: flex; gap: 14px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.75); font-family: 'Noto Sans SC', monospace; }
-  .exif-item { display: inline-flex; align-items: center; }
-
-  .footer-link { display: inline-flex; align-items: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; font-size: 0.8rem; font-weight: 500; padding: 8px 16px; border-radius: 30px; text-decoration: none; transition: all 0.2s ease; }
-  .footer-link:hover { background: rgba(255, 255, 255, 0.18); }
-
-  .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); width: 50px; height: 50px; border-radius: 50%; color: #ffffff; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10; transition: all 0.3s ease; }
-  .nav-btn:hover { background: rgba(255, 255, 255, 0.18); transform: translateY(-50%) scale(1.08); }
-  .nav-btn.prev { left: -20px; }
-  .nav-btn.next { right: -20px; }
-  .nav-btn svg { width: 18px; height: 18px; }
-
-  /* 效能降级适配 */
-  :global(html.perf-degraded) .animate-sidebar { animation: none !important; opacity: 1 !important; }
-  :global(html.perf-degraded) .animate-item { animation: none !important; opacity: 1 !important; }
-  :global(html.perf-degraded) .lightbox-backdrop { backdrop-filter: none !important; background: rgba(3, 3, 3, 0.94) !important; }
-  :global(html.perf-degraded) .lightbox-footer { backdrop-filter: none !important; background: rgba(20, 20, 20, 0.92) !important; }
-  :global(html.perf-degraded) .nav-btn { backdrop-filter: none !important; background: rgba(30, 30, 30, 0.92) !important; }
-  :global(html.perf-degraded) .media-box { transition: none !important; }
-  :global(html.perf-degraded) .media-box img { transition: none !important; }
-  :global(html.perf-degraded) .media-box:hover img { transform: none !important; }
-  :global(html.perf-degraded) .timeline-item { transition: none !important; }
-  :global(html.perf-degraded) .timeline-item:hover { transform: none !important; }
-
-  /* 明亮模式适配 */
-  :global(html.light-mode) .split-viewport { background: #f5f5f7; }
-  :global(html.light-mode) .sidebar-timeline { background: #ffffff; border-right-color: rgba(0,0,0,0.08); }
-  :global(html.light-mode) .timeline-header { border-bottom-color: rgba(0,0,0,0.06); }
-  :global(html.light-mode) .timeline-header h2 { color: #1d1d1f; }
-  :global(html.light-mode) .timeline-item { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.04); }
-  :global(html.light-mode) .timeline-item:hover { background: rgba(0,0,0,0.04); }
-  :global(html.light-mode) .timeline-item.active { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.2); }
-  :global(html.light-mode) .day-num { color: #1d1d1f; }
-  :global(html.light-mode) .month-text { color: #6e6e73; }
-  :global(html.light-mode) .item-title { color: #1d1d1f; }
-  :global(html.light-mode) .item-sub { color: #6e6e73; }
-  :global(html.light-mode) .main-detail-area { background: #fcfcfd; }
-  :global(html.light-mode) .author-name { color: #1d1d1f; }
-  :global(html.light-mode) .detail-title-text { color: #6e6e73; }
-  :global(html.light-mode) .detail-desc { color: #1d1d1f !important; }
-  :global(html.light-mode) .detail-time-row { border-bottom-color: rgba(0,0,0,0.06); color: #6e6e73; }
-  :global(html.light-mode) .location-tag { color: #2b6cb0; background: rgba(43, 108, 176, 0.08); border-color: rgba(43, 108, 176, 0.15); }
-  :global(html.light-mode) .likes-section { background: rgba(0,0,0,0.03); }
-  :global(html.light-mode) .comments-section { background: rgba(0,0,0,0.03); }
-  :global(html.light-mode) .post-like-btn { color: #6e6e73; }
-  :global(html.light-mode) .post-like-btn:hover { background: rgba(0, 0, 0, 0.05); color: #ff3e18; }
-  :global(html.light-mode) .post-like-btn.liked { color: #ff3e18; }
-  :global(html.light-mode) .avatar-tag { background: rgba(0,0,0,0.06); color: #333333; }
-  :global(html.light-mode) .avatar-tag.my-like { background: rgba(255, 62, 24, 0.15); color: #e63512; border-color: rgba(255, 62, 24, 0.25); }
-  :global(html.light-mode) .c-user { color: #1d1d1f; }
-  :global(html.light-mode) .c-text { color: #3a3a3c; }
-  :global(html.light-mode) .comment-like-btn { color: #6e6e73; }
-  :global(html.light-mode) .comment-like-btn:hover { background: rgba(0, 0, 0, 0.05); color: #ff3e18; }
-  :global(html.light-mode) .minimal-select { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.1); color: #1d1d1f; }
-  :global(html.light-mode) .minimal-select option { background: #ffffff; color: #1d1d1f; }
-  :global(html.light-mode) .lightbox-backdrop { background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(36px) saturate(220%); }
-  :global(html.light-mode) .meta-badge { background: rgba(0, 0, 0, 0.06); color: #1d1d1f; }
-  :global(html.light-mode) .meta-date { color: #555555; }
-  :global(html.light-mode) .meta-location { color: #2b6cb0; background: rgba(43, 108, 176, 0.08); }
-  :global(html.light-mode) .lightbox-footer { background: rgba(0, 0, 0, 0.04); border: 1px solid rgba(0, 0, 0, 0.06); color: #1d1d1f; }
-  :global(html.light-mode) .exif-info-bar { color: #555555; }
-  :global(html.light-mode) .footer-link { background: rgba(0, 0, 0, 0.06); border: 1px solid rgba(0, 0, 0, 0.08); color: #1d1d1f; }
-  :global(html.light-mode) .lightbox-close-btn, :global(html.light-mode) .nav-btn { background: rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.04); color: #1d1d1f; }
-
-  :global(html.light-mode.perf-degraded) .lightbox-backdrop { backdrop-filter: none !important; background: rgba(240, 240, 243, 0.96) !important; }
-  :global(html.light-mode.perf-degraded) .lightbox-footer { backdrop-filter: none !important; background: rgba(230, 230, 235, 0.92) !important; }
-  :global(html.light-mode.perf-degraded) .nav-btn { backdrop-filter: none !important; background: rgba(220, 220, 225, 0.92) !important; }
+<script src="../assets/scripts/moments.js"></script>
+<style id="moments-style">
+  @import "../assets/css/moments.css";
 </style>

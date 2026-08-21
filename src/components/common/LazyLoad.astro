@@ -1,0 +1,61 @@
+---
+// src/components/common/LazyLoad.astro
+---
+
+<script>
+  let imgObserver: IntersectionObserver | null = null;
+
+  const triggerImageLoad = (img: HTMLImageElement) => {
+    if (!img || !img.dataset.src) return;
+    const realSrc = img.dataset.src;
+    img.src = realSrc;
+    img.removeAttribute('data-src');
+
+    if (img.complete) {
+      img.classList.add('loaded');
+    } else {
+      img.onload = () => img.classList.add('loaded');
+      img.onerror = () => img.classList.add('loaded');
+    }
+  };
+
+  const initLazyLoad = () => {
+    if (imgObserver) imgObserver.disconnect();
+
+    const lazyImages = document.querySelectorAll<HTMLImageElement>('img[data-src]');
+    if (!lazyImages.length) return;
+
+    imgObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          triggerImageLoad(entry.target as HTMLImageElement);
+          imgObserver?.unobserve(entry.target);
+        }
+      });
+    }, {
+      rootMargin: '300px 0px 300px 0px',
+      threshold: 0.01
+    });
+
+    lazyImages.forEach(img => imgObserver?.observe(img));
+  };
+
+  // 挂载全局方法供手控调用
+  (window as any).initLazyLoad = initLazyLoad;
+  (window as any).triggerImageLoad = triggerImageLoad;
+
+  document.addEventListener('DOMContentLoaded', initLazyLoad);
+  document.addEventListener('astro:page-load', initLazyLoad);
+</script>
+
+<style is:global>
+  /* 全局懒加载渐显样式 */
+  img[data-src] {
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity;
+  }
+  img.loaded {
+    opacity: 1;
+  }
+</style>
