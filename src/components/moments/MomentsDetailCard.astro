@@ -1,6 +1,7 @@
 ---
 // src/components/moments/MomentsDetailCard.astro
 import { SITE_CONFIG } from '../../config.ts';
+import MomentsLikeButton from './MomentsLikeButton.astro';
 
 interface Props {
   item: {
@@ -20,7 +21,7 @@ interface Props {
 const { item, isActive } = Astro.props;
 ---
 
-<div class={`detail-card ${isActive ? 'active' : ''}`} data-detail-id={item.id} data-title={item.title}>
+<article class={`detail-card ${isActive ? 'active' : ''}`} data-detail-id={item.id} data-title={item.title}>
   
   <div class="detail-user-header animate-el">
     <div class="avatar-box">
@@ -38,13 +39,16 @@ const { item, isActive } = Astro.props;
 
   <p class="detail-desc animate-el" set:html={item.bodyText ? item.bodyText.replace(/\r\n|\r|\n/g, '<br />') : ''}></p>
 
-  <div class={`detail-media-grid count-${item.images.length} animate-el`}>
-    {item.images.map((img: string, imgIdx: number) => (
-      <div class="media-box" data-moment-id={item.id} data-index={imgIdx}>
-        <img src={img} alt="" loading="lazy" />
-      </div>
-    ))}
-  </div>
+  {item.images && item.images.length > 0 && (
+    <div class={`detail-media-grid count-${item.images.length} animate-el`}>
+      {item.images.map((img: string, imgIdx: number) => (
+        <div class="media-box" data-moment-id={item.id} data-index={imgIdx}>
+          <!-- 增加 data-src 属性以适配 IndexedDB Base64 编码与元数据转换 -->
+          <img data-src={img} src={img} alt="" class="lazy-img" loading="lazy" />
+        </div>
+      ))}
+    </div>
+  )}
 
   <div class="detail-time-row animate-el">
     <div class="time-location-group">
@@ -56,22 +60,13 @@ const { item, isActive } = Astro.props;
         </span>
       )}
     </div>
-    <button class="post-like-btn" type="button" aria-label="点赞动态">
-      <span class="like-heart">♥</span>
-    </button>
   </div>
 
-  <div class="likes-section animate-el">
-    <div class="likes-icon-row">♥</div>
-    <div class="likes-avatars">
-      {item.likes.map((name: string) => (
-        <span class="avatar-tag">{name}</span>
-      ))}
-    </div>
-  </div>
+  <!-- 引入点赞群岛 -->
+  <MomentsLikeButton momentId={item.id} likes={item.likes} />
 
   <div class="comments-section animate-el">
-    {item.comments.length > 0 ? (
+    {item.comments && item.comments.length > 0 ? (
       item.comments.map((c: { user: string; text: string }) => (
         <div class="comment-row">
           <div class="comment-main">
@@ -89,4 +84,4 @@ const { item, isActive } = Astro.props;
     )}
   </div>
 
-</div>
+</article>

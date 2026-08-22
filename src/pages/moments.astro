@@ -2,7 +2,7 @@
 // src/pages/moments.astro
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
-import { SITE_CONFIG } from '../config'; // 引入你的配置文件路径
+import { SITE_CONFIG } from '../config'; // 引入配置文件路径
 
 const allMoments = await getCollection('moments');
 
@@ -100,12 +100,12 @@ const months = Array.from(new Set(sortedMoments.map(getMonth))).filter(Boolean).
       <div class="detail-scroll-container">
         {sortedMoments.map((item, index) => {
           const itemId = item.id || item.slug;
+          const hasInitialLikes = item.data.likes && item.data.likes.length > 0;
           return (
             <article 
               class={`detail-card ${index === 0 ? 'active' : ''}`} 
               data-detail-id={itemId}
             >
-              <!-- 🔑 动态绑定 SITE_CONFIG 头像与作者信息 -->
               <div class="detail-user-header animate-el">
                 <div class="avatar-box">
                   {SITE_CONFIG.avatar?.src ? (
@@ -142,19 +142,18 @@ const months = Array.from(new Set(sortedMoments.map(getMonth))).filter(Boolean).
                     </span>
                   )}
                 </div>
-                <button class="post-like-btn" aria-label="点赞">
+                <button class="post-like-btn" data-moment-id={itemId} aria-label="点赞">
                   <span class="like-heart">♥</span>
                 </button>
               </div>
 
-              {item.data.likes && item.data.likes.length > 0 && (
-                <div class="likes-section animate-el">
-                  <span class="likes-icon-row">♥</span>
-                  <div class="likes-avatars">
-                    {item.data.likes.map((u: string) => <span class="avatar-tag">{u}</span>)}
-                  </div>
+              <div class="likes-section animate-el" style={!hasInitialLikes ? "display: none;" : ""}>
+                <span class="likes-icon-row">♥</span>
+                <div class="likes-avatars">
+                  <span class="avatar-tag my-like-tag">我</span>
+                  {hasInitialLikes && item.data.likes.map((u: string) => <span class="avatar-tag">{u}</span>)}
                 </div>
-              )}
+              </div>
 
               {item.data.comments && item.data.comments.length > 0 && (
                 <div class="comments-section animate-el">
@@ -164,10 +163,6 @@ const months = Array.from(new Set(sortedMoments.map(getMonth))).filter(Boolean).
                         <span class="c-user">{c.user}:</span>
                         <span class="c-text">{c.text}</span>
                       </div>
-                      <button class="comment-like-btn">
-                        <span class="like-heart">♡</span>
-                        <span class="like-num">0</span>
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -183,14 +178,557 @@ const months = Array.from(new Set(sortedMoments.map(getMonth))).filter(Boolean).
     {JSON.stringify(sortedMoments.map(m => ({
       id: m.id || m.slug,
       title: m.data.title,
+      subtitle: m.data.subtitle || '',
       time: m.data.time,
-      location: m.data.location,
-      images: m.data.images || []
+      location: m.data.location || '',
+      body: m.body || '',
+      images: m.data.images || [],
+      likes: m.data.likes || [],
+      comments: m.data.comments || []
     })))}
   </script>
 </BaseLayout>
 
+<!-- 🔑 动态路由防丢标记 data-astro-rerun + 双重持久化逻辑 -->
+<script is:inline data-astro-rerun>
+  (function() {
+    const DB_NAME = 'QuasarMoments';
+    const DB_VERSION = 2;
+    const LS_LIKES_KEY = 'quasar_moments_likes_store';
+    let dbInstance = null;
+
+    // 1. LocalStorage 同步极速存储助手 (保证切页 0ms 恢复)
+    const getLocalLikes = () => {
+      try {
+        return JSON.parse(localStorage.getItem(LS_LIKES_KEY) || '{}');
+      } catch (e) {
+        return {};
+      }
+    };
+
+    const setLocalLike = (momentId, isLiked) => {
+      try {
+        const store = getLocalLikes();
+        store[momentId] = isLiked;
+        localStorage.setItem(LS_LIKES_KEY, JSON.stringify(store));
+      } catch (e) {
+        console.error('LocalStorage 写入失败:', e);
+      }
+    };
+
+    // 2. 初始化 IndexedDB (QuasarMoments)
+    const getDB = () => {
+      return new Promise((resolve, reject) => {
+        if (dbInstance) return resolve(dbInstance);
+
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('likes')) {
+            db.createObjectStore('likes', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('images')) {
+            db.createObjectStore('images', { keyPath: 'url' });
+          }
+          if (!db.objectStoreNames.contains('moments')) {
+            db.createObjectStore('moments', { keyPath: 'id' });
+          }
+        };
+
+        request.onsuccess = (e) => {
+          dbInstance = e.target.result;
+          resolve(dbInstance);
+        };
+
+        request.onerror = (e) => {
+          console.error('IndexedDB (QuasarMoments) 打开失败:', e.target.error);
+          reject(e.target.error);
+        };
+      });
+    };
+
+    const blobToBase64 = (blob) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    };
+
+    const getImageDimensions = (base64Str) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve({ width: 0, height: 0 });
+        img.src = base64Str;
+      });
+    };
+
+    // 3. 全量保存文案、评论、点赞人名册
+    const saveMomentsTextData = async () => {
+      const jsonEl = document.getElementById('moments-json');
+      if (!jsonEl) return;
+
+      try {
+        const momentsList = JSON.parse(jsonEl.textContent || '[]');
+        const db = await getDB();
+        const tx = db.transaction('moments', 'readwrite');
+        const store = tx.objectStore('moments');
+
+        momentsList.forEach((item) => {
+          store.put({
+            id: item.id,
+            title: item.title,
+            subtitle: item.subtitle,
+            time: item.time,
+            location: item.location,
+            body: item.body,
+            images: item.images,
+            likes: item.likes,
+            comments: item.comments,
+            updatedAt: Date.now()
+          });
+        });
+      } catch (err) {
+        console.error('保存全量数据至 IndexedDB 失败:', err);
+      }
+    };
+
+    // 4. 图片 Base64 与元数据存储
+    const initImageCache = async () => {
+      const lazyImgs = document.querySelectorAll('img[data-src]');
+      if (!lazyImgs.length) return;
+
+      try {
+        const db = await getDB();
+        lazyImgs.forEach((img) => {
+          const rawUrl = img.getAttribute('data-src');
+          if (!rawUrl || img.getAttribute('data-idb-loaded') === 'true') return;
+
+          const tx = db.transaction('images', 'readonly');
+          const store = tx.objectStore('images');
+          const req = store.get(rawUrl);
+
+          req.onsuccess = async () => {
+            if (req.result && req.result.base64) {
+              img.src = req.result.base64;
+              img.setAttribute('data-idb-loaded', 'true');
+              if (req.result.width) img.setAttribute('data-width', req.result.width);
+              if (req.result.height) img.setAttribute('data-height', req.result.height);
+            } else {
+              try {
+                const res = await fetch(rawUrl);
+                if (res.ok) {
+                  const blob = await res.blob();
+                  const base64Str = await blobToBase64(blob);
+                  const dimensions = await getImageDimensions(base64Str);
+
+                  const writeTx = db.transaction('images', 'readwrite');
+                  writeTx.objectStore('images').put({
+                    url: rawUrl,
+                    base64: base64Str,
+                    width: dimensions.width,
+                    height: dimensions.height,
+                    type: blob.type,
+                    size: blob.size,
+                    cachedAt: Date.now()
+                  });
+
+                  img.src = base64Str;
+                  img.setAttribute('data-idb-loaded', 'true');
+                } else {
+                  img.src = rawUrl;
+                }
+              } catch (fetchErr) {
+                img.src = rawUrl;
+              }
+            }
+          };
+
+          req.onerror = () => { img.src = rawUrl; };
+        });
+      } catch (err) {
+        lazyImgs.forEach(img => {
+          const rawUrl = img.getAttribute('data-src');
+          if (rawUrl) img.src = rawUrl;
+        });
+      }
+    };
+
+    // 5. 更新 UI 状态
+    const updateMomentLikeUI = (cardEl, isLiked) => {
+      if (!cardEl) return;
+      const btn = cardEl.querySelector('.post-like-btn');
+      const likesSection = cardEl.querySelector('.likes-section');
+      const myLikeTag = cardEl.querySelector('.my-like-tag');
+
+      if (btn) btn.classList.toggle('liked', isLiked);
+
+      if (myLikeTag) {
+        if (isLiked) {
+          myLikeTag.classList.add('active');
+        } else {
+          myLikeTag.classList.remove('active');
+        }
+      }
+
+      if (likesSection) {
+        const otherTags = cardEl.querySelectorAll('.likes-avatars .avatar-tag:not(.my-like-tag)');
+        if (isLiked || otherTags.length > 0) {
+          likesSection.style.display = 'flex';
+        } else {
+          likesSection.style.display = 'none';
+        }
+      }
+    };
+
+    // 🔑 6. 零延迟恢复点赞状态（双轨机制：LocalStorage + IndexedDB）
+    const restoreLikesUI = async () => {
+      // 轨道一：立即同步读取 LocalStorage (0 毫秒完成)
+      const localStore = getLocalLikes();
+      const cards = document.querySelectorAll('article[data-detail-id]');
+      cards.forEach(card => {
+        const momentId = card.getAttribute('data-detail-id');
+        if (momentId && typeof localStore[momentId] === 'boolean') {
+          updateMomentLikeUI(card, localStore[momentId]);
+        }
+      });
+
+      // 轨道二：异步同步 IndexedDB 校验与对齐
+      try {
+        const db = await getDB();
+        const tx = db.transaction('likes', 'readonly');
+        const store = tx.objectStore('likes');
+        const req = store.getAll();
+
+        req.onsuccess = () => {
+          const records = req.result || [];
+          records.forEach(record => {
+            if (record.id.startsWith('post_')) {
+              const momentId = record.id.replace('post_', '');
+              const card = document.querySelector(`article[data-detail-id="${momentId}"]`);
+              if (card && typeof record.liked === 'boolean') {
+                updateMomentLikeUI(card, record.liked);
+                setLocalLike(momentId, record.liked); // 同步回 LocalStorage
+              }
+            }
+          });
+        };
+      } catch (e) {
+        console.error('IndexedDB 点赞状态恢复异常:', e);
+      }
+    };
+
+    // 7. 黄金比例点赞动画
+    const playCardCenterHeartAnimation = (cardEl) => {
+      if (!cardEl) return;
+
+      const oldAnimation = cardEl.querySelector('.qm-heart-anim-overlay');
+      if (oldAnimation) oldAnimation.remove();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'qm-heart-anim-overlay';
+
+      overlay.innerHTML = `
+        <div class="qm-anim-glow"></div>
+        <div class="qm-anim-ring"></div>
+        <div class="qm-anim-dots">
+          <span class="dot d1"></span>
+          <span class="dot d2"></span>
+          <span class="dot d3"></span>
+          <span class="dot d4"></span>
+          <span class="dot d5"></span>
+          <span class="dot d6"></span>
+          <span class="dot d7"></span>
+          <span class="dot d8"></span>
+        </div>
+        <svg viewBox="0 0 24 24" class="qm-anim-heart">
+          <defs>
+            <linearGradient id="qmGradGolden" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ff6b81" />
+              <stop offset="100%" stop-color="#ff4757" />
+            </linearGradient>
+          </defs>
+          <path fill="url(#qmGradGolden)" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+      `;
+
+      cardEl.appendChild(overlay);
+
+      setTimeout(() => {
+        if (overlay && overlay.parentNode) {
+          overlay.parentNode.removeChild(overlay);
+        }
+      }, 850);
+    };
+
+    // 8. 全局事件委托
+    if (!window.__quasarMomentsDelegated) {
+      document.addEventListener('click', async (e) => {
+        const postBtn = e.target.closest('.post-like-btn');
+        if (!postBtn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const card = postBtn.closest('article[data-detail-id]');
+        const momentId = postBtn.getAttribute('data-moment-id') || (card ? card.getAttribute('data-detail-id') : null);
+        if (!momentId) return;
+
+        const isCurrentlyLiked = postBtn.classList.contains('liked');
+        const newLikedState = !isCurrentlyLiked;
+
+        // UI 状态即时响应
+        updateMomentLikeUI(card, newLikedState);
+
+        // 黄金动画
+        if (newLikedState && card) {
+          playCardCenterHeartAnimation(card);
+        }
+
+        // 双轨持久化写入
+        setLocalLike(momentId, newLikedState);
+
+        try {
+          const db = await getDB();
+          const tx = db.transaction('likes', 'readwrite');
+          tx.objectStore('likes').put({ id: `post_${momentId}`, liked: newLikedState, updatedAt: Date.now() });
+        } catch (dbErr) {
+          console.error('IndexedDB 点赞保存失败:', dbErr);
+        }
+      }, true);
+
+      window.__quasarMomentsDelegated = true;
+    }
+
+    // 9. 完整生命周期挂载
+    const bootstrapQuasarMoments = () => {
+      restoreLikesUI();      // 零延迟同步与恢复点赞
+      saveMomentsTextData(); // 保存文本/评论数据
+      initImageCache();     // 图像 Base64 缓存与提取
+    };
+
+    // 多重生命周期保底：包含 BFCache 与 View Transitions
+    bootstrapQuasarMoments();
+    document.addEventListener('DOMContentLoaded', bootstrapQuasarMoments);
+    document.addEventListener('astro:page-load', bootstrapQuasarMoments);
+    window.addEventListener('pageshow', bootstrapQuasarMoments);
+  })();
+</script>
+
 <script src="../assets/scripts/moments.js"></script>
-<style id="moments-style">
+
+<style is:global id="moments-style">
   @import "../assets/css/moments.css";
+
+  article.detail-card {
+    position: relative !important;
+  }
+
+  /* 心形按钮样式 */
+  .post-like-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.45);
+    transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s ease;
+    user-select: none;
+  }
+
+  .post-like-btn:active {
+    transform: scale(1.35);
+  }
+
+  .post-like-btn.liked, .post-like-btn.liked .like-heart {
+    color: #ff4757 !important;
+  }
+
+  /* 『我』专属高亮点赞标签：弹簧气泡展开，顺滑向后推移朋友 */
+  .avatar-tag.my-like-tag {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    max-width: 0;
+    opacity: 0;
+    transform: scale(0.3) translateX(-10px);
+    margin-right: 0;
+    padding: 0;
+    border: 0px solid rgba(255, 71, 87, 0.35);
+    overflow: hidden;
+    white-space: nowrap;
+    pointer-events: none;
+    vertical-align: middle;
+    background: rgba(255, 71, 87, 0.18) !important;
+    color: #ff4757 !important;
+    font-weight: 700;
+    border-radius: 12px;
+    transition: max-width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.25s ease,
+                transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                margin-right 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                padding 0.35s ease,
+                border-width 0.2s ease;
+  }
+
+  .avatar-tag.my-like-tag.active {
+    max-width: 42px;
+    opacity: 1;
+    transform: scale(1) translateX(0);
+    margin-right: 6px;
+    padding: 2px 8px;
+    border-width: 1px;
+  }
+
+  /* 黄金比例 240px 画板基座 */
+  .qm-heart-anim-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 240px;
+    height: 240px;
+    margin-top: -120px;
+    margin-left: -120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    user-select: none;
+    z-index: 99;
+  }
+
+  /* 黄金柔光背板 */
+  .qm-anim-glow {
+    position: absolute;
+    width: 116px;
+    height: 116px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 71, 87, 0.28) 0%, rgba(255, 107, 129, 0.08) 61.8%, transparent 100%);
+    animation: qmGoldenAura 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* 极细黄金微弧环 (1.2px) */
+  .qm-anim-ring {
+    position: absolute;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 1.2px solid rgba(255, 71, 87, 0.85);
+    animation: qmGoldenRing 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  }
+
+  /* 散落 8 颗斐波那契微粒 */
+  .qm-anim-dots {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+
+  .qm-anim-dots .dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4.5px;
+    height: 4.5px;
+    margin-top: -2.25px;
+    margin-left: -2.25px;
+    border-radius: 50%;
+    animation: qmGoldenDot 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .dot.d1 { --angle: 0deg;   background: #ff4757; }
+  .dot.d2 { --angle: 45deg;  background: #ff6b81; }
+  .dot.d3 { --angle: 90deg;  background: #ffa502; }
+  .dot.d4 { --angle: 135deg; background: #ff4757; }
+  .dot.d5 { --angle: 180deg; background: #ff6b81; }
+  .dot.d6 { --angle: 225deg; background: #ffa502; }
+  .dot.d7 { --angle: 270deg; background: #ff4757; }
+  .dot.d8 { --angle: 315deg; background: #ff6b81; }
+
+  /* 72px 黄金主尺寸矢量爱心 */
+  .qm-anim-heart {
+    width: 72px !important;
+    height: 72px !important;
+    min-width: 72px !important;
+    min-height: 72px !important;
+    display: block !important;
+    z-index: 2;
+    filter: drop-shadow(0 8px 24px rgba(255, 71, 87, 0.45));
+    animation: qmGoldenHeart 0.85s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  /* Keyframe 黄金比例路线动画 */
+  @keyframes qmGoldenHeart {
+    0% {
+      opacity: 0;
+      transform: scale(0) rotate(-12deg);
+    }
+    38% {
+      opacity: 1;
+      transform: scale(1.18) rotate(0deg);
+    }
+    58% {
+      opacity: 1;
+      transform: scale(0.96) rotate(0deg);
+    }
+    78% {
+      opacity: 1;
+      transform: scale(1.02) rotate(0deg);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.06) translateY(-18px);
+    }
+  }
+
+  @keyframes qmGoldenAura {
+    0% { opacity: 0; transform: scale(0.382); }
+    40% { opacity: 1; transform: scale(1.272); }
+    100% { opacity: 0; transform: scale(2.058); }
+  }
+
+  @keyframes qmGoldenRing {
+    0% {
+      opacity: 1;
+      transform: scale(0.618);
+      border-width: 1.618px;
+    }
+    61.8% {
+      opacity: 0.8;
+      transform: scale(1.618);
+      border-width: 1px;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2.618);
+      border-width: 0.5px;
+    }
+  }
+
+  @keyframes qmGoldenDot {
+    0% {
+      opacity: 0;
+      transform: rotate(var(--angle)) translateY(0px) scale(0.382);
+    }
+    40% {
+      opacity: 1;
+      transform: rotate(var(--angle)) translateY(-72px) scale(1.272);
+    }
+    100% {
+      opacity: 0;
+      transform: rotate(var(--angle)) translateY(-116px) scale(0);
+    }
+  }
+
+  html.light-mode .post-like-btn {
+    color: rgba(0, 0, 0, 0.35);
+  }
+  html.light-mode .post-like-btn.liked {
+    color: #ff4757 !important;
+  }
 </style>

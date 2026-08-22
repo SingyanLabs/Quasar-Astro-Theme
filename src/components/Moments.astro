@@ -1,0 +1,96 @@
+---
+// src/pages/moments.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { SITE_CONFIG } from '../config';
+import MomentsSidebar from '../components/moments/MomentsSidebar.astro';
+import MomentsDetailCard from '../components/moments/MomentsDetailCard.astro';
+
+const allMoments = await getCollection('moments');
+
+const getYear = (m: any) => {
+  if (m.data.year) return String(m.data.year).replace(/年$/, '').trim();
+  const timeStr = String(m.data.time || m.data.date || '');
+  const match = timeStr.match(/(20\d{2}|\d{4})/);
+  return match ? match[1] : '';
+};
+
+const getMonth = (m: any) => {
+  if (m.data.month) return String(m.data.month).trim();
+  const timeStr = String(m.data.time || m.data.date || '');
+  const match = timeStr.match(/(\d{1,2})月/);
+  if (match) return `${parseInt(match[1], 10)}月`;
+  const matchDash = timeStr.match(/-\d{2}-/);
+  if (matchDash) return `${parseInt(matchDash[0].replace(/-/g, ''), 10)}月`;
+  return '';
+};
+
+const sortedMoments = allMoments.sort((a, b) => new Date(b.data.time || b.data.date).getTime() - new Date(a.data.time || a.data.date).getTime());
+
+const years = Array.from(new Set(sortedMoments.map(getYear))).filter(Boolean).sort().reverse();
+const months = Array.from(new Set(sortedMoments.map(getMonth))).filter(Boolean).sort((a, b) => parseInt(a) - parseInt(b));
+
+const availableMonths = [
+  { label: '全月', value: 'all' },
+  ...months.map(m => ({ label: m, value: m }))
+];
+
+const sidebarMoments = sortedMoments.map(item => ({
+  id: item.id || item.slug,
+  title: item.data.title || '',
+  subtitle: item.data.subtitle || '',
+  day: item.data.day || '01',
+  month: getMonth(item) || '1月',
+  year: getYear(item),
+  thumbnail: item.data.thumbnail || item.data.images?.[0] || ''
+}));
+
+const detailMoments = sortedMoments.map(item => ({
+  id: item.id || item.slug,
+  title: item.data.title || '',
+  subtitle: item.data.subtitle || '',
+  time: item.data.time || item.data.date || '',
+  location: item.data.location || '',
+  images: item.data.images || [],
+  likes: item.data.likes || [],
+  comments: item.data.comments || [],
+  bodyText: item.body || ''
+}));
+---
+
+<BaseLayout title={`Moments | ${SITE_CONFIG.title}`}>
+  <div class="split-viewport">
+    <MomentsSidebar 
+      moments={sidebarMoments} 
+      availableYears={years} 
+      availableMonths={availableMonths} 
+    />
+
+    <main class="main-detail-area">
+      <div class="detail-scroll-container">
+        {detailMoments.map((item, index) => (
+          <MomentsDetailCard 
+            item={item} 
+            isActive={index === 0} 
+          />
+        ))}
+      </div>
+    </main>
+  </div>
+
+  <script id="moments-json" type="application/json">
+    {JSON.stringify(sortedMoments.map(m => ({
+      id: m.id || m.slug,
+      title: m.data.title,
+      subtitle: m.data.subtitle || '',
+      time: m.data.time,
+      location: m.data.location || '',
+      body: m.body || '',
+      images: m.data.images || [],
+      likes: m.data.likes || [],
+      comments: m.data.comments || []
+    })))}
+  </script>
+</BaseLayout>
+
+<script src="../assets/scripts/moments.js"></script>

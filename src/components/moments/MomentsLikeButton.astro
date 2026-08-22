@@ -1,0 +1,28 @@
+---
+// src/components/moments/MomentsLikeButton.astro
+interface Props {
+  momentId: string;
+  likes?: string[];
+}
+
+const { momentId, likes = [] } = Astro.props;
+const hasLikes = likes && likes.length > 0;
+---
+
+<!-- 独立点赞群岛：包含 72px 黄金爱心触发器、弹簧『我』标签及好友名册 -->
+<div class="like-island-wrapper" data-moment-id={momentId}>
+  <button class="post-like-btn" data-moment-id={momentId} type="button" aria-label="点赞动态">
+    <span class="like-heart">♥</span>
+  </button>
+
+  <div class="likes-section animate-el" style={!hasLikes ? "display: none;" : ""}>
+    <div class="likes-icon-row">♥</div>
+    <div class="likes-avatars">
+      <!-- 弹簧卡片气泡：点赞时自动推开后面的好友节点 -->
+      <span class="avatar-tag my-like-tag">我</span>
+      {hasLikes && likes.map((name: string) => (
+        <span class="avatar-tag">{name}</span>
+      ))}
+    </div>
+  </div>
+</div>

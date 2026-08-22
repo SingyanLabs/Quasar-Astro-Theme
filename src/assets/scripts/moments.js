@@ -4,6 +4,217 @@
   let momentsData = [];
   let cardObserver = null;
 
+  // 🔑 IndexedDB + LocalStorage 双轨持久化配置
+  const DB_NAME = 'QuasarMoments';
+  const DB_VERSION = 2;
+  const LS_LIKES_KEY = 'quasar_moments_likes_store';
+  let dbInstance = null;
+
+  const getLocalLikes = () => {
+    try { return JSON.parse(localStorage.getItem(LS_LIKES_KEY) || '{}'); } 
+    catch (e) { return {}; }
+  };
+
+  const setLocalLike = (momentId, isLiked) => {
+    try {
+      const store = getLocalLikes();
+      store[momentId] = isLiked;
+      localStorage.setItem(LS_LIKES_KEY, JSON.stringify(store));
+    } catch (e) { console.error('LocalStorage 写入失败:', e); }
+  };
+
+  const getDB = () => {
+    return new Promise((resolve, reject) => {
+      if (dbInstance) return resolve(dbInstance);
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('likes')) db.createObjectStore('likes', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'url' });
+        if (!db.objectStoreNames.contains('moments')) db.createObjectStore('moments', { keyPath: 'id' });
+      };
+      request.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
+      request.onerror = (e) => reject(e.target.error);
+    });
+  };
+
+  const blobToBase64 = (blob) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const getImageDimensions = (base64Str) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: 0, height: 0 });
+      img.src = base64Str;
+    });
+  };
+
+  // 全量存入文本、评论、点赞人
+  const saveMomentsTextData = async () => {
+    const jsonEl = document.getElementById('moments-json');
+    if (!jsonEl) return;
+    try {
+      const momentsList = JSON.parse(jsonEl.textContent || '[]');
+      const db = await getDB();
+      const tx = db.transaction('moments', 'readwrite');
+      const store = tx.objectStore('moments');
+      momentsList.forEach((item) => {
+        store.put({
+          id: item.id,
+          title: item.title,
+          subtitle: item.subtitle,
+          time: item.time,
+          location: item.location,
+          body: item.body,
+          images: item.images,
+          likes: item.likes,
+          comments: item.comments,
+          updatedAt: Date.now()
+        });
+      });
+    } catch (err) {}
+  };
+
+  // 图片 Base64 + 元数据缓存
+  const initImageCache = async () => {
+    const lazyImgs = document.querySelectorAll('img[data-src]');
+    if (!lazyImgs.length) return;
+    try {
+      const db = await getDB();
+      lazyImgs.forEach((img) => {
+        const rawUrl = img.getAttribute('data-src');
+        if (!rawUrl || img.getAttribute('data-idb-loaded') === 'true') return;
+
+        const tx = db.transaction('images', 'readonly');
+        const store = tx.objectStore('images');
+        const req = store.get(rawUrl);
+
+        req.onsuccess = async () => {
+          if (req.result && req.result.base64) {
+            img.src = req.result.base64;
+            img.setAttribute('data-idb-loaded', 'true');
+            if (req.result.width) img.setAttribute('data-width', req.result.width);
+            if (req.result.height) img.setAttribute('data-height', req.result.height);
+          } else {
+            try {
+              const res = await fetch(rawUrl);
+              if (res.ok) {
+                const blob = await res.blob();
+                const base64Str = await blobToBase64(blob);
+                const dimensions = await getImageDimensions(base64Str);
+
+                const writeTx = db.transaction('images', 'readwrite');
+                writeTx.objectStore('images').put({
+                  url: rawUrl,
+                  base64: base64Str,
+                  width: dimensions.width,
+                  height: dimensions.height,
+                  type: blob.type,
+                  size: blob.size,
+                  cachedAt: Date.now()
+                });
+
+                img.src = base64Str;
+                img.setAttribute('data-idb-loaded', 'true');
+              } else { img.src = rawUrl; }
+            } catch (fetchErr) { img.src = rawUrl; }
+          }
+        };
+        req.onerror = () => { img.src = rawUrl; };
+      });
+    } catch (err) {}
+  };
+
+  const updateMomentLikeUI = (cardEl, isLiked) => {
+    if (!cardEl) return;
+    const btn = cardEl.querySelector('.post-like-btn');
+    const likesSection = cardEl.querySelector('.likes-section');
+    const myLikeTag = cardEl.querySelector('.my-like-tag');
+
+    if (btn) btn.classList.toggle('liked', isLiked);
+
+    if (myLikeTag) {
+      if (isLiked) myLikeTag.classList.add('active');
+      else myLikeTag.classList.remove('active');
+    }
+
+    if (likesSection) {
+      const otherTags = cardEl.querySelectorAll('.likes-avatars .avatar-tag:not(.my-like-tag)');
+      if (isLiked || otherTags.length > 0) likesSection.style.display = 'flex';
+      else likesSection.style.display = 'none';
+    }
+  };
+
+  // 0ms 双轨还原点赞 UI
+  const restoreLikesUI = async () => {
+    const localStore = getLocalLikes();
+    const cards = document.querySelectorAll('article.detail-card');
+    cards.forEach(card => {
+      const momentId = card.getAttribute('data-detail-id');
+      if (momentId && typeof localStore[momentId] === 'boolean') {
+        updateMomentLikeUI(card, localStore[momentId]);
+      }
+    });
+
+    try {
+      const db = await getDB();
+      const tx = db.transaction('likes', 'readonly');
+      const store = tx.objectStore('likes');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const records = req.result || [];
+        records.forEach(record => {
+          if (record.id.startsWith('post_')) {
+            const momentId = record.id.replace('post_', '');
+            const card = document.querySelector(`article[data-detail-id="${momentId}"]`);
+            if (card && typeof record.liked === 'boolean') {
+              updateMomentLikeUI(card, record.liked);
+              setLocalLike(momentId, record.liked);
+            }
+          }
+        });
+      };
+    } catch (e) {}
+  };
+
+  // 72px 黄金比例爆裂动画
+  const playCardCenterHeartAnimation = (cardEl) => {
+    if (!cardEl) return;
+    const oldAnimation = cardEl.querySelector('.qm-heart-anim-overlay');
+    if (oldAnimation) oldAnimation.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'qm-heart-anim-overlay';
+    overlay.innerHTML = `
+      <div class="qm-anim-glow"></div>
+      <div class="qm-anim-ring"></div>
+      <div class="qm-anim-dots">
+        <span class="dot d1"></span><span class="dot d2"></span>
+        <span class="dot d3"></span><span class="dot d4"></span>
+        <span class="dot d5"></span><span class="dot d6"></span>
+        <span class="dot d7"></span><span class="dot d8"></span>
+      </div>
+      <svg viewBox="0 0 24 24" class="qm-anim-heart">
+        <defs>
+          <linearGradient id="qmGradGolden" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ff6b81" />
+            <stop offset="100%" stop-color="#ff4757" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#qmGradGolden)" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+    `;
+    cardEl.appendChild(overlay);
+    setTimeout(() => { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 850);
+  };
+
   const isDegradedMode = () => document.documentElement.classList.contains('perf-degraded');
 
   const cleanKey = (str) => {
@@ -14,7 +225,6 @@
 
   const strictCleanKey = (str) => cleanKey(str).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
 
-  // 辅助加载：安全调用全局函数
   const ensureLoad = (img) => {
     if (window.triggerImageLoad) window.triggerImageLoad(img);
   };
@@ -42,7 +252,6 @@
 
     const initCardScrollObserver = (resetExisting = false) => {
       if (cardObserver) cardObserver.disconnect();
-
       const visibleCards = document.querySelectorAll('.view-mode-feed .detail-card.feed-visible');
 
       if (isDegradedMode() || !isMobile() || !splitViewport.classList.contains('view-mode-feed')) {
@@ -57,13 +266,10 @@
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const card = entry.target;
-            
             if (!card.classList.contains('in-view')) {
               card.style.animationDelay = `${cascadeIndex * 0.08}s`;
               cascadeIndex++;
               card.classList.add('in-view');
-
-              // 视口内的卡片优先确保调用加载
               card.querySelectorAll('img[data-src]').forEach(ensureLoad);
 
               clearTimeout(cascadeTimer);
@@ -82,32 +288,15 @@
             cardObserver.unobserve(card);
           }
         });
-      }, {
-        root: null,
-        rootMargin: '0px 0px -20px 0px',
-        threshold: 0.01
-      });
+      }, { root: null, rootMargin: '0px 0px -20px 0px', threshold: 0.01 });
 
       visibleCards.forEach(card => {
         if (resetExisting) {
           card.classList.remove('in-view');
           card.style.animationDelay = '0s';
         }
-        
-        if (!card.classList.contains('in-view')) {
-          cardObserver.observe(card);
-        }
+        if (!card.classList.contains('in-view')) cardObserver.observe(card);
       });
-
-      setTimeout(() => {
-        visibleCards.forEach(card => {
-          const rect = card.getBoundingClientRect();
-          if (rect.top < window.innerHeight + 100 && !card.classList.contains('in-view')) {
-            card.classList.add('in-view');
-            card.querySelectorAll('img[data-src]').forEach(ensureLoad);
-          }
-        });
-      }, 250);
     };
 
     const updateViewModeUI = (mode, isModeSwitch = false) => {
@@ -116,7 +305,6 @@
         filterTimeline(isModeSwitch);
         return;
       }
-
       currentMode = mode;
       localStorage.setItem('moments_mobile_view_mode', mode);
 
@@ -139,44 +327,6 @@
       filterTimeline(isModeSwitch);
     };
 
-    if (viewModeBtn) {
-      viewModeBtn.onclick = () => {
-        if (!isMobile()) return;
-        const nextMode = currentMode === 'feed' ? 'list' : 'feed';
-        updateViewModeUI(nextMode, true);
-      };
-    }
-
-    const switchDetail = (id) => {
-      const isDegraded = isDegradedMode();
-
-      detailCards.forEach(card => {
-        const isTarget = card.getAttribute('data-detail-id') === id;
-        if (isTarget) {
-          card.classList.add('active');
-          card.querySelectorAll('img[data-src]').forEach(ensureLoad);
-
-          const elements = card.querySelectorAll('.animate-el');
-          const mediaBoxes = card.querySelectorAll('.media-box');
-
-          if (!isDegraded && window.gsap && !isMobile()) {
-            gsap.fromTo(elements, 
-              { opacity: 0, y: 25, scale: 0.98 }, 
-              { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.06, ease: "power3.out", overwrite: "auto" }
-            );
-            if (mediaBoxes.length) {
-              gsap.fromTo(mediaBoxes,
-                { opacity: 0, scale: 0.8 },
-                { opacity: 1, scale: 1, duration: 0.4, stagger: 0.04, ease: "back.out(1.4)", delay: 0.12, overwrite: "auto" }
-              );
-            }
-          }
-        } else {
-          card.classList.remove('active');
-        }
-      });
-    };
-
     const filterTimeline = (shouldResetObserver = false) => {
       const selectedYear = String(yearDropdown ? yearDropdown.getAttribute('data-value') : 'all').replace(/年$/, '').trim();
       const selectedMonth = String(monthDropdown ? monthDropdown.getAttribute('data-value') : 'all').trim();
@@ -193,7 +343,6 @@
         if (matchYear && matchMonth) {
           item.style.display = 'flex';
           item.querySelectorAll('img[data-src]').forEach(ensureLoad);
-
           if (card) card.classList.add('feed-visible');
           if (!firstVisibleId) firstVisibleId = item.getAttribute('data-id');
         } else {
@@ -202,142 +351,17 @@
         }
       });
 
-      if (firstVisibleId) {
-        const activeTimeline = document.querySelector('.timeline-item.active');
-        if (!activeTimeline || activeTimeline.style.display === 'none') {
-          timelineItems.forEach(i => i.classList.remove('active'));
-          const targetEl = document.querySelector(`.timeline-item[data-id="${firstVisibleId}"]`);
-          if (targetEl) {
-            targetEl.classList.add('active');
-            switchDetail(firstVisibleId);
-          }
-        }
-      }
-
       initCardScrollObserver(shouldResetObserver);
     };
 
-    const setupCustomDropdown = (dropdownEl) => {
-      if (!dropdownEl) return;
-      const btn = dropdownEl.querySelector('.custom-dropdown-btn');
-      const label = dropdownEl.querySelector('.dropdown-label');
-      const items = dropdownEl.querySelectorAll('.custom-dropdown-item');
-
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        document.querySelectorAll('.custom-dropdown.open').forEach(d => {
-          if (d !== dropdownEl) d.classList.remove('open');
-        });
-        dropdownEl.classList.toggle('open');
-      };
-
-      items.forEach(item => {
-        item.onclick = (e) => {
-          e.stopPropagation();
-          const val = item.getAttribute('data-value');
-          dropdownEl.setAttribute('data-value', val);
-          label.textContent = item.textContent;
-
-          items.forEach(i => i.classList.remove('selected'));
-          item.classList.add('selected');
-
-          dropdownEl.classList.remove('open');
-          filterTimeline(true);
-        };
-      });
-    };
-
-    setupCustomDropdown(yearDropdown);
-    setupCustomDropdown(monthDropdown);
-
-    timelineItems.forEach(item => {
-      item.onclick = () => {
-        if (item.style.display === 'none') return;
-        timelineItems.forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
-        const id = item.getAttribute('data-id');
-
-        if (isMobile() && currentMode === 'list') {
-          updateViewModeUI('feed', true);
-        }
-
-        switchDetail(id);
-
-        const targetCard = document.querySelector(`.detail-card[data-detail-id="${id}"]`);
-        if (targetCard) {
-          setTimeout(() => {
-            targetCard.scrollIntoView({ block: 'start', behavior: 'smooth' });
-          }, 80);
-        }
-      };
-    });
-
-    const getScrollTop = () => {
-      return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    };
-
-    let lastScrollY = getScrollTop();
-    let isTicking = false;
-    const minDeltaThreshold = 8;
-
-    const handleSmartScroll = () => {
-      const sidebar = document.querySelector('.sidebar-timeline');
-      if (!sidebar) { isTicking = false; return; }
-
-      if (!isMobile() || !splitViewport.classList.contains('view-mode-feed')) {
-        sidebar.classList.remove('sidebar-hidden');
-        isTicking = false;
-        return;
-      }
-
-      const currentScrollY = getScrollTop();
-
-      if (currentScrollY <= 15) {
-        sidebar.classList.remove('sidebar-hidden');
-        lastScrollY = currentScrollY;
-        isTicking = false;
-        return;
-      }
-
-      const deltaY = currentScrollY - lastScrollY;
-
-      if (Math.abs(deltaY) > minDeltaThreshold) {
-        if (deltaY > 0 && currentScrollY > 50) {
-          if (!sidebar.classList.contains('sidebar-hidden')) {
-            sidebar.classList.add('sidebar-hidden');
-          }
-        } else if (deltaY < 0) {
-          if (sidebar.classList.contains('sidebar-hidden')) {
-            sidebar.classList.remove('sidebar-hidden');
-          }
-        }
-        lastScrollY = currentScrollY;
-      }
-      isTicking = false;
-    };
-
-    document.addEventListener('scroll', () => {
-      if (!isTicking) {
-        window.requestAnimationFrame(handleSmartScroll);
-        isTicking = true;
-      }
-    }, { passive: true, capture: true });
-
-    const handleGlobalClick = (e) => {
-      if (!e.target.closest('.custom-dropdown')) {
-        document.querySelectorAll('.custom-dropdown.open').forEach(d => d.classList.remove('open'));
-      }
-
+    const handleGlobalClick = async (e) => {
       const box = e.target.closest('.media-box');
       if (box) {
         const momentId = box.getAttribute('data-moment-id');
         const index = parseInt(box.getAttribute('data-index'), 10);
-        
         let images = [];
         let moment = momentsData.find(m => String(m.id) === String(momentId));
-        if (moment && moment.images && moment.images.length) {
-          images = moment.images;
-        }
+        if (moment && moment.images && moment.images.length) images = moment.images;
 
         if (!images.length) {
           const grid = box.closest('.detail-media-grid');
@@ -353,117 +377,53 @@
 
         if (images.length && !isNaN(index)) {
           window.dispatchEvent(new CustomEvent('quasar:open-lightbox', {
-            detail: {
-              images: images,
-              index: index,
-              meta: {
-                date: dateText,
-                location: locText,
-                title: titleText
-              }
-            }
+            detail: { images, index, meta: { date: dateText, location: locText, title: titleText } }
           }));
         }
         return;
       }
 
+      // 🔑 点击点赞群岛触发器
       const postLikeBtn = e.target.closest('.post-like-btn');
       if (postLikeBtn) {
-        const card = postLikeBtn.closest('.detail-card');
-        const avatarsContainer = card.querySelector('.likes-avatars');
-        const isLiked = postLikeBtn.classList.contains('liked');
-        if (isLiked) {
-          postLikeBtn.classList.remove('liked');
-          const myTag = avatarsContainer?.querySelector('.avatar-tag.my-like');
-          if (myTag) myTag.remove();
-        } else if (avatarsContainer) {
-          postLikeBtn.classList.add('liked');
-          const newTag = document.createElement('span');
-          newTag.className = 'avatar-tag my-like';
-          newTag.textContent = '我';
-          avatarsContainer.prepend(newTag);
-          if (!isDegradedMode() && window.gsap) gsap.fromTo(postLikeBtn, { scale: 0.8 }, { scale: 1, duration: 0.3, ease: "back.out(2)" });
-        }
-        return;
-      }
+        e.preventDefault();
+        e.stopPropagation();
 
-      const commentLikeBtn = e.target.closest('.comment-like-btn');
-      if (commentLikeBtn) {
-        const heart = commentLikeBtn.querySelector('.like-heart');
-        const numSpan = commentLikeBtn.querySelector('.like-num');
-        let count = parseInt(numSpan?.textContent || '0', 10) || 0;
-        const isLiked = commentLikeBtn.classList.contains('liked');
-        if (isLiked) {
-          commentLikeBtn.classList.remove('liked');
-          if (heart) heart.textContent = '♡';
-          if (numSpan) numSpan.textContent = Math.max(0, count - 1);
-        } else {
-          commentLikeBtn.classList.add('liked');
-          if (heart) heart.textContent = '♥';
-          if (numSpan) numSpan.textContent = count + 1;
-          if (!isDegradedMode() && window.gsap) gsap.fromTo(commentLikeBtn, { scale: 0.85 }, { scale: 1, duration: 0.3, ease: "back.out(2)" });
+        const card = postLikeBtn.closest('article.detail-card');
+        const momentId = postLikeBtn.getAttribute('data-moment-id') || (card ? card.getAttribute('data-detail-id') : null);
+        if (!momentId) return;
+
+        const isCurrentlyLiked = postLikeBtn.classList.contains('liked');
+        const newLikedState = !isCurrentlyLiked;
+
+        updateMomentLikeUI(card, newLikedState);
+
+        if (newLikedState && card) {
+          playCardCenterHeartAnimation(card);
         }
+
+        setLocalLike(momentId, newLikedState);
+
+        try {
+          const db = await getDB();
+          const tx = db.transaction('likes', 'readwrite');
+          tx.objectStore('likes').put({ id: `post_${momentId}`, liked: newLikedState, updatedAt: Date.now() });
+        } catch (dbErr) {}
+        return;
       }
     };
 
     document.removeEventListener('click', handleGlobalClick);
     document.addEventListener('click', handleGlobalClick);
 
-    const performJump = (rawKey) => {
-      const key = cleanKey(rawKey);
-      const strictKey = strictCleanKey(rawKey);
-      if (!key) return false;
-      let matchedItem = null;
-
-      for (const item of timelineItems) {
-        const itemId = cleanKey(item.dataset.id || '');
-        const itemTitle = cleanKey(item.dataset.title || '');
-        if (itemId === key || itemTitle === key) { matchedItem = item; break; }
-      }
-      if (!matchedItem && strictKey) {
-        for (const item of timelineItems) {
-          const itemId = strictCleanKey(item.dataset.id || '');
-          const itemTitle = strictCleanKey(item.dataset.title || '');
-          if (itemId === strictKey || itemTitle === strictKey) { matchedItem = item; break; }
-        }
-      }
-
-      if (matchedItem) {
-        if (isMobile()) updateViewModeUI('feed', true);
-        matchedItem.click();
-        return true;
-      }
-      return false;
-    };
-
-    const triggerJumpProcess = () => {
-      const storeKey = sessionStorage.getItem('quasar_jump_key');
-      if (storeKey) {
-        sessionStorage.removeItem('quasar_jump_key');
-        performJump(storeKey);
-        return;
-      }
-      const searchParam = new URLSearchParams(window.location.search).get('id');
-      if (searchParam) performJump(searchParam);
-      else if (window.location.hash.length > 1) performJump(window.location.hash.slice(1));
-    };
-
-    window.onresize = () => {
-      const currentWidth = window.innerWidth;
-      if (currentWidth !== lastWindowWidth) {
-        lastWindowWidth = currentWidth;
-        if (!isMobile()) splitViewport.classList.remove('view-mode-feed', 'view-mode-list');
-        else updateViewModeUI(currentMode);
-      }
-    };
-
-    // 触发一次全局懒加载扫描
-    if (window.initLazyLoad) window.initLazyLoad();
-
+    // 状态初始化与挂载
+    restoreLikesUI();
+    saveMomentsTextData();
+    initImageCache();
     updateViewModeUI(currentMode);
-    triggerJumpProcess();
   };
 
   document.addEventListener('DOMContentLoaded', initMomentsEngine);
   document.addEventListener('astro:page-load', initMomentsEngine);
+  window.addEventListener('pageshow', () => { restoreLikesUI(); });
 })();
