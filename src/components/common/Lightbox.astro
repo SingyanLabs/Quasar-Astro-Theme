@@ -1,7 +1,6 @@
 ---
 // src/components/common/Lightbox.astro
 ---
-<!-- 引入 EXIF 读取库 -->
 <script src="https://cdn.jsdelivr.net/npm/exifreader@4.21.0/dist/exif-reader.js" is:inline></script>
 
 <div id="lightbox" class="lightbox-modal" role="dialog" aria-modal="true">
@@ -19,20 +18,14 @@
       </button>
     </div>
 
-    <!-- 双图层缓冲区：开启 3D 景深与 GPU 硬件加速容器 -->
     <div class="media-frame-container" id="media-frame-container">
       <img id="lb-base-img" class="lightbox-layer opacity-hidden" alt="" draggable="false" />
       <img id="lb-temp-img" class="lightbox-layer opacity-hidden" alt="" draggable="false" />
       <div id="lb-loader" class="lightbox-loading-placeholder" style="display: none;"></div>
       
-      <!-- 加载失败提示 -->
       <div id="lb-error-tip" class="lightbox-error-container" style="display: none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-        <p>图片加载失败，请检查网络或链接</p>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <p>资源加载失败，请检查网络或链接</p>
       </div>
     </div>
 
@@ -44,17 +37,11 @@
           <span id="exif-param" class="exif-item"></span>
         </div>
       </div>
-      <a id="footer-link" href="#" target="_blank" rel="noopener noreferrer" class="footer-link">
-        新标签页打开
-      </a>
+      <a id="footer-link" href="#" target="_blank" rel="noopener noreferrer" class="footer-link">新标签页打开</a>
     </div>
 
-    <button id="prev-btn" class="nav-btn prev" aria-label="上一张">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 19l-7-7 7-7"/></svg>
-    </button>
-    <button id="next-btn" class="nav-btn next" aria-label="下一张">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>
-    </button>
+    <button id="prev-btn" class="nav-btn prev" aria-label="上一张"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 19l-7-7 7-7"/></svg></button>
+    <button id="next-btn" class="nav-btn next" aria-label="下一张"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg></button>
   </div>
 </div>
 
@@ -65,9 +52,9 @@
 
     let currentGallery = [];
     let activeIndex = 0;
-    
     let isOpen = false;
     let isSwitching = false;
+    let loadToken = 0; // 防竞态锁：记录异步批次
 
     let lastClickedTargetEl = null; 
     let activeOriginEl = null;      
@@ -76,12 +63,9 @@
 
     const isDegradedMode = () => document.documentElement.classList.contains('perf-degraded');
 
-    // 移动端优先捕获触摸节点
     const captureTarget = (e) => {
       const target = e.target.closest('.media-box, img, [data-moment-id], [data-src]');
-      if (target && !target.closest('#lightbox')) {
-        lastClickedTargetEl = target;
-      }
+      if (target && !target.closest('#lightbox')) lastClickedTargetEl = target;
     };
     document.addEventListener('pointerdown', captureTarget, true);
     document.addEventListener('click', captureTarget, true);
@@ -90,63 +74,29 @@
       const containerRect = containerEl.getBoundingClientRect();
       const naturalW = imgEl.naturalWidth || containerRect.width;
       const naturalH = imgEl.naturalHeight || containerRect.height;
-      
       if (!containerRect.width || !containerRect.height) return null;
 
       const containerRatio = containerRect.width / containerRect.height;
       const imgRatio = naturalW / naturalH;
-
       let fitW, fitH;
-      if (imgRatio > containerRatio) {
-        fitW = containerRect.width;
-        fitH = containerRect.width / imgRatio;
-      } else {
-        fitH = containerRect.height;
-        fitW = containerRect.height * imgRatio;
-      }
 
-      return {
-        fitW: fitW,
-        fitH: fitH,
-        cx: containerRect.left + containerRect.width / 2,
-        cy: containerRect.top + containerRect.height / 2
-      };
+      if (imgRatio > containerRatio) { fitW = containerRect.width; fitH = containerRect.width / imgRatio; } 
+      else { fitH = containerRect.height; fitW = containerRect.height * imgRatio; }
+
+      return { fitW, fitH, cx: containerRect.left + containerRect.width / 2, cy: containerRect.top + containerRect.height / 2 };
     };
 
-    // 🔑 核心修复：严丝合缝剔除嵌套节点，实现绝对 1:1 索引对齐
     const resolveOriginElement = (imgUrl, index, originHint) => {
-      if (originHint && originHint.nodeType === 1 && !originHint.closest('#lightbox')) {
-        return originHint.closest('img, .media-box, [data-src]') || originHint;
-      }
-
+      if (originHint && originHint.nodeType === 1 && !originHint.closest('#lightbox')) return originHint.closest('img, .media-box, [data-src]') || originHint;
       if (lastClickedTargetEl && lastClickedTargetEl.nodeType === 1 && document.body.contains(lastClickedTargetEl)) {
-        const grid = lastClickedTargetEl.closest('.detail-media-grid, .media-grid, .detail-card, .gallery-grid, .moments-grid, [data-gallery]');
+        const grid = lastClickedTargetEl.closest('.detail-media-grid, .media-grid, .detail-card, .gallery-grid, .masonry-item-card, [data-gallery]');
         if (grid) {
           let rawItems = Array.from(grid.querySelectorAll('.media-box, img, [data-src]'));
-          // 剔除所有包含在父容器内部的子元素，保持纯净顶层节点列表
           const uniqueItems = rawItems.filter(el => !rawItems.some(parent => parent !== el && parent.contains(el)));
-
-          if (uniqueItems.length > 0 && uniqueItems[index]) {
-            return uniqueItems[index];
-          }
+          if (uniqueItems.length > 0 && uniqueItems[index]) return uniqueItems[index];
         }
         return lastClickedTargetEl.closest('img, .media-box, [data-src]') || lastClickedTargetEl;
       }
-
-      if (imgUrl) {
-        const cleanUrl = imgUrl.split('?')[0].split('#')[0];
-        const fileName = cleanUrl.substring(cleanUrl.lastIndexOf('/') + 1);
-        if (fileName && fileName.length > 3) {
-          const allImgs = Array.from(document.querySelectorAll('img, .media-box, [data-src]'));
-          const found = allImgs.find(el => {
-            if (el.closest('#lightbox')) return false;
-            const src = el.getAttribute('src') || el.getAttribute('data-src') || '';
-            return src.includes(fileName);
-          });
-          if (found) return found;
-        }
-      }
-
       return null;
     };
 
@@ -155,43 +105,57 @@
       const exifCamera = document.getElementById('exif-camera');
       const exifParam = document.getElementById('exif-param');
       if (!exifContainer) return;
-
-      if (typeof ExifReader === 'undefined' || !imgUrl || imgUrl.startsWith('data:')) {
-        exifContainer.style.display = 'none';
-        return;
-      }
+      if (typeof ExifReader === 'undefined' || !imgUrl || imgUrl.startsWith('data:')) { exifContainer.style.display = 'none'; return; }
 
       try {
         const tags = await ExifReader.load(imgUrl, { async: true });
         const make = tags.Make ? tags.Make.description : '';
         const model = tags.Model ? tags.Model.description : '';
         let camera = model;
-        if (make && model && !model.toLowerCase().includes(make.toLowerCase())) {
-          camera = `${make} ${model}`;
-        }
+        if (make && model && !model.toLowerCase().includes(make.toLowerCase())) camera = `${make} ${model}`;
 
         const focalLength = tags.FocalLength ? `${tags.FocalLength.description}mm` : '';
         const fNumber = tags.FNumber ? `f/${tags.FNumber.description}` : '';
         const exposureTime = tags.ExposureTime ? `${tags.ExposureTime.description}s` : '';
         const iso = tags.ISOSpeedRatings || tags.ISO ? `ISO ${tags.ISOSpeedRatings?.description || tags.ISO?.description}` : '';
-
         const params = [focalLength, fNumber, exposureTime, iso].filter(Boolean).join('  ');
 
         if (camera || params) {
           if (camera && exifCamera) exifCamera.textContent = `📷 ${camera}`;
           if (params && exifParam) exifParam.textContent = `⚙️ ${params}`;
           exifContainer.style.display = 'flex';
-        } else {
-          exifContainer.style.display = 'none';
+        } else { exifContainer.style.display = 'none'; }
+      } catch (e) { exifContainer.style.display = 'none'; }
+    };
+
+    const injectVideo = (item) => {
+      const containerEl = document.getElementById('media-frame-container');
+      if (!containerEl || !item.videoSrc) return;
+      
+      const video = document.createElement('video');
+      video.className = 'lightbox-layer';
+      video.controls = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.src = item.videoSrc;
+      video.style.zIndex = '3';
+      
+      video.onerror = () => {
+        if (item.fallbackVideoSrc && video.dataset.fallbackApplied !== "true") {
+          video.dataset.fallbackApplied = "true";
+          video.src = item.fallbackVideoSrc;
+          video.load();
         }
-      } catch (e) {
-        exifContainer.style.display = 'none';
-      }
+      };
+      containerEl.appendChild(video);
     };
 
     const renderLightboxIndex = (index, direction = 'next', originElHint = null) => {
       if (!currentGallery || !currentGallery.length) return;
-      if (isOpen && isSwitching) return;
+
+      // 递增 Token，使先前所有正在加载的回调直接失效
+      loadToken++;
+      const currentToken = loadToken;
 
       const lightbox = document.getElementById('lightbox');
       const lbBaseImg = document.getElementById('lb-base-img');
@@ -206,128 +170,122 @@
       const footerTitle = document.getElementById('footer-title');
 
       if (!lightbox || !lbBaseImg || !lbTempImg || !containerEl) return;
-
-      if (isOpen && index === activeIndex) return;
+      if (isOpen && index === activeIndex && !isSwitching) return;
 
       const isNewOpen = !isOpen;
       activeIndex = index;
       const item = currentGallery[index];
-      const imgUrl = typeof item === 'string' ? item : item.src;
+
+      const highResUrl = typeof item === 'string' ? item : item.src;
+      const previewUrl = (typeof item === 'object' && item.previewSrc) ? item.previewSrc : highResUrl;
       const isDegraded = isDegradedMode();
 
-      activeOriginEl = resolveOriginElement(imgUrl, index, originElHint);
+      // 清理前一帧遗留视频
+      containerEl.querySelectorAll('video').forEach(v => v.remove());
+
+      activeOriginEl = resolveOriginElement(highResUrl, index, originElHint);
       let preOriginRect = null;
       if (activeOriginEl && activeOriginEl.getBoundingClientRect) {
         const r = activeOriginEl.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) {
-          preOriginRect = {
-            cx: r.left + r.width / 2,
-            cy: r.top + r.height / 2,
-            width: r.width,
-            height: r.height
-          };
-        }
+        if (r.width > 0 && r.height > 0) preOriginRect = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, width: r.width, height: r.height };
       }
 
       if (lbErrorTip) lbErrorTip.style.display = 'none';
-      lbBaseImg.style.display = 'block';
-      lbTempImg.style.display = 'block';
 
       if (lbIndex) lbIndex.innerText = `#${index + 1} / ${currentGallery.length}`;
       if (lbDate) lbDate.innerText = item.date || '';
       
       if (lbLocation) {
-        if (item.location) {
-          lbLocation.innerText = `📍 ${item.location}`;
-          lbLocation.style.display = 'inline-block';
-        } else {
-          lbLocation.style.display = 'none';
-        }
+        if (item.location) { lbLocation.innerText = `📍 ${item.location}`; lbLocation.style.display = 'inline-block'; } 
+        else lbLocation.style.display = 'none';
       }
 
       if (footerTitle) footerTitle.innerText = item.title || '';
-      if (footerLink) footerLink.href = imgUrl;
+      if (footerLink) footerLink.href = item.videoSrc || highResUrl;
+
+      const applyDimensions = (imgEl) => {
+        const fitData = calculateFitDimension(imgEl, containerEl);
+        if (fitData) {
+          imgEl.style.width = `${fitData.fitW}px`;
+          imgEl.style.height = `${fitData.fitH}px`;
+        }
+        return fitData;
+      };
 
       if (isNewOpen) {
         isOpen = true;
         isSwitching = true;
-
         document.documentElement.classList.add('lightbox-open');
         document.body.classList.add('lightbox-open');
         lightbox.classList.add('active');
 
+        // 清空 GSAP 残留样式
         if (window.gsap) {
           gsap.killTweensOf([lbBaseImg, lbTempImg, '.lightbox-content', '.lightbox-backdrop']);
-          gsap.set(lbTempImg, { clearProps: "all", display: 'none', opacity: 0 });
-          gsap.set(lbBaseImg, { clearProps: "all" });
+          gsap.set([lbBaseImg, lbTempImg, '.lightbox-content', '.lightbox-backdrop'], { clearProps: "all" });
+          gsap.set(lbTempImg, { display: 'none', opacity: 0 });
         }
 
+        lbBaseImg.style.display = 'block';
+        lbTempImg.style.display = 'none';
         lbBaseImg.className = 'lightbox-layer opacity-hidden';
         if (lbLoader) lbLoader.style.display = 'block';
 
         let hasAnimated = false;
-
-        const animateFlyIn = () => {
-          if (hasAnimated) return;
+        const startFlyIn = () => {
+          if (hasAnimated || loadToken !== currentToken) return;
           hasAnimated = true;
 
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
+              if (loadToken !== currentToken) return;
               if (lbLoader) lbLoader.style.display = 'none';
               if (lbErrorTip) lbErrorTip.style.display = 'none';
 
-              const fitData = calculateFitDimension(lbBaseImg, containerEl);
+              const fitData = applyDimensions(lbBaseImg);
+              lbBaseImg.style.display = 'block';
+              lbBaseImg.classList.remove('opacity-hidden');
 
               if (window.gsap && !isDegraded && fitData && preOriginRect) {
-                lbBaseImg.style.width = `${fitData.fitW}px`;
-                lbBaseImg.style.height = `${fitData.fitH}px`;
-
                 const deltaX = preOriginRect.cx - fitData.cx;
                 const deltaY = preOriginRect.cy - fitData.cy;
                 const scaleX = preOriginRect.width / fitData.fitW;
                 const scaleY = preOriginRect.height / fitData.fitH;
 
-                lbBaseImg.style.display = 'block';
-                lbBaseImg.classList.remove('opacity-hidden');
-
-                gsap.set(lbBaseImg, {
-                  xPercent: -50,
-                  yPercent: -50,
-                  x: deltaX,
-                  y: deltaY,
-                  scaleX: scaleX,
-                  scaleY: scaleY,
-                  opacity: 1,
-                  transformOrigin: "50% 50%",
-                  force3D: true
-                });
-
-                gsap.fromTo('.lightbox-content',
-                  { opacity: 0 },
-                  { opacity: 1, duration: 0.25, ease: "power2.out", force3D: true }
-                );
-
+                gsap.set(lbBaseImg, { xPercent: -50, yPercent: -50, x: deltaX, y: deltaY, scaleX: scaleX, scaleY: scaleY, opacity: 1, transformOrigin: "50% 50%", force3D: true });
+                gsap.fromTo('.lightbox-content', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out", force3D: true });
                 gsap.to(lbBaseImg, {
-                  x: 0,
-                  y: 0,
-                  scaleX: 1,
-                  scaleY: 1,
-                  duration: 0.38,
-                  ease: "power3.out",
-                  force3D: true,
-                  onComplete: () => { isSwitching = false; }
+                  x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.38, ease: "power3.out", force3D: true,
+                  onComplete: () => { 
+                    if (loadToken === currentToken) {
+                      isSwitching = false; 
+                      if (item.videoSrc) injectVideo(item);
+                    }
+                  }
                 });
               } else {
-                lbBaseImg.style.display = 'block';
-                lbBaseImg.classList.remove('opacity-hidden');
+                // 🌟 低性能模式：强制注入居中 transform，解决错位问题
+                lbBaseImg.style.left = '50%';
+                lbBaseImg.style.top = '50%';
+                lbBaseImg.style.transform = 'translate(-50%, -50%)';
+                lbBaseImg.style.opacity = '1';
+
                 if (window.gsap && !isDegraded) {
                   gsap.fromTo('.lightbox-content', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out", force3D: true });
                   gsap.fromTo(lbBaseImg,
                     { xPercent: -50, yPercent: -50, scale: 0.88, opacity: 0, x: 0, y: 0 },
-                    { scale: 1, opacity: 1, duration: 0.35, ease: "power3.out", force3D: true, onComplete: () => { isSwitching = false; } }
+                    { scale: 1, opacity: 1, duration: 0.35, ease: "power3.out", force3D: true, 
+                      onComplete: () => { 
+                        if (loadToken === currentToken) {
+                          isSwitching = false; 
+                          if (item.videoSrc) injectVideo(item);
+                        }
+                      } 
+                    }
                   );
                 } else {
                   isSwitching = false;
+                  if (item.videoSrc) injectVideo(item);
                 }
               }
             });
@@ -335,128 +293,158 @@
         };
 
         const handleImageError = () => {
-          if (hasAnimated) return;
+          if (hasAnimated || loadToken !== currentToken) return;
           hasAnimated = true;
-
           if (lbLoader) lbLoader.style.display = 'none';
           lbBaseImg.style.display = 'none';
           if (lbErrorTip) lbErrorTip.style.display = 'flex';
-          if (footerTitle) footerTitle.innerText = item.title || '图片加载失败，可尝试在新标签页打开';
-
-          if (window.gsap && !isDegraded) {
-            gsap.fromTo('.lightbox-content', { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", force3D: true });
-          }
+          if (footerTitle) footerTitle.innerText = item.title || '资源加载失败，可尝试在新标签页打开';
+          if (window.gsap && !isDegraded) gsap.fromTo('.lightbox-content', { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out", force3D: true });
           isSwitching = false;
         };
 
-        lbBaseImg.onload = animateFlyIn;
+        lbBaseImg.onload = startFlyIn;
         lbBaseImg.onerror = handleImageError;
+        lbBaseImg.src = previewUrl;
 
-        lbBaseImg.src = imgUrl;
         if (lbBaseImg.complete) {
           if (lbBaseImg.naturalWidth === 0) handleImageError();
-          else animateFlyIn();
+          else startFlyIn();
         }
 
-        parseAndShowExif(imgUrl);
-      } 
-      else {
+        // 后台静默加载高清原图
+        if (highResUrl !== previewUrl) {
+          const bgImg = new Image();
+          bgImg.src = highResUrl;
+          bgImg.onload = () => {
+            if (loadToken !== currentToken) return;
+            lbBaseImg.src = highResUrl;
+            applyDimensions(lbBaseImg);
+            if (isDegraded) {
+              lbBaseImg.style.transform = 'translate(-50%, -50%)';
+            }
+            parseAndShowExif(highResUrl);
+          };
+        } else {
+          parseAndShowExif(highResUrl);
+        }
+
+      } else {
+        // 切换上一张 / 下一张
         isSwitching = true;
         if (lbLoader) lbLoader.style.display = 'block';
 
         const currentImg = lbBaseImg;
         const nextImg = lbTempImg;
-
         const exitX = direction === 'next' ? '-100%' : '100%';
         const enterX = direction === 'next' ? '100%' : '-100%';
 
+        if (window.gsap) gsap.killTweensOf([currentImg, nextImg]);
+
         let loadFinished = false;
-        let hasError = false;
 
-        const handleNextLoad = () => {
-          if (loadFinished) return;
+        const handleSwitchLoad = () => {
+          if (loadFinished || loadToken !== currentToken) return;
           loadFinished = true;
-          hasError = false;
-
-          const fitData = calculateFitDimension(nextImg, containerEl);
-          if (fitData) {
-            nextImg.style.width = `${fitData.fitW}px`;
-            nextImg.style.height = `${fitData.fitH}px`;
-          }
 
           if (lbLoader) lbLoader.style.display = 'none';
           if (lbErrorTip) lbErrorTip.style.display = 'none';
+
+          applyDimensions(nextImg);
           nextImg.style.display = 'block';
           nextImg.classList.remove('opacity-hidden');
-        };
 
-        const handleNextError = () => {
-          if (loadFinished) return;
-          loadFinished = true;
-          hasError = true;
-          if (lbLoader) lbLoader.style.display = 'none';
-          nextImg.style.display = 'none';
-          if (lbErrorTip) lbErrorTip.style.display = 'flex';
-          if (footerTitle) footerTitle.innerText = item.title || '图片加载失败，可尝试在新标签页打开';
-        };
+          if (window.gsap && !isDegraded) {
+            gsap.set(nextImg, { xPercent: -50, yPercent: -50, x: enterX, opacity: 0.6, display: 'block', scaleX: 1, scaleY: 1, force3D: true });
+            gsap.set(currentImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 1, scaleX: 1, scaleY: 1, force3D: true });
 
-        nextImg.onload = handleNextLoad;
-        nextImg.onerror = handleNextError;
+            const tl = gsap.timeline({
+              onComplete: () => {
+                if (loadToken !== currentToken) return;
 
-        nextImg.src = imgUrl;
-        if (nextImg.complete) {
-          if (nextImg.naturalWidth > 0) handleNextLoad();
-          else handleNextError();
-        }
-
-        if (window.gsap && !isDegraded) {
-          gsap.set(nextImg, { xPercent: -50, yPercent: -50, x: enterX, opacity: 0.6, display: hasError ? 'none' : 'block', scaleX: 1, scaleY: 1, force3D: true });
-          gsap.set(currentImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 1, scaleX: 1, scaleY: 1, force3D: true });
-
-          const tl = gsap.timeline({
-            onComplete: () => {
-              if (hasError) {
-                currentImg.src = '';
-                currentImg.style.display = 'none';
-                if (lbErrorTip) lbErrorTip.style.display = 'flex';
-                if (footerTitle) footerTitle.innerText = item.title || '图片加载失败，可尝试在新标签页打开';
-              } else {
-                currentImg.src = imgUrl;
-                const currentFit = calculateFitDimension(currentImg, containerEl);
-                if (currentFit) {
-                  currentImg.style.width = `${currentFit.fitW}px`;
-                  currentImg.style.height = `${currentFit.fitH}px`;
-                }
+                currentImg.src = nextImg.src;
+                applyDimensions(currentImg);
                 currentImg.style.display = 'block';
                 currentImg.classList.remove('opacity-hidden');
-                if (lbErrorTip) lbErrorTip.style.display = 'none';
+
+                gsap.set(currentImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 1, scaleX: 1, scaleY: 1, force3D: true });
+                gsap.set(nextImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 0, display: 'none', force3D: true });
+                nextImg.classList.add('opacity-hidden');
+                nextImg.src = '';
+
+                isSwitching = false;
+
+                if (highResUrl !== previewUrl) {
+                  const bgImg = new Image();
+                  bgImg.src = highResUrl;
+                  bgImg.onload = () => {
+                    if (loadToken !== currentToken) return;
+                    currentImg.src = highResUrl;
+                    applyDimensions(currentImg);
+                    parseAndShowExif(highResUrl);
+                    if (item.videoSrc) injectVideo(item);
+                  };
+                } else {
+                  parseAndShowExif(highResUrl);
+                  if (item.videoSrc) injectVideo(item);
+                }
               }
+            });
 
-              gsap.set(currentImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 1, scaleX: 1, scaleY: 1, force3D: true });
-              gsap.set(nextImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 0, display: 'none', force3D: true });
-              nextImg.classList.add('opacity-hidden');
-              nextImg.src = '';
-
-              parseAndShowExif(imgUrl);
-              isSwitching = false;
-            }
-          });
-
-          tl.to(currentImg, { x: exitX, opacity: 0, duration: 0.32, ease: "power3.out", force3D: true }, 0);
-          tl.to(nextImg, { x: '0%', opacity: hasError ? 0 : 1, duration: 0.32, ease: "power3.out", force3D: true }, 0);
-
-        } else {
-          if (hasError) {
-            currentImg.src = '';
-            currentImg.style.display = 'none';
-            if (lbErrorTip) lbErrorTip.style.display = 'flex';
+            tl.to(currentImg, { x: exitX, opacity: 0, duration: 0.32, ease: "power3.out", force3D: true }, 0);
+            tl.to(nextImg, { x: '0%', opacity: 1, duration: 0.32, ease: "power3.out", force3D: true }, 0);
           } else {
-            currentImg.src = imgUrl;
+            // 🌟 低性能模式下瞬间平滑替换，并确保 translate 居中
+            currentImg.src = previewUrl;
+            applyDimensions(currentImg);
+            currentImg.style.left = '50%';
+            currentImg.style.top = '50%';
+            currentImg.style.transform = 'translate(-50%, -50%)';
             currentImg.style.display = 'block';
+            currentImg.style.opacity = '1';
             currentImg.classList.remove('opacity-hidden');
+
+            nextImg.style.display = 'none';
+            nextImg.src = '';
+
+            isSwitching = false;
+
+            if (highResUrl !== previewUrl) {
+              const bgImg = new Image();
+              bgImg.src = highResUrl;
+              bgImg.onload = () => {
+                if (loadToken !== currentToken) return;
+                currentImg.src = highResUrl;
+                applyDimensions(currentImg);
+                currentImg.style.transform = 'translate(-50%, -50%)';
+                parseAndShowExif(highResUrl);
+                if (item.videoSrc) injectVideo(item);
+              };
+            } else {
+              parseAndShowExif(highResUrl);
+              if (item.videoSrc) injectVideo(item);
+            }
           }
-          parseAndShowExif(imgUrl);
+        };
+
+        const handleSwitchError = () => {
+          if (loadFinished || loadToken !== currentToken) return;
+          loadFinished = true;
+          if (lbLoader) lbLoader.style.display = 'none';
+          currentImg.style.display = 'none';
+          nextImg.style.display = 'none';
+          if (lbErrorTip) lbErrorTip.style.display = 'flex';
+          if (footerTitle) footerTitle.innerText = item.title || '资源加载失败，可尝试在新标签页打开';
           isSwitching = false;
+        };
+
+        nextImg.onload = handleSwitchLoad;
+        nextImg.onerror = handleSwitchError;
+        nextImg.src = previewUrl;
+
+        if (nextImg.complete) {
+          if (nextImg.naturalWidth > 0) handleSwitchLoad();
+          else handleSwitchError();
         }
       }
     };
@@ -464,16 +452,18 @@
     window.openLightbox = (images, index = 0, meta = {}, originEl = null) => {
       if (!images || !images.length) return;
       currentGallery = images.map(img => {
-        if (typeof img === 'string') {
-          return { src: img, date: meta.date || '', location: meta.location || '', title: meta.title || '' };
-        }
-        return img;
+        if (typeof img === 'string') return { src: img, previewSrc: img, date: meta.date || '', location: meta.location || '', title: meta.title || '' };
+        return {
+          ...img,
+          previewSrc: img.previewSrc || img.thumbUrl || img.previewUrl || img.src
+        };
       });
       renderLightboxIndex(index, 'next', originEl);
     };
 
     const closeLightbox = () => {
       if (!isOpen) return;
+      loadToken++; // 终止所有异步回调
 
       const lightbox = document.getElementById('lightbox');
       const lbBaseImg = document.getElementById('lb-base-img');
@@ -487,20 +477,16 @@
       isOpen = false;
       isSwitching = false;
 
+      // 关闭前销毁所有视频节点
+      if (containerEl) containerEl.querySelectorAll('video').forEach(v => v.remove());
+
       let closingOriginRect = null;
       if (currentGallery[activeIndex]) {
         const currentUrl = typeof currentGallery[activeIndex] === 'string' ? currentGallery[activeIndex] : currentGallery[activeIndex].src;
         const targetEl = resolveOriginElement(currentUrl, activeIndex, null);
         if (targetEl && targetEl.getBoundingClientRect) {
           const r = targetEl.getBoundingClientRect();
-          if (r.width > 0 && r.height > 0) {
-            closingOriginRect = {
-              cx: r.left + r.width / 2,
-              cy: r.top + r.height / 2,
-              width: r.width,
-              height: r.height
-            };
-          }
+          if (r.width > 0 && r.height > 0) closingOriginRect = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, width: r.width, height: r.height };
         }
       }
 
@@ -516,8 +502,19 @@
           lbBaseImg.src = '';
           lbBaseImg.style.width = '';
           lbBaseImg.style.height = '';
+          lbBaseImg.style.transform = '';
           lbBaseImg.style.display = 'block';
-          if (window.gsap) gsap.set(lbBaseImg, { clearProps: "all" });
+        }
+        if (lbTempImg) {
+          lbTempImg.src = '';
+          lbTempImg.style.width = '';
+          lbTempImg.style.height = '';
+          lbTempImg.style.transform = '';
+          lbTempImg.style.display = 'none';
+        }
+        if (window.gsap) {
+          gsap.killTweensOf([lbBaseImg, lbTempImg, '.lightbox-content', '.lightbox-backdrop']);
+          gsap.set([lbBaseImg, lbTempImg, '.lightbox-content', '.lightbox-backdrop'], { clearProps: "all" });
         }
         if (lbLoader) lbLoader.style.display = 'none';
         if (lbErrorTip) lbErrorTip.style.display = 'none';
@@ -531,23 +528,11 @@
         const scaleX = closingOriginRect.width / fitData.fitW;
         const scaleY = closingOriginRect.height / fitData.fitH;
 
-        gsap.to(lbBaseImg, {
-          xPercent: -50,
-          yPercent: -50,
-          x: deltaX,
-          y: deltaY,
-          scaleX: scaleX,
-          scaleY: scaleY,
-          opacity: 0,
-          duration: 0.32,
-          ease: "power2.inOut",
-          force3D: true
-        });
-
+        gsap.to(lbBaseImg, { xPercent: -50, yPercent: -50, x: deltaX, y: deltaY, scaleX: scaleX, scaleY: scaleY, opacity: 0, duration: 0.32, ease: "power2.inOut", force3D: true });
         gsap.to('.lightbox-content', { opacity: 0, duration: 0.25, ease: "power2.in" });
         gsap.to('.lightbox-backdrop', { opacity: 0, duration: 0.32, ease: "power2.inOut", onComplete: doClose });
-      } else {
-        doClose();
+      } else { 
+        doClose(); 
       }
     };
 
@@ -560,34 +545,21 @@
 
       if (closeBtn) closeBtn.onclick = closeLightbox;
       if (closeArea) closeArea.onclick = closeLightbox;
-
       if (prevBtn) prevBtn.onclick = () => { if (activeIndex > 0) renderLightboxIndex(activeIndex - 1, 'prev'); };
       if (nextBtn) nextBtn.onclick = () => { if (activeIndex < currentGallery.length - 1) renderLightboxIndex(activeIndex + 1, 'next'); };
 
       if (contentEl) {
         contentEl.addEventListener('touchstart', (e) => {
-          if (e.touches.length === 1) {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-          }
+          if (e.touches.length === 1) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
         }, { passive: true });
-
         contentEl.addEventListener('touchend', (e) => {
           if (e.changedTouches.length !== 1) return;
-
           const deltaX = e.changedTouches[0].clientX - touchStartX;
           const deltaY = e.changedTouches[0].clientY - touchStartY;
-
           if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
-            if (deltaX < 0 && activeIndex < currentGallery.length - 1) {
-              renderLightboxIndex(activeIndex + 1, 'next');
-            } else if (deltaX > 0 && activeIndex > 0) {
-              renderLightboxIndex(activeIndex - 1, 'prev');
-            }
-          } 
-          else if (deltaY > 100 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
-            closeLightbox();
-          }
+            if (deltaX < 0 && activeIndex < currentGallery.length - 1) renderLightboxIndex(activeIndex + 1, 'next');
+            else if (deltaX > 0 && activeIndex > 0) renderLightboxIndex(activeIndex - 1, 'prev');
+          } else if (deltaY > 100 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) { closeLightbox(); }
         }, { passive: true });
       }
 
@@ -618,100 +590,40 @@
 </script>
 
 <style is:global>
-  html {
-    scrollbar-gutter: stable;
-  }
-
-  html.lightbox-open, body.lightbox-open {
-    overflow: hidden !important;
-    touch-action: none;
-  }
+  html { scrollbar-gutter: stable; }
+  html.lightbox-open, body.lightbox-open { overflow: hidden !important; touch-action: none; }
 
   .media-frame-container { 
-    flex-grow: 1; 
-    display: block; 
-    overflow: hidden; 
-    position: relative; 
-    width: 100%; 
-    height: 72vh; 
-    height: 72dvh;
-    margin: 10px 0; 
-    perspective: 1200px;
-    transform-style: preserve-3d;
+    flex-grow: 1; display: block; overflow: hidden; position: relative; width: 100%; 
+    height: 72vh; height: 72dvh; margin: 10px 0; perspective: 1200px; transform-style: preserve-3d; 
   }
   
   .lightbox-layer { 
     position: absolute; 
-    left: 50%;
-    top: 50%;
+    left: 50%; 
+    top: 50%; 
+    transform: translate(-50%, -50%);
+    max-width: 100%;
+    max-height: 100%;
     border-radius: 12px; 
     will-change: transform, opacity; 
-    backface-visibility: hidden;
-    object-fit: cover !important;
+    backface-visibility: hidden; 
+    object-fit: contain !important; 
   }
 
   .lightbox-loading-placeholder { position: absolute; inset: 0; margin: auto; width: 36px; height: 36px; border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: #ffffff; border-radius: 50%; animation: spin 0.85s cubic-bezier(0.6, 0.2, 0.2, 0.8) infinite; z-index: 5; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .opacity-hidden { opacity: 0 !important; }
 
-  /* 失败提示层 */
-  .lightbox-error-container {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    color: rgba(255, 255, 255, 0.65);
-    z-index: 6;
-    user-select: none;
-  }
-  .lightbox-error-container svg {
-    width: 44px;
-    height: 44px;
-    stroke: rgba(255, 255, 255, 0.45);
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
-  }
-  .lightbox-error-container p {
-    font-size: 0.85rem;
-    font-weight: 500;
-    margin: 0;
-    letter-spacing: 0.02em;
-  }
+  .lightbox-error-container { position: absolute; inset: 0; margin: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: rgba(255, 255, 255, 0.65); z-index: 6; user-select: none; }
+  .lightbox-error-container svg { width: 44px; height: 44px; stroke: rgba(255, 255, 255, 0.45); filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3)); }
+  .lightbox-error-container p { font-size: 0.85rem; font-weight: 500; margin: 0; letter-spacing: 0.02em; }
 
-  .lightbox-modal { 
-    position: fixed; 
-    inset: 0; 
-    z-index: 9999; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    visibility: hidden; 
-    pointer-events: none; 
-    transition: visibility 0.35s ease; 
-  }
-  .lightbox-modal.active { 
-    visibility: visible; 
-    pointer-events: auto; 
-  }
+  .lightbox-modal { position: fixed; inset: 0; z-index: 9999; display: flex; justify-content: center; align-items: center; visibility: hidden; pointer-events: none; transition: visibility 0.35s ease; }
+  .lightbox-modal.active { visibility: visible; pointer-events: auto; }
 
-  .lightbox-backdrop { 
-    position: absolute; 
-    inset: 0; 
-    background: rgba(3, 3, 3, 0.78); 
-    backdrop-filter: blur(28px) saturate(220%); 
-    -webkit-backdrop-filter: blur(28px) saturate(220%); 
-    z-index: 1; 
-    opacity: 0; 
-    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1); 
-    transform: translateZ(0); 
-    will-change: opacity; 
-  }
-  .lightbox-modal.active .lightbox-backdrop { 
-    opacity: 1; 
-  }
+  .lightbox-backdrop { position: absolute; inset: 0; background: rgba(3, 3, 3, 0.78); backdrop-filter: blur(28px) saturate(220%); -webkit-backdrop-filter: blur(28px) saturate(220%); z-index: 1; opacity: 0; transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1); transform: translateZ(0); will-change: opacity; }
+  .lightbox-modal.active .lightbox-backdrop { opacity: 1; }
 
   .lightbox-content { position: relative; z-index: 2; width: 100%; max-width: 1100px; height: 88vh; height: 88dvh; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }
   .lightbox-header { display: flex; justify-content: space-between; align-items: center; width: 100%; z-index: 10; }
@@ -724,22 +636,7 @@
   .lightbox-close-btn:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
   .lightbox-close-btn svg { width: 16px; height: 16px; }
 
-  .lightbox-footer { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    width: 100%; 
-    max-width: 900px; 
-    min-height: 52px;
-    margin: 0 auto; 
-    padding: 12px 24px; 
-    border-radius: 20px; 
-    background: rgba(255, 255, 255, 0.05); 
-    backdrop-filter: blur(20px); 
-    border: 1px solid rgba(255, 255, 255, 0.08); 
-    color: #ffffff; 
-    z-index: 10; 
-  }
+  .lightbox-footer { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 900px; min-height: 52px; margin: 0 auto; padding: 12px 24px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); color: #ffffff; z-index: 10; }
   .footer-meta { display: flex; flex-direction: column; gap: 4px; }
   .footer-title { font-size: 0.9rem; font-weight: 700; margin: 0; }
   

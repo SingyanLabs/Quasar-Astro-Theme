@@ -1,0 +1,192 @@
+/* src/assets/css/albums.css */
+
+/* ==================== 1. 相册主容器 ==================== */
+.gallery-viewport {
+  min-height: 100vh;
+  padding: 120px 6% 60px 6%;
+  font-family: 'Noto Sans SC', sans-serif;
+  box-sizing: border-box; 
+  width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.header-section { 
+  max-width: 600px; 
+  margin-bottom: 50px; 
+}
+
+.page-title {
+  font-size: 3.2rem; 
+  font-weight: 900; 
+  background: linear-gradient(180deg, #ffffff 60%, #999999 100%);
+  -webkit-background-clip: text;
+  margin-bottom: 12px;
+}
+
+.page-subtitle { 
+  font-size: 0.95rem; 
+  color: #888888; 
+  line-height: 1.6; 
+  font-weight: 400; 
+  transition: color 0.4s ease; 
+  margin-bottom: 12px; 
+}
+
+/* ==================== 2. 瀑布流布局 ==================== */
+.masonry-wrapper { 
+  position: relative; 
+  width: 100%; 
+  max-width: 105rem; 
+  margin: 0 auto; 
+  box-sizing: border-box; 
+}
+
+.masonry-grid-flex { 
+  display: flex; 
+  width: 100%; 
+  gap: 0.618rem; 
+  box-sizing: border-box;
+}
+
+.masonry-column-flex {
+  flex: 1;
+  min-width: 0 !important; 
+  display: flex;
+  flex-direction: column;
+  gap: 0.618rem;
+  box-sizing: border-box;
+}
+
+/* ==================== 3. 响应式调整 (含手机端3列&标题微调) ==================== */
+@media (max-width: 1024px) { 
+  .masonry-grid-flex { gap: 12px; } 
+  .masonry-column-flex { gap: 12px; } 
+  .gallery-viewport { padding-top: 100px; }
+}
+
+@media (max-width: 640px) { 
+  .gallery-viewport { 
+    padding: 80px 2.5% 40px 2.5% !important; 
+  }
+  .header-section { 
+    margin-bottom: 20px !important; 
+  }
+  .page-title { 
+    font-size: 1.8rem !important;
+    margin-top: 1.618rem !important;
+    margin-bottom: 6px !important;
+  }
+  .page-subtitle { 
+    font-size: 0.8rem !important; 
+    line-height: 1.4 !important;
+    margin-bottom: 2rem !important;
+  }
+  .masonry-grid-flex { gap: 5px !important; } 
+  .masonry-column-flex { gap: 5px !important; } 
+  .masonry-item-card { border-radius: 8px !important; } 
+  
+  .video-badge {
+    width: 22px !important; 
+    height: 22px !important; 
+    bottom: 6px !important; 
+    right: 6px !important;
+  }
+  .video-badge svg { width: 10px !important; height: 10px !important; }
+}
+
+/* ==================== 4. 相片卡片 ==================== */
+.masonry-item-card {
+  position: relative;
+  display: block;
+  width: 100% !important; 
+  background: transparent !important; 
+  border: none !important; 
+  outline: none !important;
+  padding: 0; 
+  margin: 0; 
+  cursor: pointer; 
+  border-radius: 16px; 
+  box-sizing: border-box;
+  overflow: hidden; 
+  opacity: 0; 
+  will-change: transform, opacity;
+}
+
+.photo-img { 
+  width: 100% !important; 
+  height: auto !important; 
+  object-fit: cover; 
+  display: block; 
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease; 
+}
+
+.masonry-item-card:hover .photo-img {
+  transform: scale(1.03);
+}
+
+.opacity-hidden { opacity: 0 !important; }
+
+.video-badge {
+  position: absolute; 
+  bottom: 16px; 
+  right: 16px;
+  background: rgba(0, 0, 0, 0.65); 
+  backdrop-filter: blur(8px);
+  width: 32px; 
+  height: 32px; 
+  border-radius: 50%; 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  color: #ffffff; 
+  z-index: 3;
+}
+.video-badge svg { width: 14px; height: 14px; }
+
+/* ==================== 5. 加载机制 ==================== */
+.scroll-sentinel { 
+  height: 100px; 
+  width: 100%; 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--themeColor, #ffffff);
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin { 
+  to { transform: rotate(360deg); } 
+}
+
+/* ==================== 6. 明亮模式与性能降级适配 ==================== */
+html.light-mode .page-title { 
+  background: linear-gradient(180deg, #1d1d1f 40%, #86868b 100%); 
+  -webkit-background-clip: text;
+}
+html.light-mode .page-subtitle { color: #555555; }
+html.light-mode .masonry-item-card { 
+  background: transparent !important; 
+  border: none !important; 
+  box-shadow: none !important; 
+}
+
+html.light-mode .loading-spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--themeColor, #000000);
+}
+
+html.perf-degraded .masonry-item-card:hover .photo-img { 
+  transform: none !important; 
+}
+html.perf-degraded .video-badge {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+}
