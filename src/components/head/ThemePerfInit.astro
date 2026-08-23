@@ -4,10 +4,6 @@
 <script is:inline>
   (function() {
     try {
-      const theme = localStorage.getItem('theme');
-      if (theme === 'light') document.documentElement.classList.add('light-mode');
-      else if (theme === 'dark') document.documentElement.classList.remove('light-mode');
-
       const perf = localStorage.getItem('quasar-perf');
       if (perf === 'degraded') document.documentElement.classList.add('perf-degraded');
       else if (perf === 'high') document.documentElement.classList.remove('perf-degraded');

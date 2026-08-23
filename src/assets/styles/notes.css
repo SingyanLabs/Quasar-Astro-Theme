@@ -250,7 +250,7 @@
   position: absolute;
   left: -0.5em;
   top: -0.08em;
-  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  font-family: 'Noto Serif SC';
   font-size: 2.8rem;
   line-height: 1;
   color: rgba(255, 255, 255, 0.12);
@@ -264,7 +264,7 @@
 }
 
 .item-quote {
-  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  font-family: 'Noto Serif SC';
   font-size: 1.15rem;
   font-weight: 700;
   color: #f2f2f7;
@@ -321,7 +321,7 @@
 }
 
 .book-article {
-  font-family: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  font-family: 'Noto Serif SC';
   font-size: 1.2rem;
   line-height: 2.2;
   color: #e5e5ea;
@@ -459,7 +459,7 @@
   .book-article { font-size: 1.05rem; line-height: 2.0; }
 }
 
-/* 9. ☀️ 明亮模式全局适配 (兼容 ThemePerfInit) */
+/* 9. ☀️ 明亮模式全局适配 */
 html.light-mode .main-title {
   color: #1d1d1f;
 }

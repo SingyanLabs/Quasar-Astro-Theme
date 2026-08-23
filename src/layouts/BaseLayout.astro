@@ -2,6 +2,7 @@
 // src/layouts/BaseLayout.astro
 import { SITE_CONFIG } from '../config.ts';
 import ThemePerfInit from '../components/head/ThemePerfInit.astro';
+import ThemeSync from '../components/head/ThemeSync.astro';
 import Navbar from '../components/Navbar.astro';
 import LazyLoad from '../components/common/LazyLoad.astro';
 import Lightbox from '../components/common/Lightbox.astro';
@@ -16,6 +17,7 @@ const { title = SITE_CONFIG.title } = Astro.props;
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
+    <ThemeSync />
     <ThemePerfInit />
 
     <meta charset="UTF-8" />
@@ -26,23 +28,11 @@ const { title = SITE_CONFIG.title } = Astro.props;
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Noto+Serif+SC:wght@400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
     
     <ClientRouter />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" is:inline></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js" is:inline></script>
-
-    <script is:inline>
-      const syncSystemTheme = () => {
-        if (localStorage.getItem('theme') === 'light') {
-          document.documentElement.classList.add('light-mode');
-        } else {
-          document.documentElement.classList.remove('light-mode');
-        }
-      };
-      syncSystemTheme();
-      document.addEventListener('astro:after-swap', syncSystemTheme);
-    </script>
   </head>
   <body>
     <Navbar />
@@ -54,6 +44,9 @@ const { title = SITE_CONFIG.title } = Astro.props;
     <LazyLoad />
     <Lightbox />
     <ExternalLinkGuard />
+
+    <!-- 全局自动启用离屏冻结与后台休眠 -->
+    <script src="../utils/visibilityGuard.js"></script>
   </body>
 </html>
 
@@ -61,6 +54,14 @@ const { title = SITE_CONFIG.title } = Astro.props;
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background-color: #030303; color: #ffffff; font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif; overflow-x: hidden; }
   html.light-mode body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
+
+  /* 🌟 1. 独立堆叠上下文：防止底层毛玻璃运算穿透至全屏 */
+  .glass-widget,
+  .liquid-glass-bg,
+  .quasar-navbar,
+  .mobile-drawer {
+    isolation: isolate;
+  }
 
   .glass-widget {
     pointer-events: auto;
@@ -77,9 +78,33 @@ const { title = SITE_CONFIG.title } = Astro.props;
   .glass-widget:hover { border-color: rgba(255, 255, 255, 0.22); transform: translateY(-2px); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45); }
   html.light-mode .glass-widget { background: rgba(255, 255, 255, 0.72) !important; border-color: rgba(0, 0, 0, 0.08) !important; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06) !important; }
 
+  /* 🌟 2. 列表渲染隔离：防止微小变化影响整个页面布局树 (Reflow) */
+  .note-item {
+    contain: layout paint;
+    content-visibility: auto;
+    contain-intrinsic-size: 0 80px;
+  }
 
-/* ==================== 全局极简胶囊滚动条 ==================== */
-/* 🟢 1. Chrome / WebKit / Safari / Edge 专属 (3px 极致精细) */
+  /* 🌟 3. 火狐 (Gecko) WebRender 渲染引擎专项优化 (完全无视觉差异) */
+  @supports (-moz-appearance: none) {
+    html {
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* 优化火狐毛玻璃合成层，避免多重 saturate 导致 GPU 掉帧 */
+    .liquid-glass-bg,
+    .glass-widget {
+      will-change: transform;
+      transform: translateZ(0);
+    }
+
+    /* 精确释放火狐下过多的 GPU 纹理缓存限制 */
+    .note-item {
+      will-change: auto !important;
+    }
+  }
+
+/* 全局极简胶囊滚动条 */
 @supports (selector(::-webkit-scrollbar)) {
   ::-webkit-scrollbar {
     width: 3px !important;
@@ -90,21 +115,18 @@ const { title = SITE_CONFIG.title } = Astro.props;
     background: transparent !important;
   }
 
-  /* 静止状态：完全透明隐藏 */
   ::-webkit-scrollbar-thumb {
     background-color: transparent;
     border-radius: 99px;
     transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* 滚动中 (is-scrolling) 或 鼠标悬停区域时浮现 */
   html.is-scrolling ::-webkit-scrollbar-thumb,
   body.is-scrolling ::-webkit-scrollbar-thumb,
   *:hover::-webkit-scrollbar-thumb {
     background-color: rgba(255, 255, 255, 0.28);
   }
 
-  /* 鼠标直接触碰滚动条：高亮加深 */
   ::-webkit-scrollbar-thumb:hover {
     background-color: rgba(255, 255, 255, 0.65) !important;
   }
@@ -117,7 +139,6 @@ const { title = SITE_CONFIG.title } = Astro.props;
     background: transparent !important;
   }
 
-  /* ☀️ 明亮模式适配 */
   html.light-mode.is-scrolling ::-webkit-scrollbar-thumb,
   html.light-mode body.is-scrolling ::-webkit-scrollbar-thumb,
   html.light-mode *:hover::-webkit-scrollbar-thumb {
@@ -129,7 +150,6 @@ const { title = SITE_CONFIG.title } = Astro.props;
   }
 }
 
-/* 🦊 2. Firefox 专属 (不支持 webkit-scrollbar 时回退) */
 @supports not (selector(::-webkit-scrollbar)) {
   * {
     scrollbar-width: thin;
@@ -141,19 +161,34 @@ const { title = SITE_CONFIG.title } = Astro.props;
   }
 }
 </style>
-<!-- 自动隐藏逻辑脚本 -->
+
+<!-- 🌟 防抖版滚动状态侦测：使用 rAF 节流，彻底消除火狐滚动卡顿 -->
 <script is:inline>
 (function() {
     let scrollTimer = null;
+    let isTicking = false;
+
     const handleScrollState = () => {
-      document.documentElement.classList.add('is-scrolling');
-      document.body.classList.add('is-scrolling');
+      if (!isTicking) {
+        isTicking = true;
+        requestAnimationFrame(() => {
+          if (!document.documentElement.classList.contains('is-scrolling')) {
+            document.documentElement.classList.add('is-scrolling');
+            document.body.classList.add('is-scrolling');
+          }
+          isTicking = false;
+        });
+      }
+
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
-        document.documentElement.classList.remove('is-scrolling');
-        document.body.classList.remove('is-scrolling');
-      }, 800);
+        requestAnimationFrame(() => {
+          document.documentElement.classList.remove('is-scrolling');
+          document.body.classList.remove('is-scrolling');
+        });
+      }, 150);
     };
-    window.addEventListener('scroll', handleScrollState, { passive: true, capture: true });
+
+    window.addEventListener('scroll', handleScrollState, { passive: true });
   })();
 </script>

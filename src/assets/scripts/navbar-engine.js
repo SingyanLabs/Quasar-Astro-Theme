@@ -8,7 +8,6 @@ export function initNavbarEngine() {
     return;
   }
 
-  // 跨页自动卸载监听器，防止内存泄漏
   if (window.__QUASAR_NAVBAR_ABORTER) {
     window.__QUASAR_NAVBAR_ABORTER.abort();
   }
@@ -19,6 +18,31 @@ export function initNavbarEngine() {
     window.__QUASAR_AUDIO_PLAYER__ = new Audio();
   }
   const audio = window.__QUASAR_AUDIO_PLAYER__;
+
+  if (!audio._persistentEventsBound) {
+    audio._persistentEventsBound = true;
+    audio.addEventListener('timeupdate', () => {
+      window.dispatchEvent(new CustomEvent('nav-update-music-progress'));
+    });
+    audio.addEventListener('play', () => {
+      window.dispatchEvent(new CustomEvent('nav-update-music-ui'));
+    });
+    audio.addEventListener('pause', () => {
+      window.dispatchEvent(new CustomEvent('nav-update-music-ui'));
+    });
+    audio.addEventListener('ended', () => {
+      window.dispatchEvent(new CustomEvent('nav-update-music-ui'));
+    });
+  }
+
+  if (!audio._fallbackTickerStarted) {
+    audio._fallbackTickerStarted = true;
+    setInterval(() => {
+      if (audio && !audio.paused && (audio.src || audio.currentSong)) {
+        window.dispatchEvent(new CustomEvent('nav-update-music-progress'));
+      }
+    }, 100);
+  }
 
   const qs = (selector) => document.querySelector(selector);
   const qId = (id) => document.getElementById(id);
@@ -50,9 +74,6 @@ export function initNavbarEngine() {
   const pauseCountdownBar = qId('nav-pause-countdown-bar');
 
   const navLyricsDisplay = qId('nav-lyrics-display');
-  const navLyricText = qId('nav-lyric-text');
-  const mobileDrawerLyricText = qId('mobile-drawer-lyric-text');
-
   const mobileMenuToggle = qId('mobile-menu-toggle');
   const mobileDrawerClose = qId('mobile-drawer-close');
   const mobileDrawerOverlay = qId('mobile-drawer-overlay');
@@ -60,7 +81,7 @@ export function initNavbarEngine() {
   const iconVolHigh = navVolumeWrapper?.querySelector('.icon-vol-high');
   const iconVolMute = navVolumeWrapper?.querySelector('.icon-vol-mute');
   
-  const LYRIC_OFFSET = 0.18;
+  const LYRIC_OFFSET = 0.05;
   let alertTimer = null;
   let lastActiveChapter = '';
   let isNavLyricsOpen = !!audio._isNavLyricsOpen;
@@ -69,7 +90,6 @@ export function initNavbarEngine() {
   const checkDegraded = () => document.documentElement.classList.contains('perf-degraded');
   const isMobile = () => window.innerWidth <= 768;
 
-  // ⚡ 检查左侧是否有正激活的阅读/音乐/相册状态，同步标记用于移动端隐藏 Logo 标题
   const syncNavLeftWidths = () => {
     if (!navLeftContainer) return;
     const hasArticle = articleReadingInfo?.classList.contains('active');
@@ -87,7 +107,7 @@ export function initNavbarEngine() {
   };
 
   const syncNavCenterVisibility = (immediate = false) => {
-    if (isMobile()) return; // 移动端直接不介入桌面中间渲染
+    if (isMobile()) return;
     const degraded = checkDegraded();
     const duration = (immediate || degraded) ? 0.05 : 0.25;
 
@@ -179,40 +199,57 @@ export function initNavbarEngine() {
     syncNavCenterVisibility(immediate);
   };
 
+let lastLyricChangeTime = 0; // 🌟 新增：切词冷却时间戳，防止多源冲突闪烁
+
   const setNavLyricText = (text) => {
     const matchText = text || '';
-    if (matchText !== currentNavLyricText) {
-      currentNavLyricText = matchText;
+    if (matchText === currentNavLyricText) return;
 
-      // 1. 同步桌面端歌词
-      if (navLyricText && !isMobile()) {
-        window.gsap.killTweensOf(navLyricText);
-        const degraded = checkDegraded();
-        const fadeOutDur = degraded ? 0.06 : 0.12;
-        const fadeInDur = degraded ? 0.08 : 0.15;
+    // 🌟 防闪烁冷却锁：如果距离上次切词不到 300ms 且新歌词不为空，则直接拦截，防止 music.astro 与全局脚本互抢控制权
+    const now = Date.now();
+    if (now - lastLyricChangeTime < 300 && matchText !== '') return;
+    lastLyricChangeTime = now;
 
-        window.gsap.to(navLyricText, {
-          opacity: 0, duration: fadeOutDur, ease: "power1.in", force3D: true,
+    currentNavLyricText = matchText;
+
+    const lyricTextEl = document.getElementById('nav-lyric-text');
+    if (lyricTextEl && !isMobile()) {
+      window.gsap.killTweensOf(lyricTextEl);
+      if (checkDegraded()) {
+        lyricTextEl.innerText = currentNavLyricText;
+      } else {
+        // 适中的纯渐出渐入（淡出 0.12s，淡入 0.18s）
+        window.gsap.to(lyricTextEl, {
+          opacity: 0,
+          duration: 0.12,
+          ease: "power1.in",
           onComplete: () => {
-            navLyricText.innerText = currentNavLyricText;
-            window.gsap.to(navLyricText, { opacity: 1, duration: fadeInDur, ease: "power1.out", force3D: true });
+            if (currentNavLyricText === matchText) {
+              lyricTextEl.innerText = currentNavLyricText;
+              window.gsap.fromTo(lyricTextEl, 
+                { opacity: 0 },
+                { opacity: 1, duration: 0.18, ease: "power1.out", force3D: true }
+              );
+            }
           }
         });
       }
-
-      // 2. ⚡ 同步移动端抽屉歌词
-      if (mobileDrawerLyricText) {
-        mobileDrawerLyricText.innerText = currentNavLyricText || '等待播放歌词...';
-      }
     }
+
+    window.dispatchEvent(new CustomEvent('quasar:lyric-change', { detail: { lyric: currentNavLyricText } }));
   };
 
   const updateNavLyricLine = () => {
-    if (audio.currentLyric !== undefined && audio.currentLyric !== '') {
-      setNavLyricText(audio.currentLyric);
+    if ((!audio.lyricsData || !audio.lyricsData.length) && audio.currentSong && audio.currentSong.lyrics) {
+      audio.lyricsData = audio.currentSong.lyrics;
+    }
+
+    if (!audio.lyricsData || !audio.lyricsData.length) {
+      if (audio.currentLyric !== undefined && audio.currentLyric !== '') {
+        setNavLyricText(audio.currentLyric);
+      }
       return;
     }
-    if (!audio.lyricsData || !audio.lyricsData.length) return;
     
     const ct = audio.currentTime + LYRIC_OFFSET;
     let matchText = '';
@@ -285,7 +322,6 @@ export function initNavbarEngine() {
     updateNavLyricLine();
   };
 
-  // ⚡ 提醒通知：移动端“幕布下降/升回” + 桌面端原版渐变
   function triggerNavbarNotice(msg, duration = 4000, isRedAlert = false) {
     if (alertTimer) { clearTimeout(alertTimer); alertTimer = null; }
     if (perfAlertText) perfAlertText.innerText = msg || (isRedAlert ? '性能模式已切换' : '模式已切换');
@@ -302,13 +338,11 @@ export function initNavbarEngine() {
       perfAlert.style.visibility = 'visible';
 
       if (isMobile()) {
-        // ⚡ 移动端幕布下降
         window.gsap.fromTo(perfAlert, 
           { yPercent: -100, opacity: 1 }, 
           { yPercent: 0, opacity: 1, duration: 0.35, ease: "power3.out", force3D: true }
         );
       } else {
-        // 桌面端居中显示
         const dur = checkDegraded() ? 0.05 : 0.25;
         window.gsap.fromTo(perfAlert, 
           { opacity: 0, scale: 0.98 },
@@ -321,7 +355,6 @@ export function initNavbarEngine() {
       alertTimer = null;
       if (perfAlert) {
         if (isMobile()) {
-          // ⚡ 移动端幕布向上收回
           window.gsap.to(perfAlert, {
             yPercent: -100, duration: 0.3, ease: "power2.in", force3D: true,
             onComplete: () => { perfAlert.style.visibility = 'hidden'; }
@@ -389,10 +422,10 @@ export function initNavbarEngine() {
     }
   };
 
-  // --- 切换主题与性能的通用触发逻辑 ---
   const handleThemeToggle = () => {
     const isLight = document.documentElement.classList.toggle('light-mode');
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    document.dispatchEvent(new CustomEvent('theme-change'));
     triggerNavbarNotice(isLight ? navbarMain?.dataset.light : navbarMain?.dataset.dark, 3500, false);
   };
 
@@ -405,13 +438,11 @@ export function initNavbarEngine() {
     }
   };
 
-  // ⚡ 移动端折叠抽屉菜单开关
   const toggleMobileDrawer = (open) => {
     const shouldOpen = open !== undefined ? open : !document.documentElement.classList.contains('mobile-drawer-open');
     document.documentElement.classList.toggle('mobile-drawer-open', shouldOpen);
   };
 
-  // --- 事件绑定 ---
   window.addEventListener('scroll', updateArticleScrollState, { passive: true, signal });
   window.addEventListener('nav-update-music-ui', updateNavbarMusicUI, { signal });
   window.addEventListener('nav-update-music-progress', updateMusicProgress, { signal });
@@ -467,7 +498,6 @@ export function initNavbarEngine() {
     });
   }
 
-  // 绑定桌面 & 移动端按钮
   if (themeBtn) themeBtn.addEventListener('click', handleThemeToggle);
   if (mobileThemeBtn) mobileThemeBtn.addEventListener('click', handleThemeToggle);
 
@@ -478,8 +508,8 @@ export function initNavbarEngine() {
   if (mobileDrawerClose) mobileDrawerClose.addEventListener('click', () => toggleMobileDrawer(false));
   if (mobileDrawerOverlay) mobileDrawerOverlay.addEventListener('click', () => toggleMobileDrawer(false));
 
-  // 初次状态与进度刷新
   updateArticleScrollState();
   updateNavbarMusicUI();
   updateMusicProgress();
+  updateNavLyricLine();
 }

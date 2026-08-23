@@ -1,7 +1,6 @@
 ---
 import { NAVBAR_CONFIG } from '../../config';
 
-// 允许在 config.ts 中配置移动端菜单文案，若未配置则使用默认值
 const menuTitle = NAVBAR_CONFIG.mobileMenuTitle || '菜单控制台';
 const lyricTitle = NAVBAR_CONFIG.mobileLyricTitle || '实时歌词看板';
 ---
@@ -25,10 +24,10 @@ const lyricTitle = NAVBAR_CONFIG.mobileLyricTitle || '实时歌词看板';
     ))}
   </div>
 
-  <div class="drawer-anim-item drawer-divider" style="--anim-delay: 0.25s"></div>
+  <div class="drawer-anim-item drawer-divider" id="mobile-drawer-lyric-divider" style="--anim-delay: 0.25s"></div>
 
-  <!-- 2. 移动端歌词收纳看板 -->
-  <div class="drawer-anim-item drawer-lyric-box" id="mobile-drawer-lyric-box" style="--anim-delay: 0.3s">
+  <!-- 2. 移动端歌词收纳看板（默认隐藏，有音乐播放时开启） -->
+  <div class="drawer-anim-item drawer-lyric-box" id="mobile-drawer-lyric-box" style="--anim-delay: 0.3s; display: none;">
     <div class="lyric-box-header">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="lyric-icon"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8M8 12h5"/></svg>
       <span>{lyricTitle}</span>
@@ -70,18 +69,58 @@ const lyricTitle = NAVBAR_CONFIG.mobileLyricTitle || '实时歌词看板';
 
 <script is:inline>
   document.addEventListener('astro:page-load', () => {
-    // === 1. 移动端歌词淡入淡出逻辑 ===
-    const mobLyric = document.getElementById('mobile-drawer-lyric-text');
-    if (mobLyric) {
-      mobLyric.innerText = '正在等待歌词...';
-      window.addEventListener('quasar:lyric-change', (e) => {
-        mobLyric.style.opacity = '0';
-        setTimeout(() => {
-          mobLyric.innerText = e.detail.lyric || '正在等待歌词...';
-          mobLyric.style.opacity = '1';
-        }, 120);
-      });
-    }
+    // === 1. 移动端歌词智能显隐与渐变淡入动画 ===
+    const updateLyricVisibility = () => {
+      const audio = window.__QUASAR_AUDIO_PLAYER__;
+      const currentSong = audio?.currentSong;
+      const hasAudio = !!(audio && (audio.src || (currentSong && currentSong.audioUrl)));
+
+      const mobLyricBox = document.getElementById('mobile-drawer-lyric-box');
+      const mobLyricDivider = document.getElementById('mobile-drawer-lyric-divider');
+
+      if (mobLyricBox && mobLyricDivider) {
+        if (hasAudio) {
+          mobLyricBox.style.display = 'block';
+          mobLyricDivider.style.display = 'block';
+        } else {
+          mobLyricBox.style.display = 'none';
+          mobLyricDivider.style.display = 'none';
+        }
+      }
+    };
+
+// 监听全局歌词派发事件（适中的纯渐出渐入动画 + 防重叠校验）
+    window.addEventListener('quasar:lyric-change', (e) => {
+      const mobLyric = document.getElementById('mobile-drawer-lyric-text');
+      if (!mobLyric) return;
+
+      const newText = e.detail?.lyric || '正在等待歌词...';
+      if (mobLyric.innerText !== newText) {
+        if (window.gsap && !document.documentElement.classList.contains('perf-degraded')) {
+          window.gsap.killTweensOf(mobLyric);
+          
+          window.gsap.to(mobLyric, {
+            opacity: 0,
+            duration: 0.12,
+            ease: "power1.in",
+            onComplete: () => {
+              if (mobLyric) {
+                mobLyric.innerText = newText;
+                window.gsap.fromTo(mobLyric,
+                  { opacity: 0 },
+                  { opacity: 1, duration: 0.18, ease: "power1.out", force3D: true }
+                );
+              }
+            }
+          });
+        } else {
+          mobLyric.innerText = newText;
+        }
+      }
+    });
+
+    window.addEventListener('nav-update-music-ui', updateLyricVisibility);
+    updateLyricVisibility();
 
     // === 2. 独立提示框状态与倒计时动画镜像同步 ===
     const mainAlert = document.getElementById('nav-perf-alert');
@@ -118,12 +157,10 @@ const lyricTitle = NAVBAR_CONFIG.mobileLyricTitle || '实时歌词看板';
 </script>
 
 <style>
-  /* 桌面端完全隐藏抽屉元素 */
   @media (min-width: 769px) {
     .mobile-drawer-overlay, .mobile-drawer { display: none !important; }
   }
 
-  /* 移动端抽屉样式 */
   @media (max-width: 768px) {
     .mobile-drawer-overlay {
       position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px);
@@ -220,11 +257,9 @@ const lyricTitle = NAVBAR_CONFIG.mobileLyricTitle || '实时歌词看板';
     :global(.perf-degraded) .perf-high-text { display: none !important; }
     :global(.perf-degraded) .perf-low-text { display: inline !important; }
 
-    /* ⚡ 闪烁动画关键帧 */
     @keyframes mobPulseWarnDark { 0%, 100% { color: #ffffff; opacity: 0.4; transform: scale(1); } 50% { color: #ff3e18; opacity: 1; transform: scale(1.08); } }
     @keyframes mobPulseWarnLight { 0%, 100% { color: #1d1d1f; opacity: 0.35; transform: scale(1); } 50% { color: #ff3e18; opacity: 1; transform: scale(1.08); } }
     
-    /* ⚡ 提升优先级并强制开启红色 Icon 闪烁 */
     :global(.perf-degraded) .drawer-control-btn .icon-perf-warn { 
       display: block !important; 
       animation: mobPulseWarnDark 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important;
@@ -236,7 +271,6 @@ const lyricTitle = NAVBAR_CONFIG.mobileLyricTitle || '实时歌词看板';
       filter: none;
     }
 
-    /* 效能模式下无 Blur 高效底座 */
     :global(.perf-degraded) .mobile-drawer-overlay {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
@@ -248,7 +282,6 @@ const lyricTitle = NAVBAR_CONFIG.mobileLyricTitle || '实时歌词看板';
       background: #0d0d14 !important;
     }
 
-    /* 移动端浅色模式适配 */
     :global(.light-mode) .mobile-drawer { background: rgba(245, 245, 247, 0.96); border-left-color: rgba(0, 0, 0, 0.1); }
     :global(.light-mode) .drawer-title, :global(.light-mode) .drawer-nav-item, :global(.light-mode) .drawer-control-btn { color: #1d1d1f; }
     :global(.light-mode) .drawer-nav-item { background: rgba(0, 0, 0, 0.04); }

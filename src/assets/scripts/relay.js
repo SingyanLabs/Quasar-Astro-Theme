@@ -1,27 +1,20 @@
-export const initFastRelay = () => {
-  const scriptEl = document.querySelector('script[data-type]');
-  const type = scriptEl?.dataset.type;
-  const jsUrl = scriptEl?.dataset.js;
-  const targetUrl = scriptEl?.dataset.target || 'https://www.travellings.cn/go.html';
+// src/assets/scripts/relay.js
 
-  // 1. HTML 模式直接快速跳转
-  if (type === 'html' || !jsUrl) {
+export const initFastRelay = () => {
+  const configEl = document.getElementById('relay-config');
+  const jsUrl = configEl?.dataset.js;
+  const targetUrl = configEl?.dataset.target || 'https://www.travellings.cn/go.html';
+
+  // 纯粹通过引用的外部 JS 文件来进行跳转和处理
+  if (jsUrl) {
+    const tag = document.createElement('script');
+    tag.src = jsUrl;
+    tag.async = true;
+    document.body.appendChild(tag);
+  } else {
+    // 如果配置文件里没有写 jsUrl，则直接用 targetUrl 兜底跳转
     setTimeout(() => {
       window.location.replace(targetUrl);
     }, 800);
-    return;
   }
-
-  // 2. JS 模式非阻塞异步加载
-  const tag = document.createElement('script');
-  tag.src = jsUrl;
-  tag.async = true;
-  document.body.appendChild(tag);
-
-  // 3. 兜底保护，防止 JS 加载失败死锁
-  setTimeout(() => {
-    if (window.location.pathname === '/relay') {
-      window.location.replace(targetUrl);
-    }
-  }, 1000);
 };

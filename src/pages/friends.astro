@@ -92,6 +92,56 @@ try {
 </script>
 
 <style>
+  /* 🌟 1. 参考 notes.css 设计的纯 CSS 高级入场动画 */
+  @keyframes smoothEntrance {
+    0% {
+      opacity: 0;
+      transform: translateY(16px);
+      filter: blur(6px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0px);
+    }
+  }
+
+  /* 🌟 2. 头部各元素错峰入场 */
+  .section-tagline {
+    animation: smoothEntrance 0.45s cubic-bezier(0.25, 1, 0.5, 1) both;
+    animation-delay: 0.02s;
+  }
+
+  .main-title {
+    animation: smoothEntrance 0.45s cubic-bezier(0.25, 1, 0.5, 1) both;
+    animation-delay: 0.06s;
+  }
+
+  .subtitle-row {
+    animation: smoothEntrance 0.45s cubic-bezier(0.25, 1, 0.5, 1) both;
+    animation-delay: 0.1s;
+  }
+
+  /* 🌟 3. 友链卡片网格 Stagger 错峰淡入 */
+  :global(.friends-grid > *) {
+    animation: smoothEntrance 0.45s cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+  :global(.friends-grid > *:nth-child(1)) { animation-delay: 0.14s; }
+  :global(.friends-grid > *:nth-child(2)) { animation-delay: 0.18s; }
+  :global(.friends-grid > *:nth-child(3)) { animation-delay: 0.22s; }
+  :global(.friends-grid > *:nth-child(4)) { animation-delay: 0.26s; }
+  :global(.friends-grid > *:nth-child(5)) { animation-delay: 0.30s; }
+  :global(.friends-grid > *:nth-child(6)) { animation-delay: 0.34s; }
+  :global(.friends-grid > *:nth-child(n+7)) { animation-delay: 0.38s; }
+
+  /* 🌟 4. 本站信息面板跟进压轴出场 */
+  :global(#site-info-panel) {
+    animation: smoothEntrance 0.45s cubic-bezier(0.25, 1, 0.5, 1) both;
+    animation-delay: 0.42s;
+  }
+
+  /* ---------------- 下方保留 100% 原始样式布局 ---------------- */
+
   .friends-viewport {
     width: 100%;
     min-height: 100vh;
@@ -161,7 +211,6 @@ try {
     align-items: center;
   }
 
-  /* 🔒 胶囊按钮样式 */
   .relay-badge-btn {
     display: inline-flex !important;
     align-items: center !important;
@@ -243,5 +292,16 @@ try {
     background: rgba(0, 0, 0, 0.04);
     border-color: rgba(0, 0, 0, 0.08);
     color: #1d1d1f;
+  }
+
+  /* ⚡ 系统的减少动效适配 */
+  @media (prefers-reduced-motion: reduce) {
+    .section-tagline,
+    .main-title,
+    .subtitle-row,
+    :global(.friends-grid > *),
+    :global(#site-info-panel) {
+      animation: none !important;
+    }
   }
 </style>

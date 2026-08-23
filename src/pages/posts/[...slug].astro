@@ -4,7 +4,7 @@ import { getCollection, render } from 'astro:content';
 import { SITE_CONFIG } from '../../config.ts';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostSidebar from '../../components/posts/PostSidebar.astro';
-import '../../assets/css/post-detail.css';
+import '../../assets/styles/post-detail.css';
 
 export async function getStaticPaths() {
   const posts = await getCollection('posts');

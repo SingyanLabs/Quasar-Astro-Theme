@@ -8,22 +8,52 @@ const targetUrl = relay.htmlUrl || 'https://www.travellings.cn/go.html';
 ---
 
 <BaseLayout title={`${relay.pageTitle || '正在进行星系跃迁...'} | ${SITE_CONFIG.title}`}>
-  <div class="relay-viewport">
+  <!-- 🌟 将配置数据安全挂载在 DOM 容器上，避免被 Vite 编译抹除 -->
+  <div 
+    class="relay-viewport" 
+    id="relay-config"
+    data-type={relay.type}
+    data-js={relay.jsUrl}
+    data-target={targetUrl}
+  >
     <RelayCard pageTitle={relay.pageTitle} pageSubtitle={relay.pageSubtitle} targetUrl={targetUrl} />
   </div>
 </BaseLayout>
 
-<script data-type={relay.type} data-js={relay.jsUrl} data-target={targetUrl}>
-  // 🌟 引入新目录下的 scripts/relay.js
+<script>
   import { initFastRelay } from '../assets/scripts/relay.js';
   document.addEventListener('DOMContentLoaded', initFastRelay);
   document.addEventListener('astro:page-load', initFastRelay);
 </script>
 
 <style>
+  /* 🌟 纯 CSS 优雅入场动画：高斯模糊 + 柔和缩放升起 */
+  @keyframes smoothRelayEntrance {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.96);
+      filter: blur(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0px);
+    }
+  }
+
+  .relay-viewport :global(.relay-card) {
+    animation: smoothRelayEntrance 0.5s cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+
   .relay-viewport {
     width: 100vw; height: 100vh; height: 100dvh;
     display: flex; align-items: center; justify-content: center;
     padding: 1.5rem; box-sizing: border-box; overflow: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .relay-viewport :global(.relay-card) {
+      animation: none !important;
+    }
   }
 </style>

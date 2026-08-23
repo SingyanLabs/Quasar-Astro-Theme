@@ -1,4 +1,4 @@
-/* src/assets/css/posts.css */
+/* src/assets/styles/posts.css */
 
 /* View Transition 全局设定 */
 ::view-transition-group(*) {
@@ -28,7 +28,7 @@
 }
 .posts-container { width: 90%; max-width: 1200px; }
 .posts-header { margin-bottom: 48px; display: flex; flex-direction: column; gap: 24px; }
-.section-tagline { font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; color: #888888; letter-spacing: 0.12em; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.section-tagline { margin-top: 1.618rem; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; color: #888888; letter-spacing: 0.12em; display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .blue-dot { width: 6px; height: 6px; background-color: var(--themeColor); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px rgba(var(--themeColorRgb), 0.6); }
 .main-title { font-size: 3.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.618; background: linear-gradient(180deg, #ffffff 60%, #999999 100%); -webkit-background-clip: text; }
 .subtitle { margin-bottom: 2rem; font-size: 1.05rem; color: #86868b; font-weight: 300; }

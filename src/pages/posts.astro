@@ -4,7 +4,7 @@ import { getCollection } from 'astro:content';
 import { SITE_CONFIG, POSTS_CONFIG } from '../config.ts';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PostCard from '../components/posts/PostCard.astro';
-import '../assets/css/posts.css';
+import '../assets/styles/posts.css';
 
 const rawPosts = await getCollection('posts');
 
