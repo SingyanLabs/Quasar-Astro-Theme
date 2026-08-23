@@ -1,68 +1,86 @@
-# 🌌 Quasar - Personal Digital Space
+# 🌌 Quasar - A cosmic-inspired Astro theme
 
-> 一个极具交互感、高性能且优雅的个人数字空间 / 博客系统。
-> 基于 Astro 构建，纯原生 CSS + 精密 JS 动效驱动，支持深浅色模式无缝平滑切换。
+> 一款灵感源自宇宙的 Astro 主题，以地球的稳定性为基础。设计简洁、性能卓越，为流畅地书写博客而生。
+> 基于 Astro v7 构建，抛弃臃肿的运行时框架，依靠纯原生 CSS + Vanilla JS 引擎驱动，实现毫秒级响应与丝滑微交互。
 
-![Astro](https://img.shields.io/badge/Astro-v4-FF5D01?style=for-the-badge&logo=astro&logoColor=white)
+![Astro](https://img.shields.io/badge/Astro-v7-FF5D01?style=for-the-badge&logo=astro&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![CSS3](https://img.shields.io/badge/Pure_CSS-Animations-1572B6?style=for-the-badge&logo=css3&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-success?style=for-the-badge)
 
 ## ✨ 设计哲学 (Philosophy)
 
-Quasar 不仅仅是一个博客，它被设计为一个「个人的数字星系」。
-摒弃了臃肿的前端框架，采用 Astro 的孤岛架构（Islands Architecture）与极简的原生 Web 技术，在保证页面秒开、极佳 SEO 的同时，提供了极其细腻的微交互动画（Micro-interactions）与丝滑的视图过渡（View Transitions）。
+Quasar 不仅仅是一个博客，它是你的「数字分身」。
+项目采用 Astro 孤岛架构（Islands Architecture），将前端性能压榨到极致。完全依靠精密的 CSS `@keyframes` 动画与无阻塞的原生 JavaScript (`Vanilla JS`)，在保证极佳 SEO 的同时，提供了沉浸式的深浅色无缝切换、毛玻璃视差、以及类似 Native App 般的视图过渡（View Transitions）。
 
-## 🚀 核心功能模块 (Features)
+## 🚀 核心功能图鉴 (Core Features)
 
-Quasar 拥有高度模块化的页面与组件架构：
+Quasar 拆分了多个高度自治且富有表现力的频道模块：
 
-- 📝 **文章 (Posts) & 随记 (Notes):** 
-  - 基于 Content Collections 的类型安全 Markdown/MDX 渲染。
-  - 原位展开、无界极简列表视图与专属阅读排版。
-- 📸 **相册 (Albums) & 瞬间 (Moments):**
-  - 瀑布流 (Masonry) 布局相册，集成图片懒加载 (`LazyLoad`) 与全局画廊组件 (`Lightbox`)。
-  - 仿朋友圈/即刻的碎片化灵感记录流。
-- 🎵 **音乐室 (Music):**
-  - 定制化的纯前端音乐播放器引擎 (`music-engine.js`)，支持后台静默加载与沉浸式 UI。
-- 🪐 **视觉与交互探索 (Interactive UI):**
-  - 首页集成互动式 3D 地球 (`Earth.astro`) 与动态迎宾文案 (`IntroWord.astro`)。
-  - 精美的小组件系统（天气 `WeatherWidget`、格言 `QuoteWidget`、工作台 `StudioWidget`）。
-- 🤝 **星系跃迁 (Friends & Relay):**
-  - 友链页面自带毛玻璃浮现动效与 `GentleModal` 平滑拦截弹窗，内置 Relay 随机跃迁网络。
-- 🌗 **无极主题同步 (Theme Sync):**
-  - 深度优化的暗色/亮色模式切换 (`ThemePerfInit`)，彻底告别切页闪烁。
+*   📝 **深度长文 (Posts) & 灵感随记 (Notes)**
+    *   基于 `Content Collections` 实现 100% 类型安全的 Markdown 渲染。
+    *   **Notes:** 采用纯 CSS 驱动的原位展开与分类检索机制，打造无界极简列表。
+*   📸 **摄影集 (Albums)**
+    *   集成 Google Photos API (`GooglePhotosFetcher.ts`) 获取云端图源。
+    *   精密的自适应瀑布流 (Masonry) 布局，内置 `LazyLoad` 与全局 `Lightbox` 画廊守护。
+*   💭 **瞬间动态 (Moments)**
+    *   类朋友圈/即刻的碎片化记录流，包含定制的侧边栏、点赞交互 (`MomentsLikeButton`) 与详情扩展卡片。
+*   🎵 **沉浸音乐室 (Music)**
+    *   完全自研的原生 JS 播放器引擎 (`music-engine.js`)。
+    *   具备动态背景视觉 (`MusicBackground`)、双侧边栏控制面板。
+*   🪐 **互动主页 & 小组件生态 (Widgets)**
+    *   首页搭载 3D 地球仪 (`Earth.astro`) 与视差欢迎辞 (`IntroWord.astro`)。
+    *   内置多功能模块栈：天气观测 (`WeatherWidget`)、工作台状态 (`StudioWidget`)、名言展示 (`QuoteWidget`)。
+*   🤝 **星系跃迁网络 (Friends & Relay)**
+    *   基于 `GentleModal` 的优雅拦截弹窗。
+    *   友链卡片、站点信息面板与高阶随机跳转网关 (`relay.js`) 结合，构筑个人站长互联星系。
+*   🛠️ **内部生成器引擎 (Generators)**
+    *   自建内部工具链 (`pages/generator/`)，一键生成封面 SVG、Favicon、以及站点全套主题色系资源。
 
-## 📂 项目架构 (Structure)
+## 📂 深度项目架构 (Architecture)
 
-严谨而清晰的 Astro 项目骨架：
+严密、模块化、极客风的文件拓扑结构：
 
 ```text
-├── assets/             # 静态资源 (背景 SVG, 核心独立 JS 引擎, CSS 模块)
-├── components/         # 组件库
-│   ├── about/          # 关于页模块 (能力雷达, 科技栈, 悬浮 Dock 等)
-│   ├── common/         # 全局通用组件 (懒加载, 画廊, 外链守卫等)
-│   ├── navbar/         # 顶部高阶导航栏与全局检索
-│   ├── widgets/        # 多功能小组件生态
-│   └── ...             # 各业务模块专属组件 (music, posts, friends)
-├── content/            # 内容集合 (Markdown 数据源)
-│   ├── albums/         # 图集数据
-│   ├── friends/        # 友链数据
-│   ├── moments/        # 瞬间记录
-│   ├── music/          # 播放列表
-│   └── posts/          # 长篇博文
-├── layouts/            # 核心布局模板 (BaseLayout)
-├── pages/              # Astro 物理路由页面 (index, about, posts...)
-├── utils/              # 工具函数 (剪贴板, 视口侦测, 检索数据构建等)
-└── config.ts           # 全局核心配置站点数据
+Quasar/
+├── assets/                 # 核心静态资源引擎
+│   ├── scripts/            # Vanilla JS 引擎族 (music-engine, navbar-engine, intro-engine 等)
+│   └── styles/             # 按需加载的纯 CSS 动画与布局模块 (moments.css, notes.css 等)
+├── components/             # 高度解耦的组件库
+│   ├── about/              # 关于页雷达图、技术栈展台、悬浮 Dock
+│   ├── albums/             # 瀑布流视图与相册标头
+│   ├── common/             # 全局基建 (Lightbox 画廊, 视口懒加载, ExternalLinkGuard 外链守卫)
+│   ├── friends/            # 友链网络与 Gentle 模态框
+│   ├── head/               # <head> 层级注入 (无闪主题同步 ThemePerfInit)
+│   ├── moments/            # 瞬间动态卡片、点赞与时间线侧栏
+│   ├── music/              # 全定制音乐播放器面板界面
+│   ├── navbar/             # 全局模糊检索与顶部交互中心
+│   ├── notes/              # 纯 CSS 随记列表过滤器
+│   ├── posts/              # 博客文章视图
+│   ├── services/           # 外部接口聚合 (GooglePhotosFetcher)
+│   └── widgets/            # 首页模块化小部件 (天气、工作室等)
+├── content/                # Content Collections 数据枢纽 (Markdown)
+│   ├── albums/ & friends/ 
+│   ├── moments/ & music/ 
+│   ├── notes/ & posts/     # 你的所有文字与数据源均存放于此
+│   └── Empty.md            # 占位符结构
+├── layouts/                # 站点核心骨架 (BaseLayout.astro)
+├── pages/                  # 物理路由分发
+│   ├── api/                # Serverless 接口 (如 albums.ts 数据拉取)
+│   ├── generator/          # 仅本地/开发环境使用的资源生成器
+│   ├── posts/              # 动态博文路由 ([...slug].astro)
+│   └── index, about, music, moments, friends, notes... # 主频道入口
+├── utils/                  # 通用函数链 (剪贴板 clipboard, 视区侦测 visibilityGuard 等)
+├── config.ts               # 🔴 站点的灵魂：全局变量、模块开关与基础信息配置
+└── content.config.ts       # Astro Content 类型结构安全定义
 
 ```
 
-## 🛠️ 开始使用 (Getting Started)
+## 🚀 部署与使用 (Getting Started)
 
-确保您的运行环境中已安装 `Node.js` (建议 v18+)。
+Node.js 环境要求：`v18.17.0` 或更高版本。推荐使用 `pnpm` 获得更快的依赖安装体验。
 
-**1. 克隆项目**
+**1. 克隆数字星系**
 
 ```bash
 git clone [https://github.com/](https://github.com/)<your-username>/Quasar.git
@@ -70,45 +88,70 @@ cd Quasar
 
 ```
 
-**2. 安装依赖**
+**2. 安装依赖引擎**
 
 ```bash
+# 推荐使用 pnpm
+pnpm install
+
+# 或使用 npm
 npm install
 
 ```
 
-**3. 启动开发服务器**
+**3. 启动本地开发舱**
 
 ```bash
+# 使用 pnpm
+pnpm dev
+
+# 或使用 npm
 npm run dev
+
+# 终端就绪后，访问 http://localhost:4321/
 
 ```
 
-> 本地预览地址默认为：`http://localhost:4321/`
-
-**4. 生产环境构建**
+**4. 构建生产固件**
 
 ```bash
+# 使用 pnpm
+pnpm build
+
+# 或使用 npm
 npm run build
 
 ```
 
-## ✍️ 内容创作 (Content Creation)
+## ✍️ 数据源与创作 (Content Management)
 
-本项目使用了 [Astro Content Collections](https://docs.astro.build/en/guides/content-collections/)，添加新内容极为简单：
+Quasar 的数据高度分离，不依赖任何外部 CMS 数据库。所有的内容通过 `src/content/` 下的 Markdown 文件管理：
 
-* **写文章：** 在 `src/content/posts/` 目录下新建 `.md` 文件。
-* **发动态：** 在 `src/content/moments/` 目录下新建 `.md` 文件。
-* **加友链：** 修改 `src/content/friends/` 中的数据。
-*(Frontmatter 格式请参考对应目录下的 `Demo.md` 示例文件)*
+* **发布文章：** 在 `content/posts/` 目录下创建 Markdown，配置 frontmatter。
+* **发送动态：** 在 `content/moments/` 写入你的灵感片段。
+* **更新友链：** 编辑 `content/friends/` 数据。
+* **添加音乐：** 补全 `content/music/` 下的单曲信息。
 
-## ⚙️ 个性化配置 (Configuration)
+*项目已深度集成 TypeScript 校验，Frontmatter 格式如有遗漏会在编译期直接预警，保障数据绝对安全。*
 
-站点的核心基础信息、导航栏、社交链接、以及各个模块的开关，均集中在项目根目录的 `config.ts` 文件中。您只需修改此文件，即可完成 80% 的个性化定制。
+## ⚙️ 核心配置 (Configuration)
+
+无需深入代码深渊，站点的 80% 个性化均可通过修改根目录的 `config.ts` 解决。包括：
+
+* 站点名称、SEO 描述
+* 顶部导航栏路由与 Icon
+* 各子页面（音乐、博客、动态）的专属文案与开关
+* 社交网络直达链接
 
 ## 📜 许可证 (License)
 
 本项目采用 [MIT License](https://www.google.com/search?q=./LICENSE) 开源协议。
-您可以自由地使用、修改和分发，但请保留原作者的版权声明。
+允许自由二次开发与分发，惟请保留原仓库的版权声明。
 
 ---
+
+*Architected with ❤️ by [<MatChaLab>](https://github.com/matchalab).*
+
+```
+
+```
