@@ -1,0 +1,32 @@
+---
+// src/components/posts/PostCard.astro
+const { post } = Astro.props;
+---
+<article class="post-card" data-category={post.category} transition:name={`card-bg-${post.slug}`}>
+  <a href={`/posts/${post.slug}`} class="card-inner-link" aria-label={post.title}>
+    
+    {post.cover && (
+      <div class="card-cover-box">
+        <img src={post.cover} alt={post.title} loading="lazy" transition:name={`card-cover-${post.slug}`} />
+        <span class="category-tag">{post.category}</span>
+      </div>
+    )}
+
+    <div class="card-content">
+      {!post.cover && (
+        <div class="card-top-meta">
+          <span class="category-tag">{post.category}</span>
+          <span class="read-time">{post.readTime}</span>
+        </div>
+      )}
+
+      <h2 class="post-title" transition:name={`card-title-${post.slug}`}>{post.title}</h2>
+      <p class="post-desc">{post.description}</p>
+
+      <div class="card-footer">
+        <span class="post-date">{post.formattedDate}</span>
+        {post.cover && <span class="read-time">{post.readTime}</span>}
+      </div>
+    </div>
+  </a>
+</article>

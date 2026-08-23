@@ -1,0 +1,56 @@
+---
+interface Props {
+  tag?: string;
+  title?: string;
+  description?: string;
+  buttonText?: string;
+  link?: string;
+}
+
+const { tag = '// EXCHANGE', title = '交换友链？', description, buttonText = '申请链接', link = '#site-info-panel' } = Astro.props;
+---
+
+<div class="friend-card exchange-card" id="exchange-card">
+  <div class="exchange-inner">
+    <span class="exchange-tag">{tag}</span>
+    <h3 class="exchange-title">{title}</h3>
+    <p class="exchange-desc">{description}</p>
+    
+    <a 
+      href={link || '#site-info-panel'} 
+      target={link?.startsWith('http') ? '_blank' : '_self'}
+      rel="noopener noreferrer"
+      class="exchange-btn" 
+      id="exchange-trigger-btn"
+    >
+      <span>{buttonText}</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+</div>
+
+<style>
+  .exchange-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+  }
+  .exchange-inner { padding: 24px; display: flex; flex-direction: column; align-items: flex-start; height: 100%; box-sizing: border-box; }
+  .exchange-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.75rem; color: #6e6e73; margin-bottom: 12px; }
+  .exchange-title { font-size: 1.25rem; font-weight: 800; color: #ffffff; margin-bottom: 8px; }
+  .exchange-desc { font-size: 0.85rem; color: #86868b; line-height: 1.6; margin-bottom: 20px; flex: 1; }
+  .exchange-btn {
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important;
+    white-space: nowrap !important; background: var(--themeColor, #015EFB) !important; color: #ffffff !important;
+    text-decoration: none !important; font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif !important;
+    font-size: 0.85rem !important; font-weight: 800 !important; padding: 10px 20px !important;
+    border-radius: 12px !important; box-shadow: 0 4px 15px rgba(var(--themeColorRgb, 1, 94, 251), 0.3) !important;
+    transition: all 0.25s ease !important;
+  }
+  .exchange-btn:hover { transform: translateY(-2px) !important; box-shadow: 0 8px 25px rgba(var(--themeColorRgb, 1, 94, 251), 0.5) !important; }
+  .exchange-btn svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
+  .exchange-btn:hover svg { transform: translateX(3px); }
+
+  :global(html.light-mode) .exchange-title { color: #1d1d1f; }
+  :global(html.light-mode) .exchange-card { background: rgba(0, 0, 0, 0.015); border-color: rgba(0, 0, 0, 0.1); }
+</style>

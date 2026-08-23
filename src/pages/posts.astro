@@ -1,13 +1,14 @@
 ---
-// src/pages/posts.astro
-import { getCollection, render } from 'astro:content';
+// src/pages/posts/index.astro
+import { getCollection } from 'astro:content';
 import { SITE_CONFIG, POSTS_CONFIG } from '../config.ts';
-import Navbar from '../components/Navbar.astro';
-import { ClientRouter } from 'astro:transitions';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/posts/PostCard.astro';
+import '../assets/css/posts.css';
 
 const rawPosts = await getCollection('posts');
 
-function parsePostDate(dateInput: any): Date {
+function parsePostDate(dateInput) {
   if (!dateInput) return new Date();
   const d = new Date(dateInput);
   return isNaN(d.getTime()) ? new Date() : d;
@@ -15,10 +16,8 @@ function parsePostDate(dateInput: any): Date {
 
 const unSortedPosts = await Promise.all(
   rawPosts.map(async (entry) => {
-    await render(entry);
     const data = entry.data || {};
     const dateObj = parsePostDate(data.pubDate);
-
     return {
       id: entry.id,
       slug: entry.id,
@@ -31,7 +30,6 @@ const unSortedPosts = await Promise.all(
       tags: Array.isArray(data.tags) ? data.tags : [],
       cover: data.cover || '',
       readTime: data.readTime || '5 min read',
-      bodyText: entry.body || '',
     };
   })
 );
@@ -39,331 +37,45 @@ const unSortedPosts = await Promise.all(
 const postsData = unSortedPosts.sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
 const categories = ['All', ...new Set(postsData.map(p => p.category))].filter(Boolean);
 
-const hexToRgb = (hex: string) => {
-  const cleanHex = (hex || '#015EFB').replace('#', '');
-  const num = parseInt(cleanHex, 16);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
-  return `${r}, ${g}, ${b}`;
+const hexToRgb = (hex) => {
+  const num = parseInt((hex || '#015EFB').replace('#', ''), 16);
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 };
-
 const themeColor = SITE_CONFIG.themeColor || '#015EFB';
 const themeColorRgb = hexToRgb(themeColor);
 ---
-
-<!DOCTYPE html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{POSTS_CONFIG.nav} | {SITE_CONFIG.title}</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
-
-    <ClientRouter />
-
-    <script is:inline>
-      const syncSystemTheme = () => {
-        if (localStorage.getItem('theme') === 'light') {
-          document.documentElement.classList.add('light-mode');
-        } else {
-          document.documentElement.classList.remove('light-mode');
-        }
-      };
-      syncSystemTheme();
-      document.addEventListener('astro:after-swap', syncSystemTheme);
-    </script>
-  </head>
-  <body>
-
-    <Navbar />
-
-    <main class="posts-viewport">
-      <div class="posts-container">
-        
-        <header class="posts-header">
-          <div class="header-intro">
-            <p class="section-tagline">
-              <span class="blue-dot"></span>{POSTS_CONFIG.tagline}
-            </p>
-            <h1 class="main-title">{POSTS_CONFIG.title}</h1>
-            <p class="subtitle">
-              {POSTS_CONFIG.subtitle}
-            </p>
-          </div>
-
-          {categories.length > 1 && (
-            <div class="category-filter-bar">
-              {categories.map((cat, idx) => (
-                <button 
-                  class={`filter-btn ${idx === 0 ? 'active' : ''}`} 
-                  data-category={cat}
-                  type="button"
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-        </header>
-
-        <div class="posts-grid" id="posts-grid">
-          {postsData.map((post) => (
-            <article 
-              class="post-card" 
-              data-category={post.category}
-              transition:name={`card-bg-${post.slug}`}
-            >
-              <a href={`/posts/${post.slug}`} class="card-inner-link" aria-label={post.title}>
-                
-                {post.cover && (
-                  <div class="card-cover-box">
-                    <img 
-                      src={post.cover} 
-                      alt={post.title} 
-                      loading="lazy" 
-                      transition:name={`card-cover-${post.slug}`}
-                    />
-                    <span class="category-tag">{post.category}</span>
-                  </div>
-                )}
-
-                <div class="card-content">
-                  {!post.cover && (
-                    <div class="card-top-meta">
-                      <span class="category-tag">{post.category}</span>
-                      <span class="read-time">{post.readTime}</span>
-                    </div>
-                  )}
-
-                  <h2 class="post-title" transition:name={`card-title-${post.slug}`}>{post.title}</h2>
-                  <p class="post-desc">{post.description}</p>
-
-                  <div class="card-footer">
-                    <span class="post-date">{post.formattedDate}</span>
-                    {post.cover && <span class="read-time">{post.readTime}</span>}
-                  </div>
-                </div>
-
-              </a>
-            </article>
-          ))}
+<BaseLayout title={`${POSTS_CONFIG.nav} | ${SITE_CONFIG.title}`}>
+  <!-- 通过内联 style 透传 CSS Var 給下属所有组件及外置 CSS 文件 -->
+  <div class="posts-viewport" style={`--themeColor: ${themeColor}; --themeColorRgb: ${themeColorRgb};`}>
+    <div class="posts-container">
+      
+      <header class="posts-header">
+        <div class="header-intro">
+          <p class="section-tagline"><span class="blue-dot"></span>{POSTS_CONFIG.tagline}</p>
+          <h1 class="main-title">{POSTS_CONFIG.title}</h1>
+          <p class="subtitle">{POSTS_CONFIG.subtitle}</p>
         </div>
 
-        {postsData.length === 0 && (
-          <div class="empty-state">
-            <p>暫無文章發佈</p>
+        {categories.length > 1 && (
+          <div class="category-filter-bar">
+            {categories.map((cat, idx) => (
+              <button class={`filter-btn ${idx === 0 ? 'active' : ''}`} data-category={cat} type="button">
+                {cat}
+              </button>
+            ))}
           </div>
         )}
+      </header>
 
+      <div class="posts-grid" id="posts-grid">
+        {postsData.map((post) => <PostCard post={post} />)}
       </div>
-    </main>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
+      {postsData.length === 0 && <div class="empty-state"><p>暫無文章發佈</p></div>}
+    </div>
+  </div>
 
-    <script is:inline>
-      document.addEventListener('astro:page-load', () => {
-        const filterBtns = document.querySelectorAll('.filter-btn');
-        const postCards = document.querySelectorAll('.post-card');
-        const isPerfDegraded = document.documentElement.classList.contains('perf-degraded');
-
-        // 分类按钮切换逻辑 (仅控制 display 和简易透明度，不干涉 View Transition)
-        filterBtns.forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const selectedCategory = btn.dataset.category;
-
-            filterBtns.forEach((b) => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            postCards.forEach((card) => {
-              const cardCat = card.dataset.category;
-              const shouldShow = (selectedCategory === 'All' || cardCat === selectedCategory);
-
-              if (isPerfDegraded) {
-                card.style.display = shouldShow ? 'block' : 'none';
-                card.style.opacity = shouldShow ? '1' : '0';
-              } else {
-                if (shouldShow) {
-                  card.style.display = 'block';
-                  if (window.gsap) {
-                    gsap.to(card, { opacity: 1, duration: 0.25 });
-                  } else {
-                    card.style.opacity = '1';
-                  }
-                } else {
-                  if (window.gsap) {
-                    gsap.to(card, {
-                      opacity: 0,
-                      duration: 0.2,
-                      onComplete: () => { card.style.display = 'none'; }
-                    });
-                  } else {
-                    card.style.display = 'none';
-                  }
-                }
-              }
-            });
-          });
-        });
-      });
-    </script>
-
-  </body>
-</html>
-
-<style define:vars={{ themeColor, themeColorRgb }}>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  
-  html, body { 
-    background-color: #030303; 
-    color: #ffffff; 
-    font-family: 'Noto Sans SC', sans-serif; 
-    min-height: 100vh; 
-    overflow-x: hidden; /* 修复 Chrome 底部横向滚动条 */
-  }
-
-  /* 精简、安全的 View Transition 全局设定 */
-  ::view-transition-group(*) {
-    animation-duration: 0.5s;
-    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    mix-blend-mode: normal;
-    height: 100%;
-  }
-
-  ::view-transition-group(card-cover-*) {
-    border-radius: 12px;
-  }
-
-  ::view-transition-old(card-cover-*),
-  ::view-transition-new(card-cover-*) {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    border-radius: 12px;
-  }
-
-  ::view-transition-group(card-bg-*) {
-    border-radius: 16px;
-  }
-
-  /* 修复 100vw 导致的横向滚动条 */
-  .posts-viewport { 
-    width: 100%; 
-    min-height: calc(100vh - 72px); 
-    margin-top: 0; 
-    padding: 8rem 0 80px 0; 
-    display: flex; 
-    justify-content: center; 
-  }
-
-  .posts-container { width: 90%; max-width: 1200px; }
-  .posts-header { margin-bottom: 48px; display: flex; flex-direction: column; gap: 24px; }
-  
-  .section-tagline { font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; color: #888888; letter-spacing: 0.12em; display: flex; align-items: center; gap: 8px; font-weight: 700; }
-  .blue-dot { width: 6px; height: 6px; background-color: var(--themeColor); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px rgba(var(--themeColorRgb), 0.6); }
-  
-  .main-title { font-size: 3.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.618; background: linear-gradient(180deg, #ffffff 60%, #999999 100%); -webkit-background-clip: text; }
-  .subtitle { font-size: 1.05rem; color: #86868b; font-weight: 300; }
-  
-  .category-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  
-  .filter-btn { 
-    background: rgba(255, 255, 255, 0.04); 
-    border: 1px solid rgba(255, 255, 255, 0.08); 
-    color: #aaaaaa; 
-    font-size: 0.82rem; 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    padding: 8px 16px; 
-    border-radius: 20px; 
-    cursor: pointer; 
-    transition: all 0.25s ease;
-  }
-  .filter-btn:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; border-color: rgba(255, 255, 255, 0.15); }
-  .filter-btn.active { background: #ffffff; color: #030303; font-weight: 700; border-color: #ffffff; }
-
-  .posts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
-  
-  .post-card { 
-    background: rgba(255, 255, 255, 0.02); 
-    border: 1px solid rgba(255, 255, 255, 0.06); 
-    border-radius: 16px; 
-    overflow: hidden; 
-    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease; 
-  }
-  .post-card:hover { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.2); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
-  
-  .card-inner-link { text-decoration: none; color: inherit; display: flex; flex-direction: column; height: 100%; }
-  
-  .card-cover-box { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: transparent !important; border-radius: 12px 12px 0 0; }
-  
-  .card-cover-box img { 
-    width: 100%; 
-    height: 100%; 
-    object-fit: cover; 
-    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); 
-  }
-  .post-card:hover .card-cover-box img { transform: scale(1.05); }
-  
-  .category-tag { 
-    position: absolute; top: 12px; left: 12px; 
-    background: rgba(10, 10, 12, 0.82); 
-    border: 1px solid rgba(255, 255, 255, 0.12); 
-    color: #ffffff; font-size: 0.72rem; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; padding: 4px 10px; border-radius: 8px; 
-  }
-
-  .card-content { padding: 24px; display: flex; flex-direction: column; flex: 1; }
-  .card-top-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .card-top-meta .category-tag { position: static; background: rgba(255, 255, 255, 0.06); }
-  
-  .post-title { font-size: 1.25rem; font-weight: 700; color: #ffffff; line-height: 1.4; margin-bottom: 10px; transition: color 0.2s ease; display: inline-block; }
-  .post-card:hover .post-title { color: var(--themeColor); }
-  
-  .post-desc { font-size: 0.9rem; color: #86868b; line-height: 1.6; margin-bottom: 20px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
-  .card-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; font-family: 'Plus Jakarta Sans', sans-serif; color: #666666; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 14px; margin-top: auto; }
-  .empty-state { text-align: center; padding: 80px 0; color: #666666; }
-
-  /* 低性能模式 (perf-degraded) */
-  :global(html.perf-degraded) ::view-transition-group(*),
-  :global(html.perf-degraded) ::view-transition-old(*),
-  :global(html.perf-degraded) ::view-transition-new(*) {
-    animation-duration: 0s !important;
-    animation: none !important;
-  }
-
-  :global(html.perf-degraded) .post-card,
-  :global(html.perf-degraded) .post-card:hover,
-  :global(html.perf-degraded) .card-cover-box img,
-  :global(html.perf-degraded) .post-card:hover .card-cover-box img,
-  :global(html.perf-degraded) .filter-btn {
-    transition: none !important;
-    transform: none !important;
-    box-shadow: none !important;
-  }
-
-  :global(html.light-mode) body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
-  :global(html.light-mode) .main-title { background: linear-gradient(180deg, #1d1d1f 40%, #86868b 100%) !important; -webkit-background-clip: text !important; }
-  :global(html.light-mode) .subtitle, :global(html.light-mode) .post-desc { color: #6e6e73 !important; }
-  :global(html.light-mode) .filter-btn { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.08); color: #555555; }
-  :global(html.light-mode) .filter-btn:hover { background: rgba(0, 0, 0, 0.08); color: #000000; }
-  :global(html.light-mode) .filter-btn.active { background: #1d1d1f; color: #ffffff; border-color: #1d1d1f; }
-  :global(html.light-mode) .post-card { background: #ffffff; border-color: rgba(0, 0, 0, 0.06); }
-  :global(html.light-mode) .post-card:hover { background: #ffffff; border-color: rgba(0, 0, 0, 0.15); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08); }
-  :global(html.light-mode) .post-title { color: #1d1d1f; }
-  :global(html.light-mode) .category-tag { background: rgba(255, 255, 255, 0.85); color: #1d1d1f; border-color: rgba(0, 0, 0, 0.08); }
-  :global(html.light-mode) .card-top-meta .category-tag { background: rgba(0, 0, 0, 0.05); }
-  :global(html.light-mode) .card-footer { border-top-color: rgba(0, 0, 0, 0.05); color: #86868b; }
-
-  @media (max-width: 768px) {
-    .main-title { font-size: 2.8rem; }
-    .posts-grid { grid-template-columns: 1fr; }
-    .posts-viewport { padding-top: 20px; }
-  }
-</style>
+  <script>
+    import '../assets/scripts/posts.js';
+  </script>
+</BaseLayout>

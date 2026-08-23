@@ -1,0 +1,118 @@
+/* src/assets/css/posts.css */
+
+/* View Transition 全局设定 */
+::view-transition-group(*) {
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+::view-transition-old(*),
+::view-transition-new(*) {
+  mix-blend-mode: normal;
+  height: 100%;
+}
+::view-transition-group(card-cover-*) { border-radius: 12px; }
+::view-transition-old(card-cover-*),
+::view-transition-new(card-cover-*) {
+  width: 100%; height: 100%; object-fit: cover; object-position: center; border-radius: 12px;
+}
+::view-transition-group(card-bg-*) { border-radius: 16px; }
+
+/* 页面主结构 */
+.posts-viewport { 
+  width: 100%; 
+  min-height: 100vh; 
+  margin-top: 0; 
+  padding: 7.5rem 0 80px 0; 
+  display: flex; 
+  justify-content: center; 
+}
+.posts-container { width: 90%; max-width: 1200px; }
+.posts-header { margin-bottom: 48px; display: flex; flex-direction: column; gap: 24px; }
+.section-tagline { font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; color: #888888; letter-spacing: 0.12em; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.blue-dot { width: 6px; height: 6px; background-color: var(--themeColor); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px rgba(var(--themeColorRgb), 0.6); }
+.main-title { font-size: 3.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.618; background: linear-gradient(180deg, #ffffff 60%, #999999 100%); -webkit-background-clip: text; }
+.subtitle { margin-bottom: 2rem; font-size: 1.05rem; color: #86868b; font-weight: 300; }
+
+.category-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.filter-btn { 
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); 
+  color: #aaaaaa; font-size: 0.82rem; font-family: 'Plus Jakarta Sans', sans-serif; 
+  padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: all 0.25s ease;
+}
+.filter-btn:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; border-color: rgba(255, 255, 255, 0.15); }
+.filter-btn.active { background: #ffffff; color: #030303; font-weight: 700; border-color: #ffffff; }
+
+.posts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
+.post-card { 
+  background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); 
+  border-radius: 16px; overflow: hidden; transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease; 
+}
+.post-card:hover { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.2); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
+.card-inner-link { text-decoration: none; color: inherit; display: flex; flex-direction: column; height: 100%; }
+.card-cover-box { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: transparent !important; border-radius: 12px 12px 0 0; }
+.card-cover-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+.post-card:hover .card-cover-box img { transform: scale(1.05); }
+
+.category-tag { 
+  position: absolute; top: 12px; left: 12px; background: rgba(10, 10, 12, 0.82); 
+  border: 1px solid rgba(255, 255, 255, 0.12); color: #ffffff; font-size: 0.72rem; 
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; padding: 4px 10px; border-radius: 8px; 
+}
+
+.card-content { padding: 24px; display: flex; flex-direction: column; flex: 1; }
+.card-top-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.card-top-meta .category-tag { position: static; background: rgba(255, 255, 255, 0.06); }
+.post-title { font-size: 1.25rem; font-weight: 700; color: #ffffff; line-height: 1.4; margin-bottom: 10px; transition: color 0.2s ease; display: inline-block; }
+.post-card:hover .post-title { color: var(--themeColor); }
+.post-desc { font-size: 0.9rem; color: #86868b; line-height: 1.6; margin-bottom: 20px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+.card-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; font-family: 'Plus Jakarta Sans', sans-serif; color: #666666; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 14px; margin-top: auto; }
+.empty-state { text-align: center; padding: 80px 0; color: #666666; }
+
+/* 效能降级模式 */
+html.perf-degraded ::view-transition-group(*),
+html.perf-degraded ::view-transition-old(*),
+html.perf-degraded ::view-transition-new(*) { animation-duration: 0s !important; animation: none !important; }
+html.perf-degraded .post-card, html.perf-degraded .post-card:hover, html.perf-degraded .card-cover-box img,
+html.perf-degraded .post-card:hover .card-cover-box img, html.perf-degraded .filter-btn { transition: none !important; transform: none !important; box-shadow: none !important; }
+
+/* 明亮模式修正：统一全局纯净底色，消除 Navbar 模糊发灰 */
+html.light-mode, 
+html.light-mode body { 
+  background-color: #fbfbfd !important; 
+}
+html.light-mode .main-title { background: linear-gradient(180deg, #1d1d1f 40%, #86868b 100%) !important; -webkit-background-clip: text !important; }
+html.light-mode .subtitle, html.light-mode .post-desc { color: #6e6e73 !important; }
+html.light-mode .filter-btn { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.08); color: #555555; }
+html.light-mode .filter-btn:hover { background: rgba(0, 0, 0, 0.08); color: #000000; }
+html.light-mode .filter-btn.active { background: #1d1d1f; color: #ffffff; border-color: #1d1d1f; }
+html.light-mode .post-card { background: #ffffff; border-color: rgba(0, 0, 0, 0.06); }
+html.light-mode .post-card:hover { background: #ffffff; border-color: rgba(0, 0, 0, 0.15); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08); }
+html.light-mode .post-title { color: #1d1d1f; }
+html.light-mode .category-tag { background: rgba(255, 255, 255, 0.85); color: #1d1d1f; border-color: rgba(0, 0, 0, 0.08); }
+html.light-mode .card-top-meta .category-tag { background: rgba(0, 0, 0, 0.05); }
+html.light-mode .card-footer { border-top-color: rgba(0, 0, 0, 0.05); color: #86868b; }
+
+/* 移动端响应式修正 */
+@media (max-width: 768px) {
+  .posts-viewport { 
+    padding-top: 6.5rem !important; 
+  }
+  .posts-header {
+    margin-bottom: 32px !important;
+    gap: 16px !important;
+  }
+  .section-tagline {
+    margin-top: 1.618rem;
+  }
+  .main-title { 
+    font-size: 2.2rem !important; 
+    line-height: 1.618 !important;
+  }
+  .subtitle {
+    font-size: 0.95rem !important;
+  }
+  .posts-grid { 
+    grid-template-columns: 1fr; 
+    gap: 16px;
+  }
+}

@@ -1,0 +1,247 @@
+---
+// src/pages/friends.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import FriendCard from '../components/friends/FriendCard.astro';
+import ExchangeCard from '../components/friends/ExchangeCard.astro';
+import SiteInfoPanel from '../components/friends/SiteInfoPanel.astro';
+import GentleModal from '../components/friends/GentleModal.astro';
+import Toast from '../components/friends/Toast.astro';
+
+import { FRIENDS_CONFIG, SITE_CONFIG } from '../config';
+import { getCollection } from 'astro:content';
+
+const { tagline, title, subtitle, relay, exchange, siteInfoTag, siteInfo } = FRIENDS_CONFIG;
+const relayTargetHref = relay.type === 'js' ? '/relay' : relay.htmlUrl;
+
+let friendsList: any[] = [];
+try {
+  const friendsEntries = await getCollection('friends');
+  friendsList = friendsEntries
+    .map(entry => entry.data)
+    .sort(() => Math.random() - 0.5); // 服务端/构建时预随机打乱
+} catch (e) {
+  console.error('Failed to load friends collection:', e);
+}
+---
+
+<BaseLayout title={`Friends | ${SITE_CONFIG.title}`}>
+  <div class="friends-viewport">
+    <div class="friends-container">
+      
+      <!-- 1. Header 头部区域 -->
+      <div class="friends-header">
+        <div class="section-tagline">
+          <span class="blue-dot"></span>
+          <span>{tagline}</span>
+        </div>
+        <h1 class="main-title">{title}</h1>
+        
+        <div class="subtitle-row">
+          <p class="subtitle">{subtitle}</p>          
+          <div class="relay-wrapper">
+            <a 
+              href={relayTargetHref} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="relay-badge-btn" 
+              id="relay-btn"
+            >
+              <span class="relay-pulse-dot"></span>
+              <span class="relay-text">{relay.text}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 友链卡片网格 -->
+      <div class="friends-grid">
+        {friendsList.map((item) => (
+          <FriendCard 
+            name={item.name} 
+            url={item.url} 
+            avatar={item.avatar} 
+            description={item.description} 
+          />
+        ))}
+        
+        <ExchangeCard 
+          tag={exchange.tag} 
+          title={exchange.title} 
+          description={exchange.description} 
+          buttonText={exchange.buttonText} 
+          link={exchange.link} 
+        />
+      </div>
+
+      <!-- 3. 本站信息面板 -->
+      <SiteInfoPanel tag={siteInfoTag} url={siteInfo.url} avatar={siteInfo.avatar} />
+
+    </div>
+  </div>
+
+  <!-- 4. 交互组件 -->
+  <GentleModal />
+  <Toast />
+</BaseLayout>
+
+<script>
+  import { initFriendsPage } from '../assets/scripts/friends.js';
+  document.addEventListener('astro:page-load', initFriendsPage);
+  document.addEventListener('DOMContentLoaded', initFriendsPage);
+</script>
+
+<style>
+  .friends-viewport {
+    width: 100%;
+    min-height: 100vh;
+    padding: 7.5rem 0 80px 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  .friends-container {
+    width: 90%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .friends-header {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .section-tagline {
+    margin-top: 1.618rem;
+    font-size: 0.85rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #888888;
+    letter-spacing: 0.12em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+  }
+
+  .blue-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--themeColor, #015EFB);
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(var(--themeColorRgb, 1, 94, 251), 0.6);
+  }
+
+  .main-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    line-height: 1.618;
+    background: linear-gradient(180deg, #ffffff 60%, #999999 100%);
+    -webkit-background-clip: text;
+  }
+
+  .subtitle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .subtitle {
+    margin-bottom: 2rem;
+    font-size: 1.05rem;
+    color: #86868b;
+    font-weight: 300;
+  }
+
+  .relay-wrapper {
+    display: flex;
+    align-items: center;
+  }
+
+  /* 🔒 胶囊按钮样式 */
+  .relay-badge-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 0.45rem 0.95rem !important;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 30px;
+    color: #ffffff;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    width: fit-content !important;
+    height: fit-content !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .relay-badge-btn:hover {
+    background: rgba(var(--themeColorRgb, 1, 94, 251), 0.15);
+    border-color: var(--themeColor, #015EFB);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(var(--themeColorRgb, 1, 94, 251), 0.35);
+  }
+
+  .relay-pulse-dot {
+    width: 6px;
+    height: 6px;
+    min-width: 6px;
+    min-height: 6px;
+    border-radius: 50%;
+    background-color: var(--themeColor, #015EFB);
+    box-shadow: 0 0 8px var(--themeColor, #015EFB);
+    flex-shrink: 0;
+    animation: relayPulse 2s infinite ease-in-out;
+  }
+
+  @keyframes relayPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+  }
+
+  .relay-badge-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+    flex-shrink: 0 !important;
+    transition: transform 0.2s ease;
+  }
+
+  .relay-badge-btn:hover svg {
+    transform: translateX(3px);
+  }
+
+  .friends-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+  }
+
+  /* 📱 响应式与竖屏适配 */
+  @media (max-width: 768px) {
+    .friends-viewport { padding-top: 6.5rem !important; }
+    .main-title { font-size: 2.2rem !important; }
+    .subtitle-row { flex-direction: column; align-items: flex-start; }
+    .friends-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ☀️ 明亮模式 */
+  :global(html.light-mode) .main-title {
+    background: linear-gradient(180deg, #1d1d1f 60%, #6e6e73 100%);
+    -webkit-background-clip: text;
+  }
+
+  :global(html.light-mode) .relay-badge-btn {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+    color: #1d1d1f;
+  }
+</style>

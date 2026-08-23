@@ -1,0 +1,29 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import RelayCard from '../components/friends/RelayCard.astro';
+import { FRIENDS_CONFIG, SITE_CONFIG } from '../config';
+
+const { relay } = FRIENDS_CONFIG;
+const targetUrl = relay.htmlUrl || 'https://www.travellings.cn/go.html';
+---
+
+<BaseLayout title={`${relay.pageTitle || '正在进行星系跃迁...'} | ${SITE_CONFIG.title}`}>
+  <div class="relay-viewport">
+    <RelayCard pageTitle={relay.pageTitle} pageSubtitle={relay.pageSubtitle} targetUrl={targetUrl} />
+  </div>
+</BaseLayout>
+
+<script data-type={relay.type} data-js={relay.jsUrl} data-target={targetUrl}>
+  // 🌟 引入新目录下的 scripts/relay.js
+  import { initFastRelay } from '../assets/scripts/relay.js';
+  document.addEventListener('DOMContentLoaded', initFastRelay);
+  document.addEventListener('astro:page-load', initFastRelay);
+</script>
+
+<style>
+  .relay-viewport {
+    width: 100vw; height: 100vh; height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem; box-sizing: border-box; overflow: hidden;
+  }
+</style>

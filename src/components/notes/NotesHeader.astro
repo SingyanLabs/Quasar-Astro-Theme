@@ -1,0 +1,19 @@
+---
+// src/components/notes/NotesHeader.astro
+interface Props {
+  tagline: string;
+  title: string;
+  subtitle: string;
+}
+
+const { tagline, title, subtitle } = Astro.props;
+---
+
+<header class="notes-header focus-hide animate-entrance" style="--stagger: 1;">
+  <div class="section-tagline">
+    <span class="blue-dot"></span>
+    <span>{tagline}</span>
+  </div>
+  <h1 class="main-title">{title}</h1>
+  <p class="subtitle">{subtitle}</p>
+</header>

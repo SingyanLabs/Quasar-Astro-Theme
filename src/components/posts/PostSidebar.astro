@@ -1,0 +1,150 @@
+---
+// src/components/posts/PostSidebar.astro
+const { data, pubDate, headings, recentPosts } = Astro.props;
+---
+<!-- 🖥️ 桌面端侧边栏（包含元信息、目录与最近发布） -->
+<aside class="left-sidebar" transition:animate="fade">
+  <div class="sticky-sidebar-wrapper">
+    
+    <a href="/posts" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      <span>返回文章列表</span>
+    </a>
+
+    <div class="sidebar-box meta-info-card">
+      <div class="meta-header">
+        <span class="category-pill">{data.category || 'Article'}</span>
+      </div>
+      <div class="meta-details">
+        <div class="meta-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+          <span>{pubDate}</span>
+        </div>
+        <div class="meta-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 16 14"/></svg>
+          <span>{data.readTime || '5 min read'}</span>
+        </div>
+      </div>
+      {data.tags && data.tags.length > 0 && (
+        <div class="tags-wrapper">
+          {data.tags.map((tag: string) => (
+            <span class="tag-item">#{tag}</span>
+          ))}
+        </div>
+      )}
+    </div>
+
+    <!-- 桌面端目录 -->
+    <div class="sidebar-box toc-box desktop-only-box">
+      <h3 class="box-title">
+        <span class="blue-dot"></span> 文章目录
+      </h3>
+      {headings.length > 0 ? (
+        <nav class="toc-list">
+          {headings.map((h: any) => (
+            <a href={`#${h.slug}`} class={`toc-item depth-${h.depth}`} style={`padding-left: ${(h.depth - 2) * 0.625}rem`}>
+              <span class="toc-dot"></span>
+              <span class="toc-text">{h.text}</span>
+            </a>
+          ))}
+        </nav>
+      ) : (
+        <p class="toc-empty">本文暂无目录标题</p>
+      )}
+    </div>
+
+    <!-- 桌面端最近发布 -->
+    {recentPosts.length > 0 && (
+      <div class="sidebar-box recent-box desktop-only-box">
+        <h3 class="box-title">最近发布</h3>
+        <ul class="recent-list">
+          {recentPosts.map((item: any) => (
+            <li><a href={`/posts/${item.id}`} class="recent-item-link">{item.data.title}</a></li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+</aside>
+
+<!-- 📱 移动端悬浮胶囊按钮 (FAB) -->
+<div class="mobile-toc-fab-wrapper">
+  <button id="mobile-toc-btn" class="mobile-toc-fab" aria-label="打开文章导航">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6"></line>
+      <line x1="8" y1="12" x2="21" y2="12"></line>
+      <line x1="8" y1="18" x2="21" y2="18"></line>
+      <line x1="3" y1="6" x2="3.01" y2="6"></line>
+      <line x1="3" y1="12" x2="3.01" y2="12"></line>
+      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+    </svg>
+    <span>文章导航</span>
+  </button>
+</div>
+
+<!-- 📱 移动端抽屉 Modal -->
+<div id="mobile-toc-drawer" class="mobile-drawer-modal" role="dialog" aria-modal="true">
+  <div class="mobile-drawer-backdrop" id="mobile-drawer-close-area"></div>
+  <div class="mobile-drawer-content">
+    
+    <!-- 顶部极简拉条指示器 -->
+    <div class="drawer-drag-handle"></div>
+
+    <div class="mobile-drawer-header">
+      <div class="drawer-header-title">
+        <span class="drawer-title-dot"></span>
+        <span class="drawer-title-text">文章导航</span>
+      </div>
+      <button id="mobile-drawer-close-btn" class="drawer-close-btn" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="mobile-drawer-body">
+      <!-- 移动端目录 -->
+      <div class="drawer-section">
+        <h3 class="box-title">
+          <span class="blue-dot"></span> 文章目录
+        </h3>
+        {headings.length > 0 ? (
+          <nav class="toc-list">
+            {headings.map((h: any) => (
+              <a href={`#${h.slug}`} class={`toc-item depth-${h.depth}`} style={`padding-left: ${(h.depth - 2) * 0.5}rem`}>
+                <span class="toc-dot"></span>
+                <span class="toc-text">{h.text}</span>
+              </a>
+            ))}
+          </nav>
+        ) : (
+          <p class="toc-empty">本文暂无目录标题</p>
+        )}
+      </div>
+
+      <!-- 🌟 目录与最近发布之间的立体割断线 -->
+      {recentPosts.length > 0 && (
+        <>
+          <div class="drawer-section-divider">
+            <span class="divider-line"></span>
+            <span class="divider-node"></span>
+            <span class="divider-line"></span>
+          </div>
+
+          <!-- 移动端最近发布 -->
+          <div class="drawer-section">
+            <h3 class="box-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="section-icon"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              最近发布
+            </h3>
+            <ul class="recent-list">
+              {recentPosts.map((item: any) => (
+                <li><a href={`/posts/${item.id}`} class="recent-item-link">{item.data.title}</a></li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+</div>

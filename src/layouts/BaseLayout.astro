@@ -5,6 +5,7 @@ import ThemePerfInit from '../components/head/ThemePerfInit.astro';
 import Navbar from '../components/Navbar.astro';
 import LazyLoad from '../components/common/LazyLoad.astro';
 import Lightbox from '../components/common/Lightbox.astro';
+import ExternalLinkGuard from '../components/common/ExternalLinkGuard.astro';
 import { ClientRouter } from 'astro:transitions';
 
 interface Props {
@@ -52,6 +53,7 @@ const { title = SITE_CONFIG.title } = Astro.props;
 
     <LazyLoad />
     <Lightbox />
+    <ExternalLinkGuard />
   </body>
 </html>
 

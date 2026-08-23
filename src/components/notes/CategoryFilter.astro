@@ -1,0 +1,20 @@
+---
+// src/components/notes/CategoryFilter.astro
+interface Props {
+  categories: string[];
+}
+
+const { categories = ['全部'] } = Astro.props;
+---
+
+<nav class="category-filter-bar focus-hide animate-entrance" id="category-filter-bar" style="--stagger: 2;">
+  {categories.map((cat, index) => (
+    <button 
+      class={`filter-btn ${index === 0 ? 'active' : ''}`} 
+      data-filter={cat} 
+      type="button"
+    >
+      {cat}
+    </button>
+  ))}
+</nav>

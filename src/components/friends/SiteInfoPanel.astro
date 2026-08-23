@@ -1,0 +1,58 @@
+---
+import { SITE_CONFIG } from '../../config';
+
+interface Props {
+  tag?: string;
+  url?: string;
+  avatar?: string;
+}
+
+const { tag = '// 本站信息', url = 'www.qunqin.net', avatar = 'q-favicon.webp' } = Astro.props;
+---
+
+<div class="site-info-panel" id="site-info-panel">
+  <div class="panel-tag">{tag}</div>
+  <div class="info-grid">
+    <div class="info-item" data-copy-val={SITE_CONFIG.title}>
+      <span class="info-label">NAME</span>
+      <span class="info-value">{SITE_CONFIG.title}</span>
+      <span class="copy-tip">点击复制</span>
+    </div>
+    <div class="info-item" data-copy-val={url}>
+      <span class="info-label">URL</span>
+      <span class="info-value">{url}</span>
+      <span class="copy-tip">点击复制</span>
+    </div>
+    <div class="info-item" data-copy-val={SITE_CONFIG.subtitle}>
+      <span class="info-label">DESCRIPTION</span>
+      <span class="info-value">{SITE_CONFIG.subtitle}</span>
+      <span class="copy-tip">点击复制</span>
+    </div>
+    <div class="info-item" data-copy-val={avatar}>
+      <span class="info-label">AVATAR</span>
+      <span class="info-value">{avatar}</span>
+      <span class="copy-tip">点击复制</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  .site-info-panel { background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 20px; padding: 32px; transition: all 0.3s ease; }
+  .panel-tag { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.85rem; color: #6e6e73; margin-bottom: 24px; }
+  .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .info-item { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 12px; cursor: pointer; transition: all 0.2s ease; }
+  .info-item:hover { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.12); }
+  .info-label { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.72rem; font-weight: 800; color: #6e6e73; letter-spacing: 0.08em; }
+  .info-value { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.92rem; color: #d1d1d6; word-break: break-all; }
+  .copy-tip { position: absolute; top: 16px; right: 16px; font-size: 0.7rem; color: var(--themeColor, #015EFB); opacity: 0; transition: opacity 0.2s ease; }
+  .info-item:hover .copy-tip { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .info-grid { grid-template-columns: 1fr; }
+    .site-info-panel { padding: 20px; }
+  }
+
+  :global(html.light-mode) .site-info-panel { background: #ffffff; border-color: rgba(0, 0, 0, 0.06); }
+  :global(html.light-mode) .info-item { background: rgba(0, 0, 0, 0.02); border-color: rgba(0, 0, 0, 0.04); }
+  :global(html.light-mode) .info-value { color: #1d1d1f; }
+</style>

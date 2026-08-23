@@ -1,0 +1,70 @@
+---
+interface Props {
+  name: string;
+  url: string;
+  avatar: string;
+  description: string;
+}
+
+const { name, url, avatar, description } = Astro.props;
+---
+
+<div class="friend-card">
+  <a 
+    href={url} 
+    target="_blank" 
+    rel="noopener noreferrer" 
+    class="friend-card-link"
+    data-gentle="true"
+    data-friend-name={name}
+    data-friend-url={url}
+  >
+    <div class="card-top">
+      <div class="avatar-box">
+        <img src={avatar} alt={name} loading="lazy" />
+      </div>
+    </div>
+    <h3 class="friend-name">{name}</h3>
+    <p class="friend-desc">{description}</p>
+  </a>
+</div>
+
+<style>
+  .friend-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .friend-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  }
+  .friend-card-link {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    height: 100%;
+    text-decoration: none;
+    color: inherit;
+    box-sizing: border-box;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .avatar-box {
+    width: 48px; height: 48px;
+    border-radius: 12px; overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+  .friend-name { font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 8px; transition: color 0.2s ease; }
+  .friend-card:hover .friend-name { color: var(--themeColor, #015EFB); }
+  .friend-desc { font-size: 0.88rem; color: #86868b; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  :global(html.light-mode) .friend-card { background: #ffffff; border-color: rgba(0, 0, 0, 0.06); }
+  :global(html.light-mode) .friend-card:hover { background: #ffffff; border-color: rgba(0, 0, 0, 0.15); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08); }
+  :global(html.light-mode) .friend-name { color: #1d1d1f; }
+</style>

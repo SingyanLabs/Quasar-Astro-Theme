@@ -1,0 +1,83 @@
+---
+// src/components/notes/NoteItem.astro
+interface Props {
+  item: {
+    id: string;
+    category?: string;
+    quote?: string;
+    title?: string;
+    author?: string;
+    Content?: any;
+    rawBody?: string;
+  };
+  index: number;
+}
+
+const { item, index } = Astro.props;
+const Content = item?.Content;
+const displayQuote = item?.quote || item?.title || '';
+---
+
+<article 
+  class="note-item animate-entrance" 
+  data-category={item?.category || '未分类'}
+  data-index={index}
+  style={`--stagger: ${index + 3};`}
+>
+  <!-- 点击触发区域 -->
+  <div class="item-trigger">
+    <div class="active-indicator"></div>
+
+    <div class="item-main">
+      <div class="item-top-row">
+        <span class="tag-dot"></span>
+        <span class="category-tag">{item?.category}</span>
+      </div>
+
+      <!-- 垫在句子开头的半透明引号 -->
+      <div class="quote-wrapper">
+        <span class="bg-quote-mark" aria-hidden="true">“</span>
+        <p class="item-quote">{displayQuote}</p>
+      </div>
+
+      <!-- 第二行：标题与作者 -->
+      <div class="item-sub-meta">
+        <span class="item-title">《{item?.title}》</span>
+        {item?.author && (
+          <span class="item-author">
+            <span class="dot-sep">·</span>
+            {item.author}
+          </span>
+        )}
+      </div>
+    </div>
+
+    <!-- 右侧箭头（朝右 >） -->
+    <div class="item-action">
+      <svg class="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- 纯文字专注展开区 -->
+  <div class="item-expanded-wrapper">
+    <div class="item-expanded-inner">
+      <div class="book-divider"></div>
+      
+      <div class="book-article">
+        {Content ? <Content /> : <p style="white-space: pre-wrap;">{item?.rawBody}</p>}
+      </div>
+
+      <!-- 胶囊收起按钮：向下微箭头 + 收起 -->
+      <div class="bottom-back-bar">
+        <button class="back-link-btn js-close" type="button">
+          <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12l7 7 7-7"/>
+          </svg>
+          <span>收起</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</article>

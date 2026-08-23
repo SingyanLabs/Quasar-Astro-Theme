@@ -1,0 +1,51 @@
+---
+---
+<div id="gentle-nav-modal" class="gentle-modal" role="dialog" aria-modal="true">
+  <div class="gentle-backdrop" id="gentle-backdrop"></div>
+  <div class="gentle-dialog">
+    <div class="gentle-orbit-spinner">
+      <div class="orbit-ring"></div>
+      <div class="orbit-dot"></div>
+    </div>
+    <span class="gentle-subtitle">DESTINATION CONNECTING</span>
+    <h3 class="gentle-title">即将前往 <span id="gentle-target-name">目标站点</span></h3>
+    <p id="gentle-target-url" class="gentle-url">https://example.com</p>
+    
+    <div class="gentle-actions">
+      <button id="gentle-cancel-btn" class="gentle-btn cancel-btn" type="button">取消</button>
+      <button id="gentle-go-btn" class="gentle-btn go-btn" type="button">立即前往</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .gentle-modal { position: fixed; inset: 0; z-index: 9999; display: flex; justify-content: center; align-items: center; visibility: hidden; pointer-events: none; opacity: 0; transition: opacity 0.25s ease, visibility 0.25s ease; }
+  .gentle-modal.active { visibility: visible; pointer-events: auto; opacity: 1; }
+  .gentle-backdrop { position: absolute; inset: 0; background: rgba(4, 4, 6, 0.78); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .gentle-dialog { position: relative; z-index: 2; width: 90%; max-width: 400px; padding: 2.2rem 1.8rem; background: rgba(16, 16, 20, 0.92); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; align-items: center; text-align: center; transform: scale(0.92) translateY(10px); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .gentle-modal.active .gentle-dialog { transform: scale(1) translateY(0); }
+  .gentle-orbit-spinner { position: relative; width: 44px; height: 44px; margin-bottom: 1.2rem; display: flex; justify-content: center; align-items: center; }
+  .orbit-ring { position: absolute; inset: 0; border: 2px solid rgba(var(--themeColorRgb, 1, 94, 251), 0.2); border-top-color: var(--themeColor, #015EFB); border-radius: 50%; animation: orbitRotate 1.2s infinite linear; }
+  @keyframes orbitRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .orbit-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--themeColor, #015EFB); box-shadow: 0 0 10px var(--themeColor, #015EFB); }
+  .gentle-subtitle { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.72rem; font-weight: 800; color: #6e6e73; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+  .gentle-title { font-size: 1.25rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem; }
+  .gentle-title span { color: var(--themeColor, #015EFB); }
+  .gentle-url { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.8rem; color: #86868b; word-break: break-all; margin-bottom: 1.6rem; }
+  .gentle-actions { width: 100%; display: flex; gap: 0.75rem; }
+  .gentle-btn { flex: 1; font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif; font-size: 0.85rem; font-weight: 700; padding: 0.75rem 1rem; border-radius: 12px; cursor: pointer; border: none; transition: all 0.2s ease; }
+  .cancel-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #86868b; }
+  .cancel-btn:hover { background: rgba(255, 255, 255, 0.1); color: #ffffff; }
+  .go-btn { background: var(--themeColor, #015EFB); color: #ffffff; box-shadow: 0 4px 15px rgba(var(--themeColorRgb, 1, 94, 251), 0.35); }
+  .go-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(var(--themeColorRgb, 1, 94, 251), 0.5); }
+
+  /* ☀️ 明亮模式柔和阴影适配 */
+  :global(html.light-mode) .gentle-backdrop { background: rgba(245, 245, 247, 0.75); }
+  :global(html.light-mode) .gentle-dialog {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.06);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04), 0 20px 40px -10px rgba(0, 0, 0, 0.06);
+  }
+  :global(html.light-mode) .gentle-title { color: #1d1d1f; }
+  :global(html.light-mode) .cancel-btn { background: rgba(0, 0, 0, 0.04); border-color: rgba(0, 0, 0, 0.08); color: #555555; }
+</style>

@@ -1,0 +1,90 @@
+---
+// src/pages/notes.astro
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_CONFIG, NOTES_CONFIG } from '../config';
+import { getCollection, render } from 'astro:content';
+
+// 导入拆分后的子组件
+import NotesHeader from '../components/notes/NotesHeader.astro';
+import CategoryFilter from '../components/notes/CategoryFilter.astro';
+import NoteItem from '../components/notes/NoteItem.astro';
+
+// 导入独立的外部 CSS 模块
+import '../assets/css/notes.css';
+
+let noteItems: any[] = [];
+let categories: string[] = ['全部'];
+
+try {
+  const rawEntries = await getCollection('notes');
+
+  if (rawEntries && rawEntries.length > 0) {
+    noteItems = (
+      await Promise.all(
+        rawEntries.map(async (entry) => {
+          try {
+            const rendered = await render(entry);
+            return {
+              ...entry.data,
+              id: entry.id,
+              Content: rendered.Content,
+              rawBody: entry.body || '',
+            };
+          } catch (err) {
+            // 🌟 生产环境屏蔽内部解析报错与堆栈，仅在开发环境打印调试
+            if (import.meta.env.DEV) {
+              console.error(`[Notes DEV] 文件 ${entry?.id} 解析异常:`, err);
+            }
+            return null;
+          }
+        })
+      )
+    ).filter(Boolean);
+
+    const catSet = new Set<string>();
+    noteItems.forEach((item) => {
+      if (item?.category) catSet.add(item.category);
+    });
+    categories = ['全部', ...Array.from(catSet)];
+  }
+} catch (e) {
+  // 🌟 生产环境静默处理并降级为空数组，避免在控制台与终端裸露环境信息
+  if (import.meta.env.DEV) {
+    console.error('[Notes DEV] Content collection 加载失败:', e);
+  }
+}
+---
+
+<BaseLayout title={`Notes | ${SITE_CONFIG.title}`}>
+  <notes-widget class="notes-viewport">
+    <div class="notes-container" id="notes-container">
+      
+      <!-- 1. Header 头部区 -->
+      <NotesHeader 
+        tagline={NOTES_CONFIG.tagline} 
+        title={NOTES_CONFIG.title} 
+        subtitle={NOTES_CONFIG.subtitle} 
+      />
+
+      <!-- 2. 分类筛选栏 -->
+      <CategoryFilter categories={categories} />
+
+      <!-- 3. 原位展开·无界极简列表 -->
+      <main class="notes-list" id="notes-list">
+        {noteItems.length > 0 ? (
+          noteItems.map((item, index) => (
+            <NoteItem item={item} index={index} />
+          ))
+        ) : (
+          <div class="empty-state">
+            <p>暂无内容，请在 <code>src/content/notes/</code> 目录下添加 Markdown 文件。</p>
+          </div>
+        )}
+      </main>
+
+    </div>
+  </notes-widget>
+</BaseLayout>
+
+<!-- 引入独立的客户端 Web Component JS 逻辑 -->
+<script src="../assets/scripts/notes-widget.js"></script>

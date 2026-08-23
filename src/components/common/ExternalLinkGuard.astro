@@ -1,0 +1,447 @@
+---
+// src/components/common/ExternalLinkGuard.astro
+import { SITE_CONFIG } from '../../config';
+import Earth from '../Earth.astro';
+
+// 读取 config 配置，未配置时自动使用默认文案兜底
+const {
+  subtitle = 'OUTGOING REDIRECT',
+  titlePrefix = '即将离开',
+  description = '您点击的链接指向站外第三方页面，请注意账号与财产安全。',
+  cancelText = '返回安全区',
+  continueText = '继续访问',
+} = SITE_CONFIG.externalGuard || {};
+---
+
+<!-- 1. 主题色全屏扩散转场遮罩层 -->
+<div id="guard-transition-overlay" class="guard-transition-overlay"></div>
+
+<div id="quasar-external-guard" class="quasar-guard-modal" role="dialog" aria-modal="true">
+  <div class="guard-backdrop" id="quasar-guard-backdrop"></div>
+
+  <div class="guard-container">
+    <!-- 2. 地球元素（极简星空粒子版） -->
+    <div class="guard-earth-box">
+      <Earth />
+      <script is:inline>
+        (() => {
+          const earthBox = document.querySelector('.guard-earth-box');
+          const earthContainer = earthBox ? earthBox.querySelector('#earth-container') : document.getElementById('earth-container');
+          if (earthContainer && earthContainer.dataset) {
+            const originalCount = parseInt(earthContainer.dataset.starcount) || 2000;
+            earthContainer.dataset.starcount = Math.max(25, Math.floor(originalCount * 0.08));
+          }
+        })();
+      </script>
+    </div>
+
+    <!-- 3. 极简卡片主体 -->
+      <div class="guard-card">
+          <span class="guard-subtitle">{subtitle}</span>
+          <h3 class="guard-title">{titlePrefix} {SITE_CONFIG.title}</h3>
+          <p class="guard-desc">{description}</p>
+      <!-- 4. 404 同款割断线 -->
+      <div class="animated-divider-box">
+        <div class="divider-bar"></div>
+      </div>
+
+      <!-- 5. 目标 URL 预览框 -->
+      <div class="guard-url-box">
+        <span id="quasar-target-url" class="target-url-text">https://example.com</span>
+      </div>
+
+      <!-- 6. 极简操作按钮（9:1 比例分布） -->
+      <div class="guard-actions">
+        <button id="quasar-cancel-btn" class="guard-btn btn-secondary" type="button">
+          <span>{cancelText}</span>
+        </button>
+        <button id="quasar-continue-btn" class="guard-btn btn-primary" type="button" title="{continueText}">
+          <span class="btn-text">{continueText}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="16" height="16">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pendingUrl = '';
+
+  const initExternalGuard = () => {
+    const modal = document.getElementById('quasar-external-guard');
+    const urlDisplay = document.getElementById('quasar-target-url');
+    const continueBtn = document.getElementById('quasar-continue-btn');
+    const cancelBtn = document.getElementById('quasar-cancel-btn');
+    const backdrop = document.getElementById('quasar-guard-backdrop');
+    const overlay = document.getElementById('guard-transition-overlay');
+
+    if (!modal) return;
+
+    const closeModal = () => {
+      modal.classList.remove('active');
+      if (overlay) overlay.classList.remove('active');
+      pendingUrl = '';
+    };
+
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (backdrop) backdrop.onclick = closeModal;
+
+    if (continueBtn && overlay) {
+      continueBtn.onclick = (e) => {
+        if (!pendingUrl) return;
+
+        const rect = continueBtn.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+
+        overlay.style.transition = 'none';
+        overlay.style.setProperty('--x', `${x}px`);
+        overlay.style.setProperty('--y', `${y}px`);
+
+        void overlay.offsetWidth;
+
+        overlay.style.transition = '';
+        overlay.classList.add('active');
+
+        setTimeout(() => {
+          window.open(pendingUrl, '_blank', 'noopener,noreferrer');
+          closeModal();
+        }, 950);
+      };
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('active')) {
+        closeModal();
+      }
+    });
+  };
+
+  document.addEventListener('click', (e) => {
+    const anchor = (e.target as HTMLElement)?.closest('a');
+    if (!anchor) return;
+    if (anchor.dataset.gentle === 'true') return;
+    
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+
+    if (
+      href.startsWith('#') ||
+      href.startsWith('javascript:') ||
+      href.startsWith('mailto:') ||
+      href.startsWith('tel:')
+    ) {
+      return;
+    }
+
+    try {
+      const targetUrl = new URL(href, window.location.href);
+
+      if (targetUrl.hostname !== window.location.hostname) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const modal = document.getElementById('quasar-external-guard');
+        const urlDisplay = document.getElementById('quasar-target-url');
+
+        if (modal && urlDisplay) {
+          pendingUrl = targetUrl.href;
+          urlDisplay.textContent = targetUrl.href;
+          modal.classList.add('active');
+        }
+      }
+    } catch (err) {}
+  }, true);
+
+  document.addEventListener('astro:page-load', initExternalGuard);
+</script>
+
+<style>
+  /* 全屏转场遮罩层 */
+  .guard-transition-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: var(--themeColor, #015EFB);
+    z-index: 99999;
+    clip-path: circle(0px at var(--x, 50%) var(--y, 50%));
+    pointer-events: none;
+    transition: clip-path 1s linear;
+    will-change: clip-path;
+  }
+
+  .guard-transition-overlay.active {
+    clip-path: circle(150vmax at var(--x, 50%) var(--y, 50%));
+    pointer-events: auto;
+  }
+
+  /* Modal 容器 */
+  .quasar-guard-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
+    transition: visibility 0.22s ease;
+  }
+
+  .quasar-guard-modal.active {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* 毛玻璃背景淡入淡出 */
+  .guard-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(3, 3, 5, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    opacity: 0;
+    transform: translateZ(0);
+    will-change: opacity;
+    transition: opacity 0.22s cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  .quasar-guard-modal.active .guard-backdrop {
+    opacity: 1;
+  }
+
+  /* 🌟 卡片主体退场同步 */
+  .guard-container {
+    position: relative;
+    z-index: 2;
+    width: 90%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: scale(0.92) translateY(12px);
+    opacity: 0;
+    will-change: transform, opacity;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+  }
+
+  .quasar-guard-modal.active .guard-container {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+
+  /* 🌟 核心修复：退场时冻结按钮独立的 Hover/Active 过渡，彻底解决按钮慢半拍问题 */
+  .quasar-guard-modal:not(.active) .guard-btn {
+    transition: none !important;
+  }
+
+  /* 地球圈 */
+  .guard-earth-box {
+    position: relative;
+    width: clamp(5.5rem, 12vw, 7rem);
+    height: clamp(5.5rem, 12vw, 7rem);
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 0 35px rgba(1, 94, 251, 0.35);
+    background: #ffffff;
+    margin-bottom: -2.2rem;
+    z-index: 3;
+    transition: box-shadow 0.4s ease;
+  }
+
+  /* 极简卡片容器 */
+  .guard-card {
+    width: 100%;
+    padding: 3.2rem 2rem 2rem 2rem;
+    background: rgba(13, 13, 15, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .guard-subtitle {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #727277;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.5rem;
+  }
+
+  .guard-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .guard-desc {
+    font-size: 0.88rem;
+    color: #8e8e93;
+    line-height: 1.6;
+    margin-bottom: 0.2rem;
+  }
+
+  /* 割断线 */
+  .animated-divider-box {
+    width: 100%;
+    max-width: 280px;
+    height: 2px;
+    position: relative;
+    overflow: hidden;
+    margin: 1.2rem 0;
+  }
+
+  .divider-bar {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--themeColor, #015EFB), transparent);
+    animation: linePulse .75s ease-in-out infinite;
+  }
+
+  @keyframes linePulse {
+    0%, 100% { opacity: 0.3; transform: scaleX(0.8); }
+    50% { opacity: 1; transform: scaleX(1.2); filter: drop-shadow(0 0 8px var(--themeColor, #015EFB)); }
+  }
+
+  /* URL 预览框 */
+  .guard-url-box {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    box-sizing: border-box;
+    margin-bottom: 1.6rem;
+    overflow: hidden;
+  }
+
+  .target-url-text {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.82rem;
+    color: #d1d1d6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+
+  /* 按钮组 */
+  .guard-actions {
+    width: 100%;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  /* 🌟 精确指定 transition 属性，彻底剥离 all 导致的拖尾 */
+  .guard-btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.8rem 0.6rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    outline: none;
+    border: none;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .btn-secondary {
+    flex: 9;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #86868b;
+  }
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-primary {
+    flex: 1;
+    background: var(--themeColor, #015EFB);
+    color: #ffffff;
+    padding: 0.8rem 0.4rem;
+  }
+  .btn-primary:hover {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 8px 20px var(--themeColor, #015EFB);
+  }
+
+  .btn-primary .btn-text {
+    display: none;
+  }
+
+  /* ☀️ 浅色模式适配 */
+  :global(html.light-mode) .guard-backdrop {
+    background: rgba(245, 245, 247, 0.82);
+  }
+  :global(html.light-mode) .guard-earth-box {
+    background: #000000;
+    box-shadow: 0 0 30px rgba(1, 94, 251, 0.25);
+  }
+  :global(html.light-mode) .guard-card {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+  }
+  :global(html.light-mode) .guard-title { color: #1d1d1f; }
+  :global(html.light-mode) .guard-desc { color: #6e6e73; }
+  :global(html.light-mode) .guard-url-box {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.06);
+  }
+  :global(html.light-mode) .target-url-text { color: #1d1d1f; }
+  :global(html.light-mode) .btn-secondary {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+    color: #555555;
+  }
+  :global(html.light-mode) .btn-secondary:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #000000;
+  }
+
+  /* ⚡ 低性能降级 */
+  :global(html.perf-degraded) .guard-transition-overlay {
+    transition: none !important;
+  }
+  :global(html.perf-degraded) .guard-backdrop {
+    backdrop-filter: none !important;
+    background: rgba(3, 3, 5, 0.95) !important;
+  }
+  :global(html.perf-degraded) .guard-container {
+    transition: opacity 0.15s ease !important;
+    transform: none !important;
+  }
+
+  :global(html.light-mode.perf-degraded) .guard-backdrop {
+    background: rgba(245, 245, 247, 0.98) !important;
+  }
+  :global(html.light-mode.perf-degraded) .guard-card {
+    background: #ffffff !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  @media (max-width: 640px) {
+    .guard-container { width: 92%; }
+    .guard-card { padding: 3rem 1.25rem 1.5rem 1.25rem; }
+    .guard-actions { gap: 0.6rem; }
+  }
+</style>

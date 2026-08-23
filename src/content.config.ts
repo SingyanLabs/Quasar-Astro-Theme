@@ -53,8 +53,33 @@ const momentsCollection = defineCollection({
   }),
 });
 
+// 🟢 4. 随想录 / 语阁 Collection
+const notesCollection = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/notes" }),
+  schema: z.object({
+    title: z.string().optional().default('无标题'),
+    author: z.string().optional().default(''),
+    quote: z.string().optional().default(''),
+    category: z.string().optional().default('随笔'),
+  }),
+});
+
+// 🟢 5. 友链 Collection
+const friendsCollection = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/friends" }),
+  schema: z.object({
+    name: z.string(),
+    url: z.string().url(),
+    avatar: z.string(),
+    description: z.string(),
+    order: z.number().optional().default(99),
+  }),
+});
+
 export const collections = {
   posts: postsCollection,
   music: musicCollection,
   moments: momentsCollection,
+  notes: notesCollection,
+  friends: friendsCollection,
 };
