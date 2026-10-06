@@ -42,8 +42,6 @@ const isAlbumPage = currentPath === '/albums';
   <PerformanceGuard />
 </header>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
-
 <script>
   import { initNavbarEngine } from '../assets/scripts/navbar-engine.js';
   document.addEventListener('astro:page-load', initNavbarEngine);
@@ -59,11 +57,15 @@ const isAlbumPage = currentPath === '/albums';
   }
  
   .liquid-glass-bg { 
-    position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.15) 100%), rgba(10, 10, 16, 0.72); 
-    backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
+    position: absolute; inset: 0; 
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%), rgba(10, 10, 16, 0.65) !important; 
+    /* 🌟 1. -webkit- 必须置于无前缀属性之前，防止 build 压缩优化时被剔除 */
+    -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+    backdrop-filter: blur(20px) saturate(160%) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.45);
-    pointer-events: none; z-index: 1; transition: background 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease; 
+    pointer-events: none; z-index: 1; 
+    transition: background 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease; 
   }
 
   .nav-container { 
@@ -74,18 +76,26 @@ const isAlbumPage = currentPath === '/albums';
 
   .nav-progress-bar { position: absolute; bottom: -1px; left: 0; height: 2px; width: 0%; background: var(--themeColor); opacity: 0; }
 
-  /* 浅色模式与低性能模式底座 */
+  /* 浅色模式适配 */
   :global(.light-mode) body { background-color: #f5f5f7 !important; color: #1d1d1f !important; }
   :global(.light-mode) .liquid-glass-bg { 
-    background: rgba(255, 255, 255, 0.78); border-bottom: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    backdrop-filter: blur(24px) saturate(190%); -webkit-backdrop-filter: blur(24px) saturate(190%);
+    background: rgba(255, 255, 255, 0.78) !important; 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08); 
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+    backdrop-filter: blur(24px) saturate(190%) !important;
   }
 
-  :global(.perf-degraded) * { box-shadow: none !important; text-shadow: none !important; filter: none !important; will-change: auto !important; }
-  :global(.perf-degraded) .liquid-glass-bg { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: #0a0a0e !important; }
-  :global(.perf-degraded.light-mode) .liquid-glass-bg { background: #ffffff !important; }
+  /* 🌟 2. 优化低性能模式降级，避免误关毛玻璃 */
+  :global(.perf-degraded) * { box-shadow: none !important; text-shadow: none !important; filter: none !important; }
+  :global(.perf-degraded) .liquid-glass-bg { 
+    background: rgba(10, 10, 14, 0.88) !important; 
+  }
+  :global(.perf-degraded.light-mode) .liquid-glass-bg { 
+    background: rgba(255, 255, 255, 0.92) !important; 
+  }
 
-  /* ⚡ 移动端屏幕极简适配 */
+  /* ⚡ 移动端适配 */
   @media (max-width: 768px) {
     .nav-container { padding: 0 16px; }
     .nav-left { max-width: 60vw; }

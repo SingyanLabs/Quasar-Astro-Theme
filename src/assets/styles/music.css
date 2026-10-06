@@ -1,7 +1,7 @@
 /* src/assets/styles/music.css */
 
 @media (min-width: 993px) {
-  body { overflow: hidden !important; }
+  body:has(.music-stage) { overflow: hidden !important; }
   /* 桌面端隐藏歌词按钮 */
   #player-btn-lyric { display: none !important; }
 }
@@ -80,7 +80,7 @@
 }
 
 .music-cover-box {
-width: 100%;
+  width: 100%;
   aspect-ratio: 1;
   border-radius: 20px;
   overflow: hidden;
@@ -395,14 +395,14 @@ html.light-mode .music-search-icon { color: rgba(0, 0, 0, 0.4); }
 /* ================================
    ⚡ 低性能模式降级 (Perf-Degraded)
    ================================ */
-:global(.perf-degraded) *, :global(.perf-degraded) *::before, :global(.perf-degraded) *::after { box-shadow: none !important; text-shadow: none !important; filter: none !important; will-change: auto !important; mask-image: none !important; -webkit-mask-image: none !important; }
-:global(.perf-degraded) .music-bg-fluid, :global(.perf-degraded) .music-blob { display: none !important; }
-:global(.perf-degraded) .music-bg-overlay { background: linear-gradient(rgba(10, 10, 15, 0.85), rgba(10, 10, 15, 0.85)), var(--degraded-dominant, #121218) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-:global(.perf-degraded) .music-queue-box { background: linear-gradient(rgba(20, 20, 25, 0.9), rgba(20, 20, 25, 0.9)), var(--degraded-dominant, #1a1a24) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border: 1px solid rgba(255, 255, 255, 0.05) !important; }
-:global(.perf-degraded) .music-lyric-row.active { color: #ffffff !important; transform: none !important; text-shadow: none !important; filter: none !important; }
-:global(.perf-degraded) .music-lyric-row { transition: color 0.15s ease !important; filter: none !important; }
-:global(.perf-degraded) .music-countdown-dots { filter: none !important; }
-:global(.perf-degraded) .music-countdown-dots .dot.active { box-shadow: none !important; }
-:global(.perf-degraded.light-mode) .music-bg-overlay, :global(html.light-mode.perf-degraded) .music-bg-overlay { background: linear-gradient(rgba(240, 240, 245, 0.85), rgba(240, 240, 245, 0.85)), var(--degraded-dominant, #f4f4f7) !important; }
-:global(.perf-degraded.light-mode) .music-queue-box, :global(html.light-mode.perf-degraded) .music-queue-box { background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), var(--degraded-dominant, #ffffff) !important; border: 1px solid rgba(0, 0, 0, 0.08) !important; }
-:global(.perf-degraded.light-mode) .music-lyric-row.active, :global(html.light-mode.perf-degraded) .music-lyric-row.active { color: #000000 !important; filter: none !important; }
+.perf-degraded *, .perf-degraded *::before, .perf-degraded *::after { box-shadow: none !important; text-shadow: none !important; filter: none !important; will-change: auto !important; mask-image: none !important; -webkit-mask-image: none !important; }
+.perf-degraded .music-bg-fluid, .perf-degraded .music-blob { display: none !important; }
+.perf-degraded .music-bg-overlay { background: linear-gradient(rgba(10, 10, 15, 0.85), rgba(10, 10, 15, 0.85)), var(--degraded-dominant, #121218) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.perf-degraded .music-queue-box { background: linear-gradient(rgba(20, 20, 25, 0.9), rgba(20, 20, 25, 0.9)), var(--degraded-dominant, #1a1a24) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border: 1px solid rgba(255, 255, 255, 0.05) !important; }
+.perf-degraded .music-lyric-row.active { color: #ffffff !important; transform: none !important; text-shadow: none !important; filter: none !important; }
+.perf-degraded .music-lyric-row { transition: color 0.15s ease !important; filter: none !important; }
+.perf-degraded .music-countdown-dots { filter: none !important; }
+.perf-degraded .music-countdown-dots .dot.active { box-shadow: none !important; }
+.perf-degraded.light-mode .music-bg-overlay, html.light-mode.perf-degraded .music-bg-overlay { background: linear-gradient(rgba(240, 240, 245, 0.85), rgba(240, 240, 245, 0.85)), var(--degraded-dominant, #f4f4f7) !important; }
+.perf-degraded.light-mode .music-queue-box, html.light-mode.perf-degraded .music-queue-box { background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), var(--degraded-dominant, #ffffff) !important; border: 1px solid rgba(0, 0, 0, 0.08) !important; }
+.perf-degraded.light-mode .music-lyric-row.active, html.light-mode.perf-degraded .music-lyric-row.active { color: #000000 !important; filter: none !important; }

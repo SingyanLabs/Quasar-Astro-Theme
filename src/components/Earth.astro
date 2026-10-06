@@ -11,16 +11,15 @@ import { EARTH_CONFIG } from '../config';
   data-starcount={EARTH_CONFIG.rendering.starsCount}
 ></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" is:inline></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" is:inline></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" is:inline></script>
+<script>
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-<script is:inline>
   window._isEarthTexturesLoaded = false;
   window._quasarAnimationSpeedMultiplier = 1.0;
 
   // ── 星空著色器（注入 GPU precision 声明） ──
-  const starVertexShader = `
+  const bgStarVertexShader = `
     precision mediump float;
     attribute float aSize;
     attribute float aPhase;
@@ -67,7 +66,6 @@ import { EARTH_CONFIG } from '../config';
     uniform sampler2D tDay;
     uniform sampler2D tNight;
     uniform sampler2D tSpecular;
-    uniform sampler2D tClouds;
     uniform vec3 uSunDirection;
     uniform vec3 uCameraPosition;
     uniform float uTime;
@@ -91,17 +89,11 @@ import { EARTH_CONFIG } from '../config';
       float luma = dot(dayColor.rgb, vec3(0.299, 0.587, 0.114));
       dayColor.rgb = mix(dayColor.rgb, vec3(0.12, 0.28, 0.52) * luma * 1.4, 0.1);
 
-      vec2 cloudUv = vUv + vec2(uTime * 0.001, uTime * 0.0003);
-      vec2 shadowUv = cloudUv - uSunDirection.xy * 0.008; 
-      vec4 shadowCloud = texture2D(tClouds, shadowUv);
-      float shadowFactor = mix(1.0, 1.0 - shadowCloud.r * 0.65, dayMix);
-
       vec3 cityLights = nightColor.rgb * vec3(2.4, 1.55, 0.82);
       vec3 lightModeShadow = dayColor.rgb * 0.8; 
       vec3 darkSide = mix(cityLights, lightModeShadow, uIsLightMode);
       
       vec3 finalColor = mix(darkSide, dayColor.rgb, dayMix);
-      finalColor *= mix(shadowFactor, 1.0, uIsLightMode * 0.8); 
 
       float twilight = smoothstep(-0.25, -0.02, dotProduct) * smoothstep(0.18, -0.02, dotProduct);
       vec3 twilightGlow = vec3(0.9, 0.32, 0.08) * twilight * (0.5 - uIsLightMode * 0.45); 
@@ -109,7 +101,7 @@ import { EARTH_CONFIG } from '../config';
 
       vec3 halfDir = normalize(uSunDirection + viewDir);
       float spec = pow(max(dot(normal, halfDir), 0.0), 24.0) * specColor.r;
-      vec3 specularReflection = vec3(0.42, 0.58, 0.88) * spec * dayMix * 0.8 * (1.0 - shadowCloud.r * 0.85);
+      vec3 specularReflection = vec3(0.42, 0.58, 0.88) * spec * dayMix * 0.8;
       finalColor += specularReflection;
 
       float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 5.0);
@@ -120,58 +112,6 @@ import { EARTH_CONFIG } from '../config';
       finalColor = mix(vec3(gray), finalColor, uSaturation);
 
       gl_FragColor = vec4(finalColor, 1.0);
-    }
-  `;
-
-  // ── 雲層著色器 ──
-  const cloudVertexShader = `
-    precision mediump float;
-    varying vec2 vUv;
-    varying vec3 vNormal;
-    varying vec3 vWorldPosition;
-    void main() {
-      vUv = uv;
-      vNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
-      vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `;
-
-  const cloudFragmentShader = `
-    precision mediump float;
-    uniform sampler2D tClouds;
-    uniform vec3 uSunDirection;
-    uniform vec3 uCameraPosition;
-    uniform float uTime;
-    uniform float uSaturation;
-    uniform float uIsLightMode; 
-    varying vec2 vUv;
-    varying vec3 vNormal;
-    varying vec3 vWorldPosition;
-
-    void main() {
-      vec3 normal = normalize(vNormal);
-      vec3 viewDir = normalize(uCameraPosition - vWorldPosition);
-
-      vec2 driftUv = vUv + vec2(uTime * 0.001, uTime * 0.0003);
-      vec4 cloudColor = texture2D(tClouds, driftUv);
-
-      float dotProduct = dot(normal, uSunDirection);
-      float dayMix = smoothstep(-0.25, 0.25, dotProduct);
-
-      vec3 dayCloud = vec3(0.92, 0.96, 1.0) * 1.15;
-      vec3 nightCloud = vec3(0.01, 0.015, 0.03); 
-
-      vec3 lightModeNightCloud = dayCloud * 0.8;
-      vec3 finalNightCloud = mix(nightCloud, lightModeNightCloud, uIsLightMode);
-
-      vec3 cloudBase = mix(finalNightCloud, dayCloud, dayMix);
-
-      float alpha = cloudColor.r * mix(0.7, 0.85, dayMix);
-      float gray = dot(cloudBase, vec3(0.299, 0.587, 0.114));
-      cloudBase = mix(vec3(gray), cloudBase, uSaturation);
-
-      gl_FragColor = vec4(cloudBase, alpha);
     }
   `;
 
@@ -200,18 +140,18 @@ import { EARTH_CONFIG } from '../config';
       vec3 viewDir = normalize(uCameraPosition - vWorldPosition);
       
       float rim = 1.0 + dot(normal, viewDir);
-      float glow = pow(max(rim, 0.0), 5.0) * 0.25; 
+      float glow = pow(max(rim, 0.0), 12.8) * 0.5; 
 
       float sunBlend = smoothstep(-0.2, 0.25, dot(normal, uSunDirection));
       
-      vec3 dayGlow = vec3(0.18, 0.52, 1.0) * glow * sunBlend * 3.4;
+      vec3 dayGlow = vec3(0.18, 0.52, 1.0) * glow * sunBlend * 4.0;
       vec3 nightGlow = vec3(0.02, 0.08, 0.22) * glow * (1.0 - sunBlend) * 0.35;
       vec3 finalGlow = dayGlow + nightGlow;
       
       float grayGlow = dot(finalGlow, vec3(0.299, 0.587, 0.114));
       finalGlow = mix(vec3(grayGlow), finalGlow, uSaturation);
       
-      gl_FragColor = vec4(finalGlow, (finalGlow.r + finalGlow.b) * 1.8);
+      gl_FragColor = vec4(finalGlow, (finalGlow.r + finalGlow.b) * 1.5);
     }
   `;
 
@@ -236,7 +176,7 @@ import { EARTH_CONFIG } from '../config';
     const satConfig = parseFloat(container.dataset.saturation);
     const starConfig = parseInt(container.dataset.starcount);
 
-    let scene, camera, renderer, globe, clouds, atmosphere, starField, starsMaterial, controls;
+    let scene, camera, renderer, globe, atmosphere, starField, starsMaterial, controls;
     let animationFrameId;
     let isElementVisible = true; // 🔑 视口可见性标志位
     let frameSkipToggle = false;  // 🔑 低功耗模式跳帧标志位
@@ -267,7 +207,7 @@ import { EARTH_CONFIG } from '../config';
     renderer.toneMappingExposure = 1.618;
     container.appendChild(renderer.domElement);
 
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; 
     controls.dampingFactor = 0.05;
     controls.enablePan = false; 
@@ -285,12 +225,12 @@ import { EARTH_CONFIG } from '../config';
     const dayMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
     const nightMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-night.jpg');
     const specMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png');
-    const cloudMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png'); 
 
     // 限制各向异性过滤最高为 4x，避免低端显卡计算瓶颈
     const maxAnisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 4);
-    dayMap.anisotropy = maxAnisotropy; nightMap.anisotropy = maxAnisotropy;
-    specMap.anisotropy = maxAnisotropy; cloudMap.anisotropy = maxAnisotropy;
+    dayMap.anisotropy = maxAnisotropy; 
+    nightMap.anisotropy = maxAnisotropy;
+    specMap.anisotropy = maxAnisotropy;
 
     // ── 粒子星空初始化 ──
     const starsGeometry = new THREE.BufferGeometry();
@@ -318,7 +258,7 @@ import { EARTH_CONFIG } from '../config';
     starsGeometry.setAttribute('aSpeed', new THREE.BufferAttribute(starSpeeds, 1));
 
     starsMaterial = new THREE.ShaderMaterial({
-      vertexShader: starVertexShader, fragmentShader: starFragmentShader,
+      vertexShader: bgStarVertexShader, fragmentShader: starFragmentShader,
       uniforms: { uTime: { value: 0 } },
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false 
     });
@@ -330,7 +270,7 @@ import { EARTH_CONFIG } from '../config';
       vertexShader: earthVertexShader,
       fragmentShader: earthFragmentShader,
       uniforms: {
-        tDay: { value: dayMap }, tNight: { value: nightMap }, tSpecular: { value: specMap }, tClouds: { value: cloudMap },
+        tDay: { value: dayMap }, tNight: { value: nightMap }, tSpecular: { value: specMap },
         uSunDirection: { value: getLiveSunDirection() }, uCameraPosition: { value: camera.position },
         uTime: { value: 0 }, uSaturation: { value: satConfig },
         uIsLightMode: { value: 0.0 } 
@@ -338,19 +278,6 @@ import { EARTH_CONFIG } from '../config';
     });
     globe = new THREE.Mesh(new THREE.SphereGeometry(51, 64, 64), globeMaterial);
     scene.add(globe);
-
-    const cloudMaterial = new THREE.ShaderMaterial({
-      vertexShader: cloudVertexShader,
-      fragmentShader: cloudFragmentShader,
-      uniforms: {
-        tClouds: { value: cloudMap }, uSunDirection: { value: getLiveSunDirection() }, uCameraPosition: { value: camera.position },
-        uTime: { value: 0 }, uSaturation: { value: satConfig },
-        uIsLightMode: { value: 0.0 }
-      },
-      transparent: true, blending: THREE.NormalBlending
-    });
-    clouds = new THREE.Mesh(new THREE.SphereGeometry(51.45, 64, 64), cloudMaterial);
-    scene.add(clouds);
 
     const atmosphereMaterial = new THREE.ShaderMaterial({
       vertexShader: atmosphereVertexShader,
@@ -369,12 +296,16 @@ import { EARTH_CONFIG } from '../config';
     const lon = lonConfig * (Math.PI / 180);
     globe.rotation.y = -lon - Math.PI / 2 + 0.28;
     globe.rotation.x = lat * 0.48;
-    clouds.rotation.copy(globe.rotation);
 
     globe.scale.set(0.809, 0.809, 0.809);
-    clouds.scale.set(0.809, 0.809, 0.809);
     atmosphere.scale.set(0.809, 0.809, 0.809);
-    gsap.to([globe.scale, clouds.scale, atmosphere.scale], { x: 1.0, y: 1.0, z: 1.0, duration: 3.5, ease: "power3.out", delay: 0.1 });
+    
+    if (window.gsap) {
+      window.gsap.to([globe.scale, atmosphere.scale], { x: 1.0, y: 1.0, z: 1.0, duration: 3.5, ease: "power3.out", delay: 0.1 });
+    } else {
+      globe.scale.set(1.0, 1.0, 1.0);
+      atmosphere.scale.set(1.0, 1.0, 1.0);
+    }
 
     // ── 同步導航欄記憶體效能狀態 ──
     const navbarMain = document.getElementById('quasar-navbar-element');
@@ -403,19 +334,15 @@ import { EARTH_CONFIG } from '../config';
       const elapsed = clock.getElapsedTime();
       
       globe.rotation.y += 0.0002 * speedMult; 
-      clouds.rotation.y += 0.00028 * speedMult;
       
       starsMaterial.uniforms.uTime.value = elapsed;
       globeMaterial.uniforms.uTime.value = elapsed;
-      cloudMaterial.uniforms.uTime.value = elapsed;
       
       const currentSunDir = getLiveSunDirection();
       globeMaterial.uniforms.uSunDirection.value.copy(currentSunDir);
-      cloudMaterial.uniforms.uSunDirection.value.copy(currentSunDir);
       atmosphereMaterial.uniforms.uSunDirection.value.copy(currentSunDir);
       
       globeMaterial.uniforms.uCameraPosition.value.copy(camera.position);
-      cloudMaterial.uniforms.uCameraPosition.value.copy(camera.position);
       atmosphereMaterial.uniforms.uCameraPosition.value.copy(camera.position); 
 
       controls.update(); 
@@ -443,37 +370,35 @@ import { EARTH_CONFIG } from '../config';
     };
     window.addEventListener('resize', handleResize);
 
-    // ── 監聽主題切換 ──
+    // ── 監聽主題切換（1:1 还原 1.618 / 1.0618 饱和度精准控制） ──
     const themeObserver = new MutationObserver(() => {
       const isLight = document.documentElement.classList.contains('light-mode');
       
-      const targetSat = isLight ? 1.618 : satConfig; 
+      const targetGlobeSat = isLight ? 1.618 : satConfig; 
+      const targetAtmosSat = isLight ? 1.0618 : satConfig; 
       const targetExp = isLight ? 1.80 : 1.618; 
       const targetLightMode = isLight ? 1.0 : 0.0; 
 
-      gsap.to([
-        globeMaterial.uniforms.uSaturation,
-        cloudMaterial.uniforms.uSaturation,
-        atmosphereMaterial.uniforms.uSaturation
-      ], { value: targetSat, duration: 1.2, ease: "power2.inOut" });
-
-      gsap.to(renderer, { toneMappingExposure: targetExp, duration: 1.2, ease: "power2.inOut" });
-
-      gsap.to([
-        globeMaterial.uniforms.uIsLightMode,
-        cloudMaterial.uniforms.uIsLightMode
-      ], { value: targetLightMode, duration: 1.2, ease: "power2.inOut" });
+      if (window.gsap) {
+        window.gsap.to(globeMaterial.uniforms.uSaturation, { value: targetGlobeSat, duration: 1.2, ease: "power2.inOut" });
+        window.gsap.to(atmosphereMaterial.uniforms.uSaturation, { value: targetAtmosSat, duration: 1.2, ease: "power2.inOut" });
+        window.gsap.to(renderer, { toneMappingExposure: targetExp, duration: 1.2, ease: "power2.inOut" });
+        window.gsap.to(globeMaterial.uniforms.uIsLightMode, { value: targetLightMode, duration: 1.2, ease: "power2.inOut" });
+      } else {
+        globeMaterial.uniforms.uSaturation.value = targetGlobeSat;
+        atmosphereMaterial.uniforms.uSaturation.value = targetAtmosSat;
+        globeMaterial.uniforms.uIsLightMode.value = targetLightMode;
+        renderer.toneMappingExposure = targetExp;
+      }
     });
 
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
     if (document.documentElement.classList.contains('light-mode')) {
       globeMaterial.uniforms.uSaturation.value = 1.618;
-      cloudMaterial.uniforms.uSaturation.value = 1.618;
       atmosphereMaterial.uniforms.uSaturation.value = 1.0618;
       globeMaterial.uniforms.uIsLightMode.value = 1.0;
-      cloudMaterial.uniforms.uIsLightMode.value = 1.0;
-      renderer.toneMappingExposure = 1.80;
+      renderer.toneMappingExposure = 1.40;
     }
 
     // ── 釋放與銷毀 ──
@@ -492,10 +417,15 @@ import { EARTH_CONFIG } from '../config';
   }
 
   document.addEventListener('astro:page-load', initEarthEngine);
+  if (document.readyState === 'interactive' || document.readyState === 'complete') {
+    initEarthEngine();
+  } else {
+    document.addEventListener('DOMContentLoaded', initEarthEngine);
+  }
 </script>
 
 <style>
-  /* 🔑 5. 硬件合成图层与渲染加速声明 */
+  /* 🔑 硬件合成图层与渲染加速声明 */
   #earth-container { 
     width: 100%; 
     height: 100%; 

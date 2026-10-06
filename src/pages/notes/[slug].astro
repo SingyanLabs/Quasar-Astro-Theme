@@ -1,0 +1,112 @@
+---
+// src/pages/notes/[...slug].astro
+export const prerender = true;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { SITE_CONFIG, NOTES_CONFIG } from '../../config';
+import { getCollection, render } from 'astro:content';
+
+import NotesHeader from '../../components/notes/NotesHeader.astro';
+import CategoryFilter from '../../components/notes/CategoryFilter.astro';
+import NoteItem from '../../components/notes/NoteItem.astro';
+import '../../assets/styles/notes.css';
+
+// 1. 生成所有笔记的静态路由，并通过 props 传入对应 entry
+export async function getStaticPaths() {
+  const rawEntries = await getCollection('notes');
+  return rawEntries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { slug } = Astro.params;
+
+// 2. 清洗 Markdown 正文语法，提取适合 SEO 的纯文本摘要
+function extractCleanText(md = '', maxLength = 150) {
+  const plainText = md
+    .replace(/---[\s\S]*?---/g, '')                  // 1. 剔除 Frontmatter
+    .replace(/^\s*(import|export)\s+.*$/gm, '')      // 2. 剔除 MDX 导入
+    .replace(/<!--[\s\S]*?-->/g, '')                 // 3. 剔除注释
+    .replace(/```[\s\S]*?```/g, '')                  // 4. 剔除代码块
+    .replace(/<[^>]+>/g, '')                         // 5. 剔除 HTML 标签
+    .replace(/`([^`]+)`/g, '$1')                     // 6. 剔除行内代码符号
+    .replace(/!\[.*?\]\(.*?\)/g, '')                 // 7. 剔除图片
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')              // 8. 提取链接纯文本
+    .replace(/[#*`_~>-]/g, ' ')                      // 9. 剔除 Markdown 样式符
+    .replace(/\s+/g, ' ')                            // 10. 压缩多余空格
+    .trim();
+
+  return plainText.length > maxLength 
+    ? plainText.slice(0, maxLength) + '...' 
+    : plainText;
+}
+
+// 3. 获取所有笔记供列表渲染
+const rawEntries = await getCollection('notes');
+const noteItems = await Promise.all(
+  rawEntries.map(async (item) => {
+    const rendered = await render(item);
+    return {
+      ...item.data,
+      id: item.id,
+      Content: rendered.Content,
+      rawBody: item.body || '',
+    };
+  })
+);
+
+const catSet = new Set<string>();
+noteItems.forEach((item) => { if (item?.category) catSet.add(item.category); });
+const categories = ['全部', ...Array.from(catSet)];
+
+// 4. 动态构建该单页专属的 SEO Title 与 Description
+const noteData = entry.data || {};
+const cleanBody = extractCleanText(entry.body || '');
+
+// 🌟 Title 处理：优先 title -> quote -> slug 兜底
+const displayTitle = noteData.title || noteData.quote || slug;
+const pageTitle = `${displayTitle} | Notes - ${SITE_CONFIG.title}`;
+
+// 🌟 Quote 与 Description 融合处理
+let pageDesc = '';
+if (noteData.quote) {
+  const authorSuffix = noteData.author ? ` —— ${noteData.author}` : '';
+  pageDesc = `“${noteData.quote}”${authorSuffix}。${cleanBody || noteData.subtitle || ''}`.trim();
+} else {
+  pageDesc = noteData.description || noteData.subtitle || cleanBody || NOTES_CONFIG.subtitle;
+}
+
+// 限制 Meta Description 在 160 个字符以内（搜索引擎最佳展示长度）
+if (pageDesc.length > 160) {
+  pageDesc = pageDesc.slice(0, 157) + '...';
+}
+---
+
+<BaseLayout 
+  title={pageTitle} 
+  description={pageDesc}
+>
+  <notes-widget class="notes-viewport" data-active-slug={slug}>
+    <div class="notes-container" id="notes-container">
+      
+      <NotesHeader 
+        tagline={NOTES_CONFIG.tagline} 
+        title={NOTES_CONFIG.title} 
+        subtitle={NOTES_CONFIG.subtitle} 
+      />
+
+      <CategoryFilter categories={categories} />
+
+      <main class="notes-list" id="notes-list">
+        {noteItems.map((item, index) => (
+          <NoteItem item={item} index={index} />
+        ))}
+      </main>
+
+    </div>
+  </notes-widget>
+</BaseLayout>
+
+<script src="../../assets/scripts/notes-widget.js"></script>

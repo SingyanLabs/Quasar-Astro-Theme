@@ -60,6 +60,7 @@
   <button class="icon-btn perf-status-toggle desktop-only-btn" id="perf-toggle-btn" aria-label="Toggle Animation Quality">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-check" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M22 4L12 14.01l-3-3"/></svg>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon icon-perf-warn" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <svg viewBox="0 0 50 50" class="action-icon icon-perf-spinner"><circle cx="25" cy="25" r="20" fill="none" stroke-width="5" class="spinner-path"></circle></svg>
   </button>
 
   <!-- ⚡ 移动端专属：折叠菜单汉堡按钮 -->
@@ -105,8 +106,18 @@
   .theme-toggle .icon-sun, .theme-toggle .icon-moon { position: absolute; }
   .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg) scale(0.5); }
   
+  /* 性能模式图标状态管理 */
   .perf-status-toggle .icon-perf-check { display: block; }
   .perf-status-toggle .icon-perf-warn { display: none; will-change: color, opacity; transform: translateZ(0); }
+  
+  .perf-status-toggle .icon-perf-spinner { display: none; animation: navPerfSpinnerRotate 0.85s linear infinite; }
+  .perf-status-toggle .icon-perf-spinner .spinner-path { stroke: var(--themeColor, #015EFB) !important; stroke-linecap: round; stroke-dasharray: 90, 150; stroke-dashoffset: 0; }
+  @keyframes navPerfSpinnerRotate { 100% { transform: rotate(360deg); } }
+
+  /* 页面正在 ClientRouter 加载切换 (is-routing) 时显示加载圈 */
+  :global(.quasar-navbar.is-routing) .perf-status-toggle .icon-perf-check,
+  :global(.quasar-navbar.is-routing) .perf-status-toggle .icon-perf-warn { display: none !important; animation: none !important; }
+  :global(.quasar-navbar.is-routing) .perf-status-toggle .icon-perf-spinner { display: block !important; }
 
   /* 汉堡按钮默认在桌面端隐藏 */
   .mobile-hamburger-btn { display: none !important; }
@@ -122,8 +133,20 @@
   :global(.light-mode) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg) scale(1); }
   :global(.light-mode) .volume-popover { background: rgba(255, 255, 255, 0.92); border-color: rgba(0, 0, 0, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
 
-  :global(.perf-degraded) .perf-status-toggle .icon-perf-check { display: none; }
-  :global(.perf-degraded) .perf-status-toggle .icon-perf-warn { display: block !important; animation: pulseWarnDark 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important; filter: drop-shadow(0 0 6px rgba(255, 62, 24, 0.6)); }
+  /* 低性能模式：隐藏对勾，显示深色模式警告动画 */
+  :global(.perf-degraded) .perf-status-toggle .icon-perf-check { display: none !important; }
+  :global(.perf-degraded) .perf-status-toggle .icon-perf-warn { 
+    display: block !important; 
+    animation: pulseWarnDark 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important; 
+    filter: drop-shadow(0 0 6px rgba(255, 62, 24, 0.6)); 
+  }
+
+  /* ⚡ 关键修复：浅色模式下的低性能警告，保留 35% 暗灰底纹印子，防止闪烁消失时空荡荡 */
+  :global(.light-mode.perf-degraded) .perf-status-toggle .icon-perf-warn,
+  :global(.light-mode) :global(.perf-degraded) .perf-status-toggle .icon-perf-warn {
+    animation: pulseWarnLight 2s cubic-bezier(0.5, 0, 0.2, 1) infinite !important;
+    filter: drop-shadow(0 0 4px rgba(255, 62, 24, 0.4));
+  }
 
   /* ⚡ 移动端设计：隐藏桌面专用的按钮，显示汉堡折叠按钮 */
   @media (max-width: 768px) {

@@ -4,7 +4,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE_CONFIG } from '../config';
 ---
 
-<BaseLayout title={`403 访问被拒绝 | ${SITE_CONFIG.title}`}>
+<BaseLayout 
+  title={`403 Forbidden | ${SITE_CONFIG.title}`}
+  description={`${SITE_CONFIG.forbiddenMessage}`}
+>
   <!-- CDN 托管 Three.js（仅由浏览器端客户端安全水合执行） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" is:inline></script>
 

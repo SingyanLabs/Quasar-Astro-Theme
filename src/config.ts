@@ -126,8 +126,7 @@ export const ALBUMS_CONFIG = {
   // googleSharedId: "YOUR_GOOGLE_PHOTOS_SHARE_ID",
   googleSharedId: "PtUsaMmHbd132Z749",
 };
-  
-<<<<<<< HEAD
+ 
 export const NOTES_CONFIG = {
   title: '📓 随想录',
   subtitle: '字句里的灵光与感悟，给夜深时独自闪烁的灵魂',

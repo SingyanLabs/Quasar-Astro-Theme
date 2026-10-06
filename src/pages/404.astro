@@ -5,7 +5,10 @@ import Earth from '../components/Earth.astro';
 import { SITE_CONFIG } from '../config';
 ---
 
-<BaseLayout title={`404 页面未找到 | ${SITE_CONFIG.title}`}>
+<BaseLayout 
+  title={`404 Not Found | ${SITE_CONFIG.title}`}
+  description={`${SITE_CONFIG.notFoundMessage}`}
+>
   <!-- 按钮原点扩散圆形转场遮罩层 -->
   <div id="transition-overlay" class="transition-overlay"></div>
 
@@ -46,7 +49,7 @@ import { SITE_CONFIG } from '../config';
   </div>
 </BaseLayout>
 
-<script is:inline>
+<script>
   // 加快 404 页面中地球转动速度
   window._quasarAnimationSpeedMultiplier = 2.5;
 

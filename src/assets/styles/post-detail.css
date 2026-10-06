@@ -64,6 +64,7 @@ html, body { overflow-x: clip !important; }
 .markdown-body h2 { font-size: 1.7rem; border-bottom: 0.0625rem solid rgba(255, 255, 255, 0.08); padding-bottom: 0.75rem; position: relative; padding-left: 0.85rem; }
 .markdown-body h2::before { content: ''; position: absolute; left: 0; top: 15%; height: 70%; width: 0.25rem; background: var(--themeColor); border-radius: 0.125rem; box-shadow: 0 0 0.5rem rgba(var(--themeColorRgb), 0.6); }
 .markdown-body h3 { font-size: 1.35rem; color: #f2f2f7; }
+.markdown-body h4 { font-size: 1.35rem; color: #f2f2f7; }
 .markdown-body strong { color: #ffffff; font-weight: 700; background: linear-gradient(180deg, transparent 65%, rgba(var(--themeColorRgb), 0.25) 65%); padding: 0 0.15rem; border-radius: 0.125rem; }
 .markdown-body blockquote { background: rgba(255, 255, 255, 0.025); border-left: 0.25rem solid var(--themeColor); border-radius: 0 0.75rem 0.75rem 0; padding: 1.125rem 1.5rem; color: #aeaeb2; margin: 2rem 0; border-top: 1px solid rgba(255, 255, 255, 0.04); border-right: 1px solid rgba(255, 255, 255, 0.04); border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
 .markdown-body blockquote p { margin-bottom: 0; line-height: 1.8; }
@@ -99,7 +100,7 @@ html.light-mode .meta-row, html.light-mode .box-title, html.light-mode .toc-item
 html.light-mode .toc-item:hover, html.light-mode .recent-item-link:hover { color: #1d1d1f; }
 html.light-mode .toc-list { border-left-color: rgba(0, 0, 0, 0.08); }
 html.light-mode .markdown-body { color: #2c2c2e; }
-html.light-mode .markdown-body h1, html.light-mode .markdown-body h2, html.light-mode .markdown-body h3, html.light-mode .markdown-body strong { color: #1d1d1f; }
+html.light-mode .markdown-body h1, html.light-mode .markdown-body h2, html.light-mode .markdown-body h3, html.light-mode .markdown-body h4, html.light-mode .markdown-body strong { color: #1d1d1f; }
 html.light-mode .markdown-body blockquote { background: rgba(0, 0, 0, 0.02); border-color: var(--themeColor); color: #555555; }
 
 /* 桌面端隐藏移动端组件 */
@@ -177,6 +178,11 @@ html.light-mode .markdown-body blockquote { background: rgba(0, 0, 0, 0.02); bor
     font-size: 1.15rem !important;
     margin-top: 1.6rem !important;
     margin-bottom: 0.75rem !important;
+  }
+    .markdown-body h4 {
+    font-size: 0.95rem !important;
+    margin-top: 1.4rem !important;
+    margin-bottom: 0.65rem !important;
   }
   .markdown-body pre {
     padding: 1rem !important;

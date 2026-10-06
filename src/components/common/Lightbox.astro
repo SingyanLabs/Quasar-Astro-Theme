@@ -1,8 +1,6 @@
 ---
 // src/components/common/Lightbox.astro
 ---
-<script src="https://cdn.jsdelivr.net/npm/exifreader@4.21.0/dist/exif-reader.js" is:inline></script>
-
 <div id="lightbox" class="lightbox-modal" role="dialog" aria-modal="true">
   <div class="lightbox-backdrop" id="lightbox-close-area"></div>
   
@@ -45,7 +43,9 @@
   </div>
 </div>
 
-<script is:inline>
+<script>
+import ExifReader from 'exifreader';
+
   (function() {
     if (window.__quasarLightboxInited) return;
     window.__quasarLightboxInited = true;
@@ -54,7 +54,7 @@
     let activeIndex = 0;
     let isOpen = false;
     let isSwitching = false;
-    let loadToken = 0; // 防竞态锁：记录异步批次
+    let loadToken = 0;
 
     let lastClickedTargetEl = null; 
     let activeOriginEl = null;      
@@ -153,7 +153,6 @@
     const renderLightboxIndex = (index, direction = 'next', originElHint = null) => {
       if (!currentGallery || !currentGallery.length) return;
 
-      // 递增 Token，使先前所有正在加载的回调直接失效
       loadToken++;
       const currentToken = loadToken;
 
@@ -180,7 +179,6 @@
       const previewUrl = (typeof item === 'object' && item.previewSrc) ? item.previewSrc : highResUrl;
       const isDegraded = isDegradedMode();
 
-      // 清理前一帧遗留视频
       containerEl.querySelectorAll('video').forEach(v => v.remove());
 
       activeOriginEl = resolveOriginElement(highResUrl, index, originElHint);
@@ -219,7 +217,6 @@
         document.body.classList.add('lightbox-open');
         lightbox.classList.add('active');
 
-        // 清空 GSAP 残留样式
         if (window.gsap) {
           gsap.killTweensOf([lbBaseImg, lbTempImg, '.lightbox-content', '.lightbox-backdrop']);
           gsap.set([lbBaseImg, lbTempImg, '.lightbox-content', '.lightbox-backdrop'], { clearProps: "all" });
@@ -249,13 +246,14 @@
               if (window.gsap && !isDegraded && fitData && preOriginRect) {
                 const deltaX = preOriginRect.cx - fitData.cx;
                 const deltaY = preOriginRect.cy - fitData.cy;
-                const scaleX = preOriginRect.width / fitData.fitW;
-                const scaleY = preOriginRect.height / fitData.fitH;
+                
+                // 🌟 核心修复：采用基于高度的【统一等比缩放 (Uniform Scale)】，彻底根治 1:1 / 3:4 比例不一致导致的偏离和变形 Bug
+                const scale = preOriginRect.height / fitData.fitH;
 
-                gsap.set(lbBaseImg, { xPercent: -50, yPercent: -50, x: deltaX, y: deltaY, scaleX: scaleX, scaleY: scaleY, opacity: 1, transformOrigin: "50% 50%", force3D: true });
+                gsap.set(lbBaseImg, { x: deltaX, y: deltaY, scale: scale, opacity: 1, transformOrigin: "50% 50%", force3D: true });
                 gsap.fromTo('.lightbox-content', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out", force3D: true });
                 gsap.to(lbBaseImg, {
-                  x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.38, ease: "power3.out", force3D: true,
+                  x: 0, y: 0, scale: 1, duration: 0.38, ease: "power3.out", force3D: true,
                   onComplete: () => { 
                     if (loadToken === currentToken) {
                       isSwitching = false; 
@@ -264,16 +262,11 @@
                   }
                 });
               } else {
-                // 🌟 低性能模式：强制注入居中 transform，解决错位问题
-                lbBaseImg.style.left = '50%';
-                lbBaseImg.style.top = '50%';
-                lbBaseImg.style.transform = 'translate(-50%, -50%)';
                 lbBaseImg.style.opacity = '1';
-
                 if (window.gsap && !isDegraded) {
                   gsap.fromTo('.lightbox-content', { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out", force3D: true });
                   gsap.fromTo(lbBaseImg,
-                    { xPercent: -50, yPercent: -50, scale: 0.88, opacity: 0, x: 0, y: 0 },
+                    { scale: 0.88, opacity: 0, x: 0, y: 0 },
                     { scale: 1, opacity: 1, duration: 0.35, ease: "power3.out", force3D: true, 
                       onComplete: () => { 
                         if (loadToken === currentToken) {
@@ -312,7 +305,6 @@
           else startFlyIn();
         }
 
-        // 后台静默加载高清原图
         if (highResUrl !== previewUrl) {
           const bgImg = new Image();
           bgImg.src = highResUrl;
@@ -320,9 +312,6 @@
             if (loadToken !== currentToken) return;
             lbBaseImg.src = highResUrl;
             applyDimensions(lbBaseImg);
-            if (isDegraded) {
-              lbBaseImg.style.transform = 'translate(-50%, -50%)';
-            }
             parseAndShowExif(highResUrl);
           };
         } else {
@@ -330,14 +319,13 @@
         }
 
       } else {
-        // 切换上一张 / 下一张
         isSwitching = true;
         if (lbLoader) lbLoader.style.display = 'block';
 
         const currentImg = lbBaseImg;
         const nextImg = lbTempImg;
-        const exitX = direction === 'next' ? '-100%' : '100%';
-        const enterX = direction === 'next' ? '100%' : '-100%';
+        const exitX = direction === 'next' ? -window.innerWidth : window.innerWidth;
+        const enterX = direction === 'next' ? window.innerWidth : -window.innerWidth;
 
         if (window.gsap) gsap.killTweensOf([currentImg, nextImg]);
 
@@ -355,8 +343,8 @@
           nextImg.classList.remove('opacity-hidden');
 
           if (window.gsap && !isDegraded) {
-            gsap.set(nextImg, { xPercent: -50, yPercent: -50, x: enterX, opacity: 0.6, display: 'block', scaleX: 1, scaleY: 1, force3D: true });
-            gsap.set(currentImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 1, scaleX: 1, scaleY: 1, force3D: true });
+            gsap.set(nextImg, { x: enterX, opacity: 0.6, display: 'block', scale: 1, force3D: true });
+            gsap.set(currentImg, { x: 0, opacity: 1, scale: 1, force3D: true });
 
             const tl = gsap.timeline({
               onComplete: () => {
@@ -367,8 +355,8 @@
                 currentImg.style.display = 'block';
                 currentImg.classList.remove('opacity-hidden');
 
-                gsap.set(currentImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 1, scaleX: 1, scaleY: 1, force3D: true });
-                gsap.set(nextImg, { xPercent: -50, yPercent: -50, x: '0%', opacity: 0, display: 'none', force3D: true });
+                gsap.set(currentImg, { x: 0, opacity: 1, scale: 1, force3D: true });
+                gsap.set(nextImg, { x: 0, opacity: 0, display: 'none', force3D: true });
                 nextImg.classList.add('opacity-hidden');
                 nextImg.src = '';
 
@@ -392,14 +380,10 @@
             });
 
             tl.to(currentImg, { x: exitX, opacity: 0, duration: 0.32, ease: "power3.out", force3D: true }, 0);
-            tl.to(nextImg, { x: '0%', opacity: 1, duration: 0.32, ease: "power3.out", force3D: true }, 0);
+            tl.to(nextImg, { x: 0, opacity: 1, duration: 0.32, ease: "power3.out", force3D: true }, 0);
           } else {
-            // 🌟 低性能模式下瞬间平滑替换，并确保 translate 居中
             currentImg.src = previewUrl;
             applyDimensions(currentImg);
-            currentImg.style.left = '50%';
-            currentImg.style.top = '50%';
-            currentImg.style.transform = 'translate(-50%, -50%)';
             currentImg.style.display = 'block';
             currentImg.style.opacity = '1';
             currentImg.classList.remove('opacity-hidden');
@@ -416,7 +400,6 @@
                 if (loadToken !== currentToken) return;
                 currentImg.src = highResUrl;
                 applyDimensions(currentImg);
-                currentImg.style.transform = 'translate(-50%, -50%)';
                 parseAndShowExif(highResUrl);
                 if (item.videoSrc) injectVideo(item);
               };
@@ -463,7 +446,7 @@
 
     const closeLightbox = () => {
       if (!isOpen) return;
-      loadToken++; // 终止所有异步回调
+      loadToken++;
 
       const lightbox = document.getElementById('lightbox');
       const lbBaseImg = document.getElementById('lb-base-img');
@@ -477,7 +460,6 @@
       isOpen = false;
       isSwitching = false;
 
-      // 关闭前销毁所有视频节点
       if (containerEl) containerEl.querySelectorAll('video').forEach(v => v.remove());
 
       let closingOriginRect = null;
@@ -525,10 +507,9 @@
       if (window.gsap && !isDegraded && lbBaseImg && fitData && closingOriginRect) {
         const deltaX = closingOriginRect.cx - fitData.cx;
         const deltaY = closingOriginRect.cy - fitData.cy;
-        const scaleX = closingOriginRect.width / fitData.fitW;
-        const scaleY = closingOriginRect.height / fitData.fitH;
+        const scale = closingOriginRect.height / fitData.fitH;
 
-        gsap.to(lbBaseImg, { xPercent: -50, yPercent: -50, x: deltaX, y: deltaY, scaleX: scaleX, scaleY: scaleY, opacity: 0, duration: 0.32, ease: "power2.inOut", force3D: true });
+        gsap.to(lbBaseImg, { x: deltaX, y: deltaY, scale: scale, opacity: 0, duration: 0.32, ease: "power2.inOut", force3D: true });
         gsap.to('.lightbox-content', { opacity: 0, duration: 0.25, ease: "power2.in" });
         gsap.to('.lightbox-backdrop', { opacity: 0, duration: 0.32, ease: "power2.inOut", onComplete: doClose });
       } else { 
@@ -600,9 +581,8 @@
   
   .lightbox-layer { 
     position: absolute; 
-    left: 50%; 
-    top: 50%; 
-    transform: translate(-50%, -50%);
+    inset: 0;
+    margin: auto;
     max-width: 100%;
     max-height: 100%;
     border-radius: 12px; 
@@ -622,7 +602,7 @@
   .lightbox-modal { position: fixed; inset: 0; z-index: 9999; display: flex; justify-content: center; align-items: center; visibility: hidden; pointer-events: none; transition: visibility 0.35s ease; }
   .lightbox-modal.active { visibility: visible; pointer-events: auto; }
 
-  .lightbox-backdrop { position: absolute; inset: 0; background: rgba(3, 3, 3, 0.78); backdrop-filter: blur(28px) saturate(220%); -webkit-backdrop-filter: blur(28px) saturate(220%); z-index: 1; opacity: 0; transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1); transform: translateZ(0); will-change: opacity; }
+  .lightbox-backdrop { position: absolute; inset: 0; background: rgba(3, 3, 3, 0.78); backdrop-filter: blur(28px) saturate(220%); -webkit-backdrop-filter: blur(28px) saturate(220%); z-index: 1; opacity: 0; transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1); will-change: opacity; }
   .lightbox-modal.active .lightbox-backdrop { opacity: 1; }
 
   .lightbox-content { position: relative; z-index: 2; width: 100%; max-width: 1100px; height: 88vh; height: 88dvh; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; }

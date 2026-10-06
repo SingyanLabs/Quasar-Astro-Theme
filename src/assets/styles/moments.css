@@ -240,8 +240,8 @@
 .thumb-col { width: 52px; height: 52px; border-radius: 6px; overflow: hidden; flex-shrink: 0; background: #111; }
 .thumb-col img { width: 100%; height: 100%; object-fit: cover; }
 .info-col { flex: 1; overflow: hidden; }
-.item-title { font-size: 0.9rem; font-weight: 700; font-family: 'Noto Sans SC', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; color: #ffffff; }
-.item-sub { font-size: 0.78rem; color: #aaaaaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timeline-item .item-title { font-size: 0.9rem; font-weight: 700; font-family: 'Noto Sans SC', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; color: #ffffff; }
+.timeline-item .item-sub { font-size: 0.78rem; color: #aaaaaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ==================== 4. 桌面端卡片区域 ==================== */
 .main-detail-area { 
@@ -341,9 +341,9 @@
 @media (max-width: 992px) {
   .minimal-btn.mobile-only { display: inline-flex !important; }
 
-  html, 
-  body, 
-  main, 
+  /* 🌟 核心隔离：仅动态时刻页面生效，不再污染全站 */
+  body:has(.split-viewport), 
+  body:has(.split-viewport) main, 
   .split-viewport, 
   .main-detail-area, 
   .detail-scroll-container {
@@ -477,9 +477,8 @@ html.perf-degraded .timeline-item:hover { transform: none !important; }
 html.perf-degraded .view-mode-feed .sidebar-timeline { backdrop-filter: none !important; background: rgba(18, 18, 24, 0.95) !important; transition: none !important; }
 html.perf-degraded .view-mode-feed .detail-card.feed-visible { opacity: 1 !important; transform: none !important; animation: none !important; }
 
-/* ==================== 8. ☀️ 明亮模式全域全面适配 (Light Mode 彻底无缝白底) ==================== */
-html.light-mode,
-html.light-mode body {
+/* ==================== 8. ☀️ 明亮模式全域全面适配 ==================== */
+html.light-mode body:has(.split-viewport) {
   background-color: #ffffff !important;
 }
 
@@ -523,12 +522,12 @@ html.light-mode .thumb-col { background: #e5e5ea; }
 html.light-mode .main-detail-area { background: #ffffff !important; }
 html.light-mode .avatar-box { background: linear-gradient(135deg, #e5e5ea, #c7c7cc); color: #1d1d1f; }
 html.light-mode .day-num, 
-html.light-mode .item-title, 
+html.light-mode .timeline-item .item-title, 
 html.light-mode .author-name, 
 html.light-mode .c-user { color: #1d1d1f; }
 
 html.light-mode .month-text, 
-html.light-mode .item-sub, 
+html.light-mode .timeline-item .item-sub, 
 html.light-mode .detail-title-text, 
 html.light-mode .detail-time-row { color: #6e6e73; }
 html.light-mode .detail-time-row { border-bottom-color: rgba(0, 0, 0, 0.06); }

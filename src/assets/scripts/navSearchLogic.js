@@ -16,6 +16,17 @@ const initNavSearch = () => {
 
   if (!centerSearchBar || !searchInput || !overlay || !dataStore) return;
 
+  // 🌟 a11y 修复：确保搜索输入框具备无障碍标签，清除 "Form elements must have labels" 报错
+  if (!searchInput.hasAttribute('aria-label')) {
+    searchInput.setAttribute('aria-label', '搜索文章');
+  }
+
+  // 🌟 a11y 修复：初始化时防患未然设置 inert 属性
+  if (!overlay.classList.contains('active')) {
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.setAttribute('inert', '');
+  }
+
   // 防重复绑定（防止路由切换时多次绑定事件）
   if (centerSearchBar.dataset.searchInited === 'true') return;
   centerSearchBar.dataset.searchInited = 'true';
@@ -42,7 +53,9 @@ const initNavSearch = () => {
 
     // 将解析出的错误 URL 强行扭转为 Astro 规范 URL
     searchIndex = searchIndex.map(item => {
-      if (item.url && item.url.startsWith('/posts/')) {
+    if (!item.url) return item;
+    
+    if (item.url.startsWith('/posts/') || item.url.startsWith('/notes/')) {
         const urlObj = new URL(item.url, window.location.origin);
         const pathSegments = urlObj.pathname.split('/');
         
@@ -109,6 +122,8 @@ const initNavSearch = () => {
     isModalOpen = true;
     overlay.classList.add('active');
     overlay.setAttribute('aria-hidden', 'false');
+    // 🌟 a11y 修复：激活模态框时解除 inert，允许内部焦点导航
+    overlay.removeAttribute('inert');
 
     const dur = checkDegraded() ? 0.05 : 0.22;
     if (window.gsap && !checkDegraded()) {
@@ -134,10 +149,14 @@ const initNavSearch = () => {
         onComplete: () => {
           overlay.classList.remove('active');
           overlay.setAttribute('aria-hidden', 'true');
+          // 🌟 a11y 修复：关闭模态框后施加 inert，彻底阻断 focus 树遍历
+          overlay.setAttribute('inert', '');
         }
       });
     } else {
       overlay.classList.remove('active');
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.setAttribute('inert', '');
     }
   };
 

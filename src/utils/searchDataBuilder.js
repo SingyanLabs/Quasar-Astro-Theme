@@ -17,7 +17,6 @@ export function cleanMdContent(md = '') {
 export function buildSearchIndex() {
   let searchIndex = [];
   try {
-    // Vite 特性：可以在 JS 文件中直接使用 import.meta.glob
     const rawMdModules = import.meta.glob(['/src/pages/**/*.{md,mdx}', '/src/content/**/*.{md,mdx}'], {
       query: '?raw',
       import: 'default',
@@ -29,7 +28,11 @@ export function buildSearchIndex() {
     });
 
     Object.keys(rawMdModules).forEach((filePath) => {
-      if (filePath.includes('/albums/')) return;
+      if (
+        filePath.includes('/albums/') ||
+        filePath.includes('/friends') ||
+        filePath.includes('/links')
+      ) return;
 
       const rawContent = rawMdModules[filePath] || '';
       const parsedModule = parsedMdModules[filePath] || {};
@@ -53,6 +56,17 @@ export function buildSearchIndex() {
       if (slug.endsWith('/index')) slug = slug.slice(0, -6);
       const cleanSlug = slug.replace(/^(music|moments)\//, '');
 
+      const filename = filePath.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '文档';
+      const title = fm.title || fm.songTitle || filename;
+
+      if (
+        title === '友情链接' ||
+        title === 'Friends' ||
+        title === 'Links' ||
+        fm.type === 'friends' ||
+        collection === 'friends'
+      ) return;
+
       let url = fm.permalink || fm.url || fm.link;
 
       if (!url) {
@@ -69,13 +83,11 @@ export function buildSearchIndex() {
 
       if (url && !url.startsWith('/')) url = '/' + url;
 
-      const filename = filePath.split('/').pop()?.replace(/\.(md|mdx)$/, '') || '文档';
-      const title = fm.title || fm.songTitle || filename;
-
       let type = fm.type;
       if (!type) {
         if (filePath.includes('/music') || collection === 'music') type = '音乐';
         else if (filePath.includes('/moments') || collection === 'moments') type = '时刻';
+        else if (filePath.includes('/notes') || collection === 'notes') type = '语阁';
         else type = '文章';
       }
 

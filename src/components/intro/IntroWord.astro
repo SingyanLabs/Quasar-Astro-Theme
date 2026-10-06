@@ -7,17 +7,13 @@ const themeColor = SITE_CONFIG.themeColor || '#015EFB';
 
 <div class="fixed-canvas">
   <div class="word" id="intro-word">
-    <span class="char">Q</span>
-    <span class="char" id="i-stem">u</span>
-    <span class="char" id="letter-n1">a</span>
-    <span class="char">s</span>
+    <span class="char">S</span>
+    <span class="char" id="i-stem">ı</span>
+    <span class="char" id="letter-n1">n</span>
+    <span class="char">g</span>
+    <span class="char">y</span>
     <span class="char">a</span>
-<<<<<<< HEAD
-    <span class="char" id="letter-n2">a</span>
-    <span class="char">r</span>
-=======
-    <span class="char" id="letter-n2">r</span>
->>>>>>> parent of ddaaaf1 (Perf: optimize performance and energy efficiency)
+    <span class="char" id="letter-n2">n</span>
     <div id="blue-dot"></div>
   </div>
 </div>
@@ -25,6 +21,20 @@ const themeColor = SITE_CONFIG.themeColor || '#015EFB';
 <!-- 把 Intro 动画生成器导出的 组件代码 替换掉上面的所有代码 -->
 <!-- 以下代码请保持不动，避免出现BUG -->
 <style define:vars={{ themeColor }}>
+  /* ⚡ 阻止全局页面滚动并隐藏跨浏览器滚动条 */
+  :global(html),
+  :global(body) {
+    overflow: hidden !important;
+    height: 100vh;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE / Edge */
+  }
+
+  :global(html::-webkit-scrollbar),
+  :global(body::-webkit-scrollbar) {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
   .fixed-canvas {
     position: relative;
     display: flex;

@@ -36,7 +36,7 @@ const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greeting
   </div>
 </div>
 
-<script is:inline define:vars={{ greetingsConfig }}>
+<script define:vars={{ greetingsConfig }}>
   document.addEventListener('astro:page-load', () => {
     // === 1. 12小時制時鐘與問候邏輯 ===
     const updateClockAndGreeting = () => {
@@ -188,10 +188,249 @@ const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greeting
       }
     };
     initSmartWeather();
+
+    // === 🌟 支持低性能模式静音的磁吸逻辑 ===
+    if (typeof gsap !== 'undefined' && typeof Draggable !== 'undefined') {
+      const card = document.querySelector('.weather-card');
+      if (card && card.parentNode) {
+        const existing = Draggable.get(card);
+        if (existing) existing.kill();
+
+        const SNAP_THRESHOLD = 220;
+
+        let canvas = card.parentNode.querySelector('.weather-magnetic-canvas');
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+          canvas.className = 'weather-magnetic-canvas';
+          card.parentNode.insertBefore(canvas, card);
+        }
+        const ctx = canvas.getContext('2d');
+
+        // ⚡ 检测低性能模式状态
+        const isLowPerfMode = () => {
+          const navbar = document.getElementById('quasar-navbar-element');
+          return (typeof window._quasarAnimationSpeedMultiplier !== 'undefined' && window._quasarAnimationSpeedMultiplier < 0.5) ||
+                 (navbar && navbar.classList.contains('perf-degraded'));
+        };
+
+        const updateCanvasDimensions = () => {
+          if (isLowPerfMode()) return;
+          const rect = card.getBoundingClientRect();
+          canvas.width = rect.width + SNAP_THRESHOLD * 2;
+          canvas.height = rect.height + SNAP_THRESHOLD * 2;
+          
+          const initialLeft = card.offsetLeft - SNAP_THRESHOLD;
+          const initialTop = card.offsetTop - SNAP_THRESHOLD;
+
+          canvas.style.position = 'absolute';
+          canvas.style.left = `${initialLeft}px`;
+          canvas.style.top = `${initialTop}px`;
+          canvas.style.pointerEvents = 'none';
+          canvas.style.zIndex = '0';
+        };
+        updateCanvasDimensions();
+
+        let particles = [];
+        let animFrameId = null;
+        let isSnapping = false;
+
+        const getThemeColor = () => {
+          const color = getComputedStyle(card).getPropertyValue('--themeColor').trim();
+          return color || '#015EFB';
+        };
+
+        const getRoundedRectPoint = (x, y, w, h, r, p) => {
+          r = Math.min(r, w / 2, h / 2);
+          const wSeg = w - 2 * r;
+          const hSeg = h - 2 * r;
+          const arcLen = (Math.PI / 2) * r;
+          const L = 2 * wSeg + 2 * hSeg + 4 * arcLen;
+          let d = ((p % 1) + 1) % 1 * L;
+
+          if (d < wSeg) return { x: x + r + d, y: y, nx: 0, ny: -1 };
+          d -= wSeg;
+          if (d < arcLen) {
+            const a = -Math.PI / 2 + (d / arcLen) * (Math.PI / 2);
+            return { x: x + w - r + Math.cos(a) * r, y: y + r + Math.sin(a) * r, nx: Math.cos(a), ny: Math.sin(a) };
+          }
+          d -= arcLen;
+          if (d < hSeg) return { x: x + w, y: y + r + d, nx: 1, ny: 0 };
+          d -= hSeg;
+          if (d < arcLen) {
+            const a = (d / arcLen) * (Math.PI / 2);
+            return { x: x + w - r + Math.cos(a) * r, y: y + h - r + Math.sin(a) * r, nx: Math.cos(a), ny: Math.sin(a) };
+          }
+          d -= arcLen;
+          if (d < wSeg) return { x: x + w - r - d, y: y + h, nx: 0, ny: 1 };
+          d -= wSeg;
+          if (d < arcLen) {
+            const a = Math.PI / 2 + (d / arcLen) * (Math.PI / 2);
+            return { x: x + r + Math.cos(a) * r, y: y + h - r + Math.sin(a) * r, nx: Math.cos(a), ny: Math.sin(a) };
+          }
+          d -= arcLen;
+          if (d < hSeg) return { x: x, y: y + h - r - d, nx: -1, ny: 0 };
+          d -= hSeg;
+          const a = Math.PI + (d / arcLen) * (Math.PI / 2);
+          return { x: x + r + Math.cos(a) * r, y: y + r + Math.sin(a) * r, nx: Math.cos(a), ny: Math.sin(a) };
+        };
+
+        const renderParticles = (curX, curY) => {
+          // ⚡ 低性能模式：完全关掉并清空粒子效果
+          if (isLowPerfMode()) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles = [];
+            if (animFrameId) {
+              cancelAnimationFrame(animFrameId);
+              animFrameId = null;
+            }
+            return;
+          }
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          const dist = Math.hypot(curX, curY);
+          const w = card.offsetWidth;
+          const h = card.offsetHeight;
+          const borderRadius = parseFloat(getComputedStyle(card).borderRadius) || 20;
+
+          const homeX = SNAP_THRESHOLD;
+          const homeY = SNAP_THRESHOLD;
+          const cardX = SNAP_THRESHOLD + curX;
+          const cardY = SNAP_THRESHOLD + curY;
+
+          if (dist < SNAP_THRESHOLD && dist > 2) {
+            const pullRatio = 1 - (dist / SNAP_THRESHOLD);
+            const pullCurve = Math.pow(pullRatio, 1.1);
+
+            const spawnCount = Math.floor(pullCurve * 42) + 6;
+            const themeColor = getThemeColor();
+
+            for (let i = 0; i < spawnCount; i++) {
+              const p = Math.random();
+              const p1 = getRoundedRectPoint(cardX, cardY, w, h, borderRadius, p);
+              const p2 = getRoundedRectPoint(homeX, homeY, w, h, borderRadius, p);
+
+              const isBorderHugger = Math.random() < 0.55;
+
+              particles.push({
+                x: p1.x + p1.nx * (Math.random() - 0.5) * 1.5,
+                y: p1.y + p1.ny * (Math.random() - 0.5) * 1.5,
+                targetX: isBorderHugger ? (p1.x + p1.nx * (Math.random() - 0.5) * 3) : p2.x,
+                targetY: isBorderHugger ? (p1.y + p1.ny * (Math.random() - 0.5) * 3) : p2.y,
+                size: Math.random() * 0.8 + 0.4,
+                alpha: pullCurve * (0.6 + Math.random() * 0.4),
+                color: themeColor,
+                speed: isBorderHugger ? (0.012 + Math.random() * 0.02) : (0.02 + Math.random() * 0.04 * (pullCurve + 0.4)),
+                progress: 0,
+                twinklePhase: Math.random() * Math.PI * 2,
+                curveAmp: isBorderHugger ? 0 : (Math.random() - 0.5) * 24 * (1 - pullCurve)
+              });
+            }
+          }
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const pt = particles[i];
+            pt.progress += pt.speed;
+            pt.twinklePhase += 0.25;
+
+            const linearX = pt.x + (pt.targetX - pt.x) * pt.progress;
+            const linearY = pt.y + (pt.targetY - pt.y) * pt.progress;
+            const perpX = -(pt.targetY - pt.y);
+            const perpY = pt.targetX - pt.x;
+            const len = Math.hypot(perpX, perpY) || 1;
+            const curveOffset = Math.sin(pt.progress * Math.PI) * pt.curveAmp;
+
+            const drawX = linearX + (perpX / len) * curveOffset;
+            const drawY = linearY + (perpY / len) * curveOffset;
+
+            const twinkle = 0.8 + 0.2 * Math.sin(pt.twinklePhase);
+            const currentAlpha = pt.alpha * (1 - pt.progress) * twinkle;
+
+            if (pt.progress >= 1 || currentAlpha <= 0) {
+              particles.splice(i, 1);
+              continue;
+            }
+
+            ctx.beginPath();
+            ctx.arc(drawX, drawY, pt.size, 0, Math.PI * 2);
+            ctx.fillStyle = pt.color;
+            ctx.globalAlpha = currentAlpha;
+            ctx.shadowColor = pt.color;
+            ctx.shadowBlur = 6;
+            ctx.fill();
+          }
+          ctx.restore();
+
+          if (particles.length > 0 || isSnapping || (dragger && dragger.isDragging && dist < SNAP_THRESHOLD)) {
+            animFrameId = requestAnimationFrame(() => renderParticles(dragger.x, dragger.y));
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            cancelAnimationFrame(animFrameId);
+            animFrameId = null;
+          }
+        };
+
+        const startLoop = () => {
+          if (isLowPerfMode()) return;
+          if (!animFrameId) {
+            animFrameId = requestAnimationFrame(() => renderParticles(dragger.x, dragger.y));
+          }
+        };
+
+        const dragger = Draggable.create(card, {
+          type: "x,y",
+          edgeResistance: 0,
+          dragResistance: 0,
+          onDragStart: function() {
+            updateCanvasDimensions();
+            startLoop();
+          },
+          onDrag: function() {
+            startLoop();
+          },
+          onRelease: function() {
+            const dist = Math.hypot(this.x, this.y);
+            if (dist < SNAP_THRESHOLD) {
+              isSnapping = true;
+              gsap.to(this.target, {
+                x: 0,
+                y: 0,
+                duration: 0.5,
+                ease: "back.out(1.2)",
+                onUpdate: () => {
+                  dragger.x = gsap.getProperty(this.target, "x");
+                  dragger.y = gsap.getProperty(this.target, "y");
+                },
+                onComplete: () => {
+                  isSnapping = false;
+                  gsap.set(this.target, { clearProps: "transform" });
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+              });
+            } else {
+              isSnapping = false;
+            }
+          }
+        })[0];
+      }
+    }
   });
 </script>
 
 <style>
+  .weather-card {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    will-change: transform;
+    position: relative;
+    z-index: 1;
+  }
+  .weather-card:active { cursor: grabbing; }
+
   .widget-header { display: flex; justify-content: space-between; align-items: center; }
   .greeting-text { font-size: 0.95rem; font-weight: 700; color: #ffffff; letter-spacing: 0.02em; }
   
@@ -207,7 +446,7 @@ const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greeting
   .weather-left { display: flex; flex-direction: column; gap: 4px; }
   .location-row { display: flex; align-items: center; gap: 6px; }
   .location-name { font-size: 1.05rem; font-weight: 700; color: #ffffff; }
-  .relocate-btn { background: none; border: none; color: rgba(255, 255, 255, 0.45); cursor: pointer; padding: 3px; border-radius: 50%; transition: all 0.3s ease; }
+  .relocate-btn { background: none; border: none; color: rgba(255, 255, 255, 0.45); cursor: pointer; padding: 3px; border-radius: 50%; transition: all 0.3s ease; z-index: 10; }
   .relocate-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); }
   .relocate-btn.is-spinning { animation: spin 0.8s linear infinite; }
   @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -216,7 +455,6 @@ const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greeting
   .weather-desc { font-size: 1.1rem; font-weight: 600; color: #ffffff; letter-spacing: 0.01em; }
   .temp-display { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2.1rem; font-weight: 900; color: #ffffff; letter-spacing: -0.02em; }
   
-  /* ⚡ 精致化：调整三小时预报流的间距与尺寸，无边框设计 */
   .hourly-forecast-stream { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-top: 6px; min-height: 32px; }
   .no-data-tip { font-size: 0.8rem; color: rgba(255, 255, 255, 0.4); width: 100%; text-align: center; }
   
@@ -226,7 +464,6 @@ const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greeting
   :global(.hourly-icon) { font-size: 0.8rem; }
   :global(.hourly-temp) { font-family: 'Plus Jakarta Sans', sans-serif; font-variant-numeric: tabular-nums; font-size: 0.8rem; font-weight: 600; color: #cccccc; }
   
-  /* ⚡ 加上 2 条独立的极细分隔线分别隔开这三小时 */
   :global(.hourly-pill-divider) { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.1); }
 
   /* 明亮模式适配 */

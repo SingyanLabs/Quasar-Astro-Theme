@@ -17,7 +17,7 @@
   50% { opacity: 1; transform: scale(1.25); }
 }
 
-.animate-entrance {
+.notes-viewport .animate-entrance {
   animation: smoothEntrance 0.45s cubic-bezier(0.25, 1, 0.5, 1) both;
   animation-delay: calc(var(--stagger, 0) * 0.04s);
 }
@@ -40,7 +40,7 @@
 }
 
 /* 3. Focus 专注退场模式 */
-.focus-hide {
+.notes-viewport .focus-hide {
   transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), 
               opacity 0.3s ease, 
               max-height 0.35s cubic-bezier(0.25, 1, 0.5, 1), 
@@ -64,36 +64,15 @@
   flex-direction: column;
 }
 
-.section-tagline {
+.notes-viewport .main-title {
   margin-top: 1.618rem;
-  font-size: 0.82rem;
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  color: #888888;
-  letter-spacing: 0.14em;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.blue-dot {
-  width: 6px;
-  height: 6px;
-  background-color: var(--themeColor, #015EFB);
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(var(--themeColorRgb, 1, 94, 251), 0.7);
-  animation: pulseGlow 3s infinite ease-in-out;
-}
-
-.main-title {
   font-size: 3.4rem;
   font-weight: 900;
   line-height: 1.618;
   color: #ffffff;
 }
 
-.subtitle {
+.notes-viewport .subtitle {
   margin-bottom: 0.5rem;
   font-size: 1.05rem;
   color: #86868b;
@@ -101,14 +80,14 @@
 }
 
 /* 5. 分类筛选栏 */
-.category-filter-bar {
+.notes-viewport .category-filter-bar {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 6px;
 }
 
-.filter-btn {
+.notes-viewport .filter-btn {
   padding: 0.42rem 1.15rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -120,12 +99,12 @@
   transition: all 0.25s ease;
 }
 
-.filter-btn:hover {
+.notes-viewport .filter-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
 }
 
-.filter-btn.active {
+.notes-viewport .filter-btn.active {
   background: var(--themeColor, #015EFB);
   border-color: var(--themeColor, #015EFB);
   color: #ffffff !important;
@@ -187,7 +166,7 @@
   position: relative;
 }
 
-.active-indicator {
+.notes-viewport .active-indicator {
   position: absolute;
   left: -12px;
   top: 50%;
@@ -232,7 +211,7 @@
   flex-shrink: 0;
 }
 
-.category-tag {
+.notes-viewport .category-tag {
   font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
   font-size: 0.72rem;
   font-weight: 600;
@@ -290,7 +269,8 @@
   transition: justify-content 0.3s ease, color 0.25s ease;
 }
 
-.item-title, .item-author {
+.notes-viewport .item-title, 
+.notes-viewport .item-author {
   color: #86868b;
   font-weight: 500;
 }
@@ -331,7 +311,8 @@
 }
 
 .book-article p {
-  margin-bottom: 1.8rem;
+  margin-bottom: -1.618rem;
+  text-indent: 2em;
 }
 
 .bottom-back-bar {
@@ -427,7 +408,7 @@
   color: #86868b;
 }
 
-.note-item.is-focused .item-title {
+.notes-viewport .note-item.is-focused .item-title {
   color: #a1a1a6;
   font-weight: 500;
 }
@@ -442,7 +423,7 @@
   pointer-events: none;
 }
 
-.empty-state {
+.notes-viewport .empty-state {
   padding: 4rem 1rem;
   text-align: center;
   color: #86868b;
@@ -452,30 +433,30 @@
 /* 8. 📱 移动端自适应 (含竖屏与窄屏) */
 @media (max-width: 768px) {
   .notes-viewport { padding-top: 6.5rem !important; }
-  .main-title { font-size: 2.2rem !important; }
+  .notes-viewport .main-title { font-size: 2.2rem !important; }
   .item-trigger { padding: 18px 0; }
   .note-item.is-focused .item-quote { font-size: 1.45rem; text-indent: 0.75em; }
   .note-item.is-focused .bg-quote-mark { font-size: 3.5rem; }
   .book-article { font-size: 1.05rem; line-height: 2.0; }
 }
 
-/* 9. ☀️ 明亮模式全局适配 */
-html.light-mode .main-title {
+/* 9. ☀️ 明亮模式局部适配 */
+html.light-mode .notes-viewport .main-title {
   color: #1d1d1f;
 }
 
-html.light-mode .filter-btn {
+html.light-mode .notes-viewport .filter-btn {
   background: rgba(0, 0, 0, 0.04);
   border-color: rgba(0, 0, 0, 0.08);
   color: #444444 !important;
 }
 
-html.light-mode .filter-btn:hover {
+html.light-mode .notes-viewport .filter-btn:hover {
   background: rgba(0, 0, 0, 0.08);
   color: #000000 !important;
 }
 
-html.light-mode .filter-btn.active {
+html.light-mode .notes-viewport .filter-btn.active {
   background: #1d1d1f !important;
   border-color: #1d1d1f !important;
   color: #ffffff !important;
@@ -515,8 +496,8 @@ html.light-mode .note-item:hover:not(.is-focused) .item-quote { color: var(--the
 html.light-mode .note-item.is-focused .item-quote { color: #1d1d1f !important; }
 
 html.light-mode .item-sub-meta,
-html.light-mode .item-title,
-html.light-mode .item-author { color: #6e6e73; }
+html.light-mode .notes-viewport .item-title,
+html.light-mode .notes-viewport .item-author { color: #6e6e73; }
 
 html.light-mode .icon-arrow { color: #a1a1a6; }
 html.light-mode .note-item:hover .icon-arrow { color: var(--themeColor, #015EFB); }

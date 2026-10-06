@@ -1,5 +1,5 @@
 ---
-// src/pages/posts/index.astro
+// src/pages/posts.astro
 import { getCollection } from 'astro:content';
 import { SITE_CONFIG, POSTS_CONFIG } from '../config.ts';
 import BaseLayout from '../layouts/BaseLayout.astro';
@@ -44,14 +44,16 @@ const hexToRgb = (hex) => {
 const themeColor = SITE_CONFIG.themeColor || '#015EFB';
 const themeColorRgb = hexToRgb(themeColor);
 ---
-<BaseLayout title={`${POSTS_CONFIG.nav} | ${SITE_CONFIG.title}`}>
+<BaseLayout 
+  title={`${POSTS_CONFIG.nav} | ${SITE_CONFIG.title}`}
+  description={`${POSTS_CONFIG.subtitle}`}
+>
   <!-- 通过内联 style 透传 CSS Var 給下属所有组件及外置 CSS 文件 -->
   <div class="posts-viewport" style={`--themeColor: ${themeColor}; --themeColorRgb: ${themeColorRgb};`}>
     <div class="posts-container">
       
       <header class="posts-header">
         <div class="header-intro">
-          <p class="section-tagline"><span class="blue-dot"></span>{POSTS_CONFIG.tagline}</p>
           <h1 class="main-title">{POSTS_CONFIG.title}</h1>
           <p class="subtitle">{POSTS_CONFIG.subtitle}</p>
         </div>
@@ -71,7 +73,7 @@ const themeColorRgb = hexToRgb(themeColor);
         {postsData.map((post) => <PostCard post={post} />)}
       </div>
 
-      {postsData.length === 0 && <div class="empty-state"><p>暫無文章發佈</p></div>}
+      {postsData.length === 0 && <div class="empty-state"><p>暂无文章发布</p></div>}
     </div>
   </div>
 

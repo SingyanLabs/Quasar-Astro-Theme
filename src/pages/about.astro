@@ -17,7 +17,10 @@ import FloatingDock from '../components/about/FloatingDock.astro';
 import '../assets/styles/about.css';
 ---
 
-<BaseLayout title={`About | ${SITE_CONFIG.title}`}>
+<BaseLayout 
+  title={`About | ${SITE_CONFIG.title}`}
+  description={`About ${ABOUT_CONFIG.name}, \n${ABOUT_CONFIG.manifesto}`}
+>
   <!-- 动态注入当前主题色供 CSS 变量使用，保留原设计 -->
   <style is:inline set:html={`
     :root {
@@ -44,5 +47,7 @@ import '../assets/styles/about.css';
   </main>
 </BaseLayout>
 
-<!-- 引入独立抽离的客户端动画与逻辑引擎 (利用 is:inline 或 defer 引入) -->
-<script src="/src/assets/scripts/about-animations.js" type="module"></script>
+<!-- 💡 使用 ES Module 相对路径导入，打包时 Vite 会自动将其打包输出并正确关联路径 -->
+<script>
+  import '../assets/scripts/about-animations.js';
+</script>

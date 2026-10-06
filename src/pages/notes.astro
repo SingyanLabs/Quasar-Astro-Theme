@@ -55,13 +55,15 @@ try {
 }
 ---
 
-<BaseLayout title={`Notes | ${SITE_CONFIG.title}`}>
+<BaseLayout 
+  title={`Notes | ${SITE_CONFIG.title}`}
+  description={`${NOTES_CONFIG.tagline}\n${NOTES_CONFIG.subtitle}`}
+>
   <notes-widget class="notes-viewport">
     <div class="notes-container" id="notes-container">
       
       <!-- 1. Header 头部区 -->
       <NotesHeader 
-        tagline={NOTES_CONFIG.tagline} 
         title={NOTES_CONFIG.title} 
         subtitle={NOTES_CONFIG.subtitle} 
       />

@@ -1,13 +1,13 @@
 /* src/assets/styles/about.css */
 
 /* ========================================================
-   1. 全局布局体底与根变量
+   1. 布局体底与根变量 (仅在 About 舞台存在时作用于 body)
    ======================================================== */
 :root {
   --page-theme-color: #015EFB;
 }
 
-html, body {
+body:has(.about-cinematic-viewport) {
   margin: 0 !important;
   padding: 0 !important;
   background-color: #030303;
@@ -41,7 +41,7 @@ html, body {
   transform: translateZ(0);
 }
 
-.opacity-0 { opacity: 0 !important; }
+.about-cinematic-viewport .opacity-0 { opacity: 0 !important; }
 
 .story-stage {
   position: absolute;
@@ -65,7 +65,7 @@ html, body {
   box-sizing: border-box;
 }
 
-.flex-center {
+.about-cinematic-viewport .flex-center {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -220,7 +220,7 @@ html, body {
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
 }
 
-.card-tag {
+.mosaic-drag-card .card-tag {
   font-size: 0.65rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -228,7 +228,7 @@ html, body {
   letter-spacing: 0.05em;
 }
 
-.card-title {
+.mosaic-drag-card .card-title {
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.4;
@@ -752,29 +752,29 @@ html, body {
 .dock-btn.active .dot { background: var(--page-theme-color) !important; box-shadow: 0 0 12px var(--page-theme-color) !important; }
 
 /* ========================================================
-   9. ☀️ 浅色模式全局覆盖 (Light Mode)
+   9. ☀️ 浅色模式适配 (Light Mode)
    ======================================================== */
-.light-mode .stage-title-large, 
-.light-mode .mosaic-main-header, 
-.light-mode .deepdive-main-header, 
-.light-mode .retirement-main-header, 
-.light-mode .tech-main-header, 
-.light-mode .contact-main-header { 
+html.light-mode .stage-title-large, 
+html.light-mode .mosaic-main-header, 
+html.light-mode .deepdive-main-header, 
+html.light-mode .retirement-main-header, 
+html.light-mode .tech-main-header, 
+html.light-mode .contact-main-header { 
   background: linear-gradient(180deg, #1d1d1f 50%, #86868b 100%); 
   -webkit-background-clip: text; 
 }
 
-.light-mode .mosaic-main-sub, 
-.light-mode .deepdive-main-sub, 
-.light-mode .retirement-main-sub, 
-.light-mode .tech-main-sub, 
-.light-mode .contact-main-sub { color: #515154; }
+html.light-mode .mosaic-main-sub, 
+html.light-mode .deepdive-main-sub, 
+html.light-mode .retirement-main-sub, 
+html.light-mode .tech-main-sub, 
+html.light-mode .contact-main-sub { color: #515154; }
 
-.light-mode .unified-glass-card, 
-.light-mode .pillar-glass-block, 
-.light-mode .bento-card,
-.light-mode .social-glass-card,
-.light-mode .wechat-reward-card {
+html.light-mode .unified-glass-card, 
+html.light-mode .pillar-glass-block, 
+html.light-mode .bento-card,
+html.light-mode .social-glass-card,
+html.light-mode .wechat-reward-card {
   background: rgba(255, 255, 255, 0.72) !important;
   backdrop-filter: blur(30px) !important;
   -webkit-backdrop-filter: blur(30px) !important;
@@ -782,80 +782,80 @@ html, body {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 20px 40px rgba(0, 0, 0, 0.04) !important; 
 }
 
-.light-mode .bento-mid-row-inner {
+html.light-mode .bento-mid-row-inner {
   background: rgba(255, 255, 255, 0.72) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 20px 40px rgba(0, 0, 0, 0.04) !important;
 }
 
-.light-mode .mosaic-drag-card {
+html.light-mode .mosaic-drag-card {
   background: rgba(255, 255, 255, 0.75) !important;
   border: 1px solid rgba(0, 0, 0, 0.06) !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
 }
 
-.light-mode .card-tag { color: #2563eb; }
-.light-mode .card-title { color: #1d1d1f; }
+html.light-mode .mosaic-drag-card .card-tag { color: #2563eb; }
+html.light-mode .mosaic-drag-card .card-title { color: #1d1d1f; }
 
-.light-mode .card-inner-brand, .light-mode .pillar-title { color: #1d1d1f; }
-.light-mode .bento-left-brand span { color: #1d1d1f; }
-.light-mode .pillar-desc, .light-mode .bento-left-desc { color: #515154; }
-.light-mode .countdown-value { color: #1d1d1f; text-shadow: none; }
+html.light-mode .card-inner-brand, html.light-mode .pillar-title { color: #1d1d1f; }
+html.light-mode .bento-left-brand span { color: #1d1d1f; }
+html.light-mode .pillar-desc, html.light-mode .bento-left-desc { color: #515154; }
+html.light-mode .countdown-value { color: #1d1d1f; text-shadow: none; }
 
-.light-mode .tech-card-left { background: color-mix(in srgb, var(--page-theme-color) 8%, rgba(255, 255, 255, 0.45)) !important; border: 1px solid color-mix(in srgb, var(--page-theme-color) 25%, rgba(0, 0, 0, 0.06)) !important; }
-.light-mode .tech-card-right { background: rgba(255, 255, 255, 0.45) !important; border: 1px solid rgba(0, 0, 0, 0.12) !important; }
-.light-mode .tech-twin-card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 20px 40px rgba(0, 0, 0, 0.02) !important; }
-.light-mode .tech-card-hero-title, .light-mode .tech-card-framework-tag { color: #1d1d1f !important; }
+html.light-mode .tech-card-left { background: color-mix(in srgb, var(--page-theme-color) 8%, rgba(255, 255, 255, 0.45)) !important; border: 1px solid color-mix(in srgb, var(--page-theme-color) 25%, rgba(0, 0, 0, 0.06)) !important; }
+html.light-mode .tech-card-right { background: rgba(255, 255, 255, 0.45) !important; border: 1px solid rgba(0, 0, 0, 0.12) !important; }
+html.light-mode .tech-twin-card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5), 0 20px 40px rgba(0, 0, 0, 0.02) !important; }
+html.light-mode .tech-card-hero-title, html.light-mode .tech-card-framework-tag { color: #1d1d1f !important; }
 
-.light-mode .social-name { color: #2c2c2e; }
-.light-mode .social-glass-card:hover .social-name { color: var(--page-theme-color) !important; }
+html.light-mode .social-name { color: #2c2c2e; }
+html.light-mode .social-glass-card:hover .social-name { color: var(--page-theme-color) !important; }
 
-.light-mode .social-icon-wrapper svg { color: rgba(0, 0, 0, 0.55) !important; }
-.light-mode .social-glass-card:hover .social-icon-wrapper svg { color: #000000 !important; }
-.light-mode .reward-caption { color: #86868b; }
+html.light-mode .social-icon-wrapper svg { color: rgba(0, 0, 0, 0.55) !important; }
+html.light-mode .social-glass-card:hover .social-icon-wrapper svg { color: #000000 !important; }
+html.light-mode .reward-caption { color: #86868b; }
 
-.light-mode .tech-card-left .tech-card-meta-tag, .light-mode .tech-card-left .tech-card-corner-logo { color: var(--page-theme-color) !important; }
-.light-mode .tech-card-right .tech-card-meta-tag, .light-mode .tech-card-right .tech-card-corner-logo { color: #86868b !important; }
-.light-mode .tech-card-hero-zh, .light-mode .tech-card-question { color: #515154 !important; }
-.light-mode .tech-structured-doc { background: rgba(255, 255, 255, 0.45) !important; border-color: rgba(0,0,0,0.04) !important; }
-.light-mode .doc-text-paragraph { color: #2c2c2e !important; }
-.light-mode .tech-line-path { stroke: color-mix(in srgb, var(--page-theme-color) 35%, rgba(0, 0, 0, 0.12)) !important; }
+html.light-mode .tech-card-left .tech-card-meta-tag, html.light-mode .tech-card-left .tech-card-corner-logo { color: var(--page-theme-color) !important; }
+html.light-mode .tech-card-right .tech-card-meta-tag, html.light-mode .tech-card-right .tech-card-corner-logo { color: #86868b !important; }
+html.light-mode .tech-card-hero-zh, html.light-mode .tech-card-question { color: #515154 !important; }
+html.light-mode .tech-structured-doc { background: rgba(255, 255, 255, 0.45) !important; border-color: rgba(0,0,0,0.04) !important; }
+html.light-mode .doc-text-paragraph { color: #2c2c2e !important; }
+html.light-mode .tech-line-path { stroke: color-mix(in srgb, var(--page-theme-color) 35%, rgba(0, 0, 0, 0.12)) !important; }
 
-.light-mode .station-clock-wrapper { background: #eaeaea; border-color: rgba(0,0,0,0.06); box-shadow: inset 0 2px 10px rgba(0,0,0,0.06); }
-.light-mode .flap-card { background: #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
-.light-mode .card-half.top { background: #ffffff; border-bottom-color: #e5e5ea; }
-.light-mode .card-half.bottom { background: #f2f2f7; }
-.light-mode .digit-inner { color: #1d1d1f; }
-.light-mode .clock-colon { color: rgba(0,0,0,0.2); }
-.light-mode .clock-caption { color: #86868b; }
-.light-mode .bento-divider { background: rgba(0, 0, 0, 0.06); }
-.light-mode .progress-bar-track { background: rgba(0, 0, 0, 0.05); }
-.light-mode .progress-mini-label { color: rgba(0, 0, 0, 0.35); }
+html.light-mode .station-clock-wrapper { background: #eaeaea; border-color: rgba(0,0,0,0.06); box-shadow: inset 0 2px 10px rgba(0,0,0,0.06); }
+html.light-mode .flap-card { background: #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+html.light-mode .card-half.top { background: #ffffff; border-bottom-color: #e5e5ea; }
+html.light-mode .card-half.bottom { background: #f2f2f7; }
+html.light-mode .digit-inner { color: #1d1d1f; }
+html.light-mode .clock-colon { color: rgba(0,0,0,0.2); }
+html.light-mode .clock-caption { color: #86868b; }
+html.light-mode .bento-divider { background: rgba(0, 0, 0, 0.06); }
+html.light-mode .progress-bar-track { background: rgba(0, 0, 0, 0.05); }
+html.light-mode .progress-mini-label { color: rgba(0, 0, 0, 0.35); }
 
-.light-mode .floating-dock-island { background: rgba(255, 255, 255, 0.78); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); }
-.light-mode .dock-mobile-trigger { color: #1d1d1f; }
-.light-mode .dock-btn { color: rgba(0, 0, 0, 0.5); }
-.light-mode .dock-btn.active { color: #1d1d1f; background: rgba(0, 0, 0, 0.06); }
-.light-mode .dock-btn .dot { background: rgba(0, 0, 0, 0.2); }
+html.light-mode .floating-dock-island { background: rgba(255, 255, 255, 0.78); border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); }
+html.light-mode .dock-mobile-trigger { color: #1d1d1f; }
+html.light-mode .dock-btn { color: rgba(0, 0, 0, 0.5); }
+html.light-mode .dock-btn.active { color: #1d1d1f; background: rgba(0, 0, 0, 0.06); }
+html.light-mode .dock-btn .dot { background: rgba(0, 0, 0, 0.2); }
 
-.light-mode .spotlight-container { mix-blend-mode: normal !important; opacity: 0.95 !important; }
-.light-mode .spotlight { 
+html.light-mode .spotlight-container { mix-blend-mode: normal !important; opacity: 0.95 !important; }
+html.light-mode .spotlight { 
   background: conic-gradient(at top center, transparent 0%, transparent 43%, color-mix(in srgb, var(--page-theme-color) 12%, transparent) 46.5%, color-mix(in srgb, var(--page-theme-color) 45%, #ffffff) 50%, color-mix(in srgb, var(--page-theme-color) 12%, transparent) 53.5%, transparent 57%, transparent 100% ) !important; 
   filter: blur(40px) !important; 
 }
-.light-mode .progress-percentage { color: var(--page-theme-color) !important; }
+html.light-mode .progress-percentage { color: var(--page-theme-color) !important; }
 
 /* ☀️ 浅色模式下的 Popover 弹窗适配 */
-.light-mode .dock-popover-menu {
+html.light-mode .dock-popover-menu {
   background: color-mix(in srgb, var(--page-theme-color) 12%, rgba(255, 255, 255, 0.85)) !important;
   border: 1px solid color-mix(in srgb, var(--page-theme-color) 30%, rgba(0, 0, 0, 0.08)) !important;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.6) !important;
 }
 
-.light-mode .dock-popover-item { color: rgba(0, 0, 0, 0.55) !important; }
-.light-mode .dock-popover-item:hover { color: #1d1d1f !important; background: rgba(0, 0, 0, 0.04) !important; }
-.light-mode .dock-popover-item.active { color: #1d1d1f !important; background: rgba(0, 0, 0, 0.06) !important; }
-.light-mode .dock-popover-item .dot { background: rgba(0, 0, 0, 0.2) !important; }
+html.light-mode .dock-popover-item { color: rgba(0, 0, 0, 0.55) !important; }
+html.light-mode .dock-popover-item:hover { color: #1d1d1f !important; background: rgba(0, 0, 0, 0.04) !important; }
+html.light-mode .dock-popover-item.active { color: #1d1d1f !important; background: rgba(0, 0, 0, 0.06) !important; }
+html.light-mode .dock-popover-item .dot { background: rgba(0, 0, 0, 0.2) !important; }
 
 /* ========================================================
    10. ⚡ 低性能降级模式 (Performance Guard)
@@ -919,7 +919,7 @@ html, body {
   .skills-grid-wrapper, .deepdive-pillars-matrix { flex-direction: column; gap: 12px !important; width: 100%; }
   .mosaic-cloud-flexbox { gap: 12px 8px !important; padding: 0; width: 100%; }
   .mosaic-drag-card { padding: 8px 14px !important; border-radius: 12px !important; }
-  .card-title { font-size: 0.82rem !important; }
+  .mosaic-drag-card .card-title { font-size: 0.82rem !important; }
   .social-links-grid { grid-template-columns: repeat(2, 1fr); gap: 10px !important; }
 
   .station-clock-wrapper { padding: 10px 12px !important; gap: 2px !important; border-radius: 16px !important; }

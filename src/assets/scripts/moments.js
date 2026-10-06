@@ -1,4 +1,4 @@
-// src/assets/js/moments.js
+// src/assets/scripts/moments.js
 
 (() => {
   let momentsData = [];
@@ -56,7 +56,6 @@
     });
   };
 
-  // 全量存入文本、评论、点赞人
   const saveMomentsTextData = async () => {
     const jsonEl = document.getElementById('moments-json');
     if (!jsonEl) return;
@@ -82,7 +81,6 @@
     } catch (err) {}
   };
 
-  // 图片 Base64 + 元数据缓存
   const initImageCache = async () => {
     const lazyImgs = document.querySelectorAll('img[data-src]');
     if (!lazyImgs.length) return;
@@ -152,7 +150,6 @@
     }
   };
 
-  // 0ms 双轨还原点赞 UI
   const restoreLikesUI = async () => {
     const localStore = getLocalLikes();
     const cards = document.querySelectorAll('article.detail-card');
@@ -171,7 +168,7 @@
       req.onsuccess = () => {
         const records = req.result || [];
         records.forEach(record => {
-          if (record.id.startsWith('post_')) {
+          if (record.id && record.id.startsWith('post_')) {
             const momentId = record.id.replace('post_', '');
             const card = document.querySelector(`article[data-detail-id="${momentId}"]`);
             if (card && typeof record.liked === 'boolean') {
@@ -184,7 +181,6 @@
     } catch (e) {}
   };
 
-  // 72px 黄金比例爆裂动画
   const playCardCenterHeartAnimation = (cardEl) => {
     if (!cardEl) return;
     const oldAnimation = cardEl.querySelector('.qm-heart-anim-overlay');
@@ -192,41 +188,93 @@
 
     const overlay = document.createElement('div');
     overlay.className = 'qm-heart-anim-overlay';
-    overlay.innerHTML = `
-      <div class="qm-anim-glow"></div>
-      <div class="qm-anim-ring"></div>
-      <div class="qm-anim-dots">
-        <span class="dot d1"></span><span class="dot d2"></span>
-        <span class="dot d3"></span><span class="dot d4"></span>
-        <span class="dot d5"></span><span class="dot d6"></span>
-        <span class="dot d7"></span><span class="dot d8"></span>
-      </div>
-      <svg viewBox="0 0 24 24" class="qm-anim-heart">
-        <defs>
-          <linearGradient id="qmGradGolden" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ff6b81" />
-            <stop offset="100%" stop-color="#ff4757" />
-          </linearGradient>
-        </defs>
-        <path fill="url(#qmGradGolden)" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-      </svg>
-    `;
+
+    const glow = document.createElement('div');
+    glow.className = 'qm-anim-glow';
+
+    const ring = document.createElement('div');
+    ring.className = 'qm-anim-ring';
+
+    const dots = document.createElement('div');
+    dots.className = 'qm-anim-dots';
+    for (let i = 1; i <= 8; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'dot d' + i;
+      dots.appendChild(dot);
+    }
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "qm-anim-heart");
+
+    const defs = document.createElementNS(svgNS, "defs");
+    const grad = document.createElementNS(svgNS, "linearGradient");
+    grad.setAttribute("id", "qmGradGolden");
+    grad.setAttribute("x1", "0%");
+    grad.setAttribute("y1", "0%");
+    grad.setAttribute("x2", "100%");
+    grad.setAttribute("y2", "100%");
+
+    const stop1 = document.createElementNS(svgNS, "stop");
+    stop1.setAttribute("offset", "0%");
+    stop1.setAttribute("stop-color", "#ff6b81");
+
+    const stop2 = document.createElementNS(svgNS, "stop");
+    stop2.setAttribute("offset", "100%");
+    stop2.setAttribute("stop-color", "#ff4757");
+
+    grad.appendChild(stop1);
+    grad.appendChild(stop2);
+    defs.appendChild(grad);
+
+    const path = document.createElementNS(svgNS, "path");
+    path.setAttribute("fill", "url(#qmGradGolden)");
+    path.setAttribute("d", "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z");
+
+    svg.appendChild(defs);
+    svg.appendChild(path);
+
+    overlay.appendChild(glow);
+    overlay.appendChild(ring);
+    overlay.appendChild(dots);
+    overlay.appendChild(svg);
+
     cardEl.appendChild(overlay);
     setTimeout(() => { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 850);
   };
 
   const isDegradedMode = () => document.documentElement.classList.contains('perf-degraded');
 
-  const cleanKey = (str) => {
-    if (!str) return '';
-    try { str = decodeURIComponent(str); } catch(e) {}
-    return str.toLowerCase().trim().replace(/^[#?]/, '').replace(/^moments\//, '').replace(/\.(md|mdx)$/, '').replace(/%20/g, ' ').replace(/[-_\s]+/g, ' ');
-  };
-
-  const strictCleanKey = (str) => cleanKey(str).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
-
   const ensureLoad = (img) => {
     if (window.triggerImageLoad) window.triggerImageLoad(img);
+    if (img && img.dataset && img.dataset.src) img.src = img.dataset.src;
+  };
+
+  const animateCardIn = (card) => {
+    if (!card) return;
+    card.querySelectorAll('img[data-src]').forEach(ensureLoad);
+    const animEls = card.querySelectorAll('.animate-el');
+    const mediaBoxes = card.querySelectorAll('.media-box');
+
+    if (window.gsap && !isDegradedMode()) {
+      gsap.fromTo(card, 
+        { opacity: 0, y: 18 }, 
+        { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }
+      );
+      if (animEls.length) {
+        gsap.fromTo(animEls, 
+          { opacity: 0, y: 12 }, 
+          { opacity: 1, y: 0, duration: 0.35, stagger: 0.04, ease: "power2.out" }
+        );
+      }
+      if (mediaBoxes.length) {
+        gsap.fromTo(mediaBoxes,
+          { opacity: 0, scale: 0.88, y: 10 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.4, stagger: 0.04, ease: "back.out(1.2)", delay: 0.08 }
+        );
+      }
+    }
   };
 
   const initMomentsEngine = () => {
@@ -248,7 +296,6 @@
 
     const isMobile = () => window.innerWidth <= 992;
     let currentMode = localStorage.getItem('moments_mobile_view_mode') || 'feed';
-    let lastWindowWidth = window.innerWidth;
 
     const initCardScrollObserver = (resetExisting = false) => {
       if (cardObserver) cardObserver.disconnect();
@@ -299,6 +346,33 @@
       });
     };
 
+    const filterTimeline = (shouldResetObserver = false) => {
+      const selectedYear = String(yearDropdown ? yearDropdown.getAttribute('data-value') : 'all').replace(/年$/, '').trim();
+      const selectedMonth = String(monthDropdown ? monthDropdown.getAttribute('data-value') : 'all').trim();
+      let firstVisibleId = null;
+
+      timelineItems.forEach(item => {
+        const itemYear = String(item.getAttribute('data-year') || '').replace(/年$/, '').trim();
+        const itemMonth = String(item.getAttribute('data-month') || '').trim();
+        const matchYear = (selectedYear === 'all' || itemYear === selectedYear);
+        const matchMonth = (selectedMonth === 'all' || itemMonth === selectedMonth);
+
+        const card = document.querySelector(`.detail-card[data-detail-id="${item.getAttribute('data-id')}"]`);
+
+        if (matchYear && matchMonth) {
+          item.style.display = 'flex';
+          item.querySelectorAll('img[data-src]').forEach(ensureLoad);
+          if (card) card.classList.add('feed-visible');
+          if (!firstVisibleId) firstVisibleId = item.getAttribute('data-id');
+        } else {
+          item.style.display = 'none';
+          if (card) card.classList.remove('feed-visible');
+        }
+      });
+
+      initCardScrollObserver(shouldResetObserver);
+    };
+
     const updateViewModeUI = (mode, isModeSwitch = false) => {
       if (!isMobile()) {
         splitViewport.classList.remove('view-mode-feed', 'view-mode-list');
@@ -327,63 +401,148 @@
       filterTimeline(isModeSwitch);
     };
 
-    const filterTimeline = (shouldResetObserver = false) => {
-      const selectedYear = String(yearDropdown ? yearDropdown.getAttribute('data-value') : 'all').replace(/年$/, '').trim();
-      const selectedMonth = String(monthDropdown ? monthDropdown.getAttribute('data-value') : 'all').trim();
-      let firstVisibleId = null;
+    // 🌟 核心跳转引擎：响应全局搜索框导航及 URL Hash 跳转
+    const handleMomentJump = (targetKey) => {
+      if (!targetKey) return;
+      const cleanKey = decodeURIComponent(targetKey).replace('#', '').trim();
+      if (!cleanKey) return;
 
-      timelineItems.forEach(item => {
-        const itemYear = String(item.getAttribute('data-year') || '').replace(/年$/, '').trim();
-        const itemMonth = String(item.getAttribute('data-month') || '').trim();
-        const matchYear = (selectedYear === 'all' || itemYear === selectedYear);
-        const matchMonth = (selectedMonth === 'all' || itemMonth === selectedMonth);
+      let targetCard = document.querySelector(`article.detail-card[data-detail-id="${cleanKey}"]`) ||
+                         document.querySelector(`article.detail-card[data-title="${cleanKey}"]`);
+      
+      let targetTimeline = document.querySelector(`.timeline-item[data-id="${cleanKey}"]`) ||
+                             document.querySelector(`.timeline-item[data-title="${cleanKey}"]`);
 
-        const card = document.querySelector(`.detail-card[data-detail-id="${item.getAttribute('data-id')}"]`);
+      // 模糊保底匹配
+      if (!targetCard) {
+        const cards = Array.from(document.querySelectorAll('article.detail-card'));
+        targetCard = cards.find(c => {
+          const id = c.getAttribute('data-detail-id') || '';
+          const title = c.getAttribute('data-title') || '';
+          return id.includes(cleanKey) || cleanKey.includes(id) || title.includes(cleanKey);
+        });
+      }
 
-        if (matchYear && matchMonth) {
-          item.style.display = 'flex';
-          item.querySelectorAll('img[data-src]').forEach(ensureLoad);
-          if (card) card.classList.add('feed-visible');
-          if (!firstVisibleId) firstVisibleId = item.getAttribute('data-id');
-        } else {
-          item.style.display = 'none';
-          if (card) card.classList.remove('feed-visible');
+      if (!targetCard) return;
+
+      const targetId = targetCard.getAttribute('data-detail-id');
+      if (!targetTimeline && targetId) {
+        targetTimeline = document.querySelector(`.timeline-item[data-id="${targetId}"]`);
+      }
+
+      // 若处于特定年份/月份约束下，强制解开约束展示卡片
+      if (yearDropdown && monthDropdown) {
+        const yearVal = yearDropdown.getAttribute('data-value');
+        const monthVal = monthDropdown.getAttribute('data-value');
+        if (yearVal !== 'all' || monthVal !== 'all') {
+          yearDropdown.setAttribute('data-value', 'all');
+          monthDropdown.setAttribute('data-value', 'all');
+          const yearLabel = yearDropdown.querySelector('.dropdown-label');
+          const monthLabel = monthDropdown.querySelector('.dropdown-label');
+          if (yearLabel) yearLabel.textContent = '年份';
+          if (monthLabel) monthLabel.textContent = '月份';
+          filterTimeline(true);
         }
-      });
+      }
 
-      initCardScrollObserver(shouldResetObserver);
+      // 双端流畅动画与焦点对齐
+      if (!isMobile()) {
+        document.querySelectorAll('.timeline-item').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('article.detail-card').forEach(card => card.classList.remove('active'));
+
+        if (targetTimeline) {
+          targetTimeline.classList.add('active');
+          targetTimeline.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        targetCard.classList.add('active');
+        animateCardIn(targetCard);
+
+        const mainDetailArea = document.querySelector('.main-detail-area .detail-scroll-container');
+        if (mainDetailArea) mainDetailArea.scrollTop = 0;
+      } else {
+        if (splitViewport.classList.contains('view-mode-feed')) {
+          targetCard.classList.add('in-view', 'feed-visible');
+          targetCard.querySelectorAll('img[data-src]').forEach(ensureLoad);
+          setTimeout(() => {
+            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 120);
+        } else {
+          document.querySelectorAll('.timeline-item').forEach(item => item.classList.remove('active'));
+          document.querySelectorAll('article.detail-card').forEach(card => card.classList.remove('active'));
+          if (targetTimeline) targetTimeline.classList.add('active');
+          targetCard.classList.add('active');
+          animateCardIn(targetCard);
+        }
+      }
     };
 
     const handleGlobalClick = async (e) => {
+      const timelineItem = e.target.closest('.timeline-item');
+      if (timelineItem) {
+        const targetId = timelineItem.getAttribute('data-id');
+        if (!targetId) return;
+
+        history.replaceState(null, '', '#' + encodeURIComponent(targetId));
+
+        document.querySelectorAll('.timeline-item').forEach(item => item.classList.remove('active'));
+        timelineItem.classList.add('active');
+
+        document.querySelectorAll('article.detail-card').forEach(card => {
+          if (card.getAttribute('data-detail-id') === targetId) {
+            card.classList.add('active');
+            animateCardIn(card);
+          } else {
+            card.classList.remove('active');
+          }
+        });
+
+        const mainDetailArea = document.querySelector('.main-detail-area .detail-scroll-container');
+        if (mainDetailArea) mainDetailArea.scrollTop = 0;
+        return;
+      }
+
       const box = e.target.closest('.media-box');
       if (box) {
         const momentId = box.getAttribute('data-moment-id');
         const index = parseInt(box.getAttribute('data-index'), 10);
-        let images = [];
-        let moment = momentsData.find(m => String(m.id) === String(momentId));
-        if (moment && moment.images && moment.images.length) images = moment.images;
-
-        if (!images.length) {
-          const grid = box.closest('.detail-media-grid');
-          if (grid) {
-            images = Array.from(grid.querySelectorAll('.media-box img')).map(img => img.dataset.src || img.src).filter(Boolean);
-          }
-        }
-
+        
         const card = box.closest('.detail-card');
+        const grid = box.closest('.detail-media-grid');
+        const targetEl = box.querySelector('img') || box;
+        const moment = momentsData.find(m => String(m.id) === String(momentId));
+
         const dateText = card?.querySelector('.time-location-group span')?.textContent?.trim() || moment?.time || '';
         const locText = card?.querySelector('.location-tag')?.textContent?.trim() || moment?.location || '';
         const titleText = card?.querySelector('.detail-title-text')?.textContent?.trim() || moment?.title || '';
 
-        if (images.length && !isNaN(index)) {
-          window.dispatchEvent(new CustomEvent('quasar:open-lightbox', {
-            detail: { images, index, meta: { date: dateText, location: locText, title: titleText } }
-          }));
+        if (grid) {
+          const imgElements = Array.from(grid.querySelectorAll('.media-box img'));
+          const images = imgElements.map(img => {
+            const realSrc = (img.src && !img.src.startsWith('data:image/svg')) ? img.src : (img.dataset.src || img.src);
+            return {
+              src: realSrc,
+              previewSrc: realSrc,
+              title: titleText,
+              date: dateText,
+              location: locText
+            };
+          });
+
+          if (images.length && !isNaN(index)) {
+            window.dispatchEvent(new CustomEvent('quasar:open-lightbox', {
+              detail: { 
+                images, 
+                index, 
+                meta: { date: dateText, location: locText, title: titleText },
+                originEl: targetEl
+              }
+            }));
+          }
         }
         return;
       }
 
-      // 🔑 点击点赞群岛触发器
       const postLikeBtn = e.target.closest('.post-like-btn');
       if (postLikeBtn) {
         e.preventDefault();
@@ -416,11 +575,25 @@
     document.removeEventListener('click', handleGlobalClick);
     document.addEventListener('click', handleGlobalClick);
 
-    // 状态初始化与挂载
     restoreLikesUI();
     saveMomentsTextData();
     initImageCache();
     updateViewModeUI(currentMode);
+
+    // 🌟 检查存储的 Jump Key 或当前地址栏 Hash 并立即导航定位
+    const pendingJumpKey = sessionStorage.getItem('quasar_jump_key') || window.location.hash;
+    if (pendingJumpKey) {
+      sessionStorage.removeItem('quasar_jump_key');
+      setTimeout(() => handleMomentJump(pendingJumpKey), 150);
+    }
+
+    // 🌟 监听同页（Instant Jump）搜索结果点击事件
+    window.removeEventListener('quasar:moment-jump', window._quasarMomentJumpHandler);
+    window._quasarMomentJumpHandler = (e) => {
+      const key = e.detail?.key || e.detail?.title;
+      if (key) handleMomentJump(key);
+    };
+    window.addEventListener('quasar:moment-jump', window._quasarMomentJumpHandler);
   };
 
   document.addEventListener('DOMContentLoaded', initMomentsEngine);

@@ -6,7 +6,10 @@ import AlbumsHeader from '../components/albums/AlbumsHeader.astro';
 import AlbumsMasonry from '../components/albums/AlbumsMasonry.astro';
 ---
 
-<BaseLayout title={`${ALBUMS_CONFIG.nav} | ${SITE_CONFIG.title}`}>
+<BaseLayout 
+  title={`${ALBUMS_CONFIG.nav} | ${SITE_CONFIG.title}`}
+  description={`${ALBUMS_CONFIG.title}\n${ALBUMS_CONFIG.subtitle}`}
+>
   <div class="gallery-viewport" define:vars={{ themeColor: SITE_CONFIG.themeColor }}>
     <AlbumsHeader />
     <AlbumsMasonry />

@@ -20,6 +20,8 @@ const displayQuote = item?.quote || item?.title || '';
 
 <article 
   class="note-item animate-entrance" 
+  data-id={item?.id}
+  data-title={item?.title}
   data-category={item?.category || '未分类'}
   data-index={index}
   style={`--stagger: ${index + 3};`}

@@ -1,0 +1,212 @@
+/* src/assets/styles/friends.css */
+
+/* 🌟 1. 高性能 60fps 升起淡入动画 */
+@keyframes smoothEntrance {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 🌟 初始状态默认隐藏，防止未加载完成前闪烁 */
+.friends-viewport .main-title,
+.friends-viewport .subtitle-row,
+.friends-viewport .friends-grid > *,
+.friends-viewport #site-info-panel {
+  opacity: 0;
+}
+
+/* 🌟 2. 挂载 .is-loaded 后才一次性精准执行动画 */
+.friends-viewport.is-loaded .main-title {
+  animation: smoothEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 0.06s;
+}
+
+.friends-viewport.is-loaded .subtitle-row {
+  animation: smoothEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 0.10s;
+}
+
+/* 🌟 3. 卡片逐个紧跟入场 */
+.friends-viewport.is-loaded .friends-grid > * {
+  animation: smoothEntrance 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.friends-viewport.is-loaded .friends-grid > *:nth-child(1)  { animation-delay: 0.14s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(2)  { animation-delay: 0.18s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(3)  { animation-delay: 0.22s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(4)  { animation-delay: 0.26s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(5)  { animation-delay: 0.30s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(6)  { animation-delay: 0.34s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(7)  { animation-delay: 0.38s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(8)  { animation-delay: 0.42s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(9)  { animation-delay: 0.46s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(10) { animation-delay: 0.50s; }
+.friends-viewport.is-loaded .friends-grid > *:nth-child(n+11) { animation-delay: 0.54s; }
+
+/* 🌟 4. 本站信息面板压轴 */
+.friends-viewport.is-loaded #site-info-panel {
+  animation: smoothEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 0.38s;
+}
+
+/* ---------------- 基础页面布局与结构 ---------------- */
+
+.friends-viewport {
+  width: 100%;
+  min-height: 100vh;
+  padding: 7.5rem 0 80px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.friends-container {
+  width: 90%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.friends-header {
+  display: flex;
+  flex-direction: column;
+}
+
+.friends-viewport .main-title {
+  margin-top: 1.618rem;
+  font-size: 3.5rem;
+  font-weight: 900;
+  line-height: 1.618;
+  background: linear-gradient(180deg, #ffffff 60%, #999999 100%);
+  -webkit-background-clip: text;
+}
+
+.subtitle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.friends-viewport .subtitle {
+  margin-bottom: 2rem;
+  font-size: 1.05rem;
+  color: #86868b;
+  font-weight: 300;
+}
+
+.relay-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.relay-badge-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding: 0.45rem 0.95rem !important;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 30px;
+  color: #ffffff;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  width: fit-content !important;
+  height: fit-content !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.relay-badge-btn:hover {
+  background: rgba(var(--themeColorRgb, 1, 94, 251), 0.15);
+  border-color: var(--themeColor, #015EFB);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--themeColorRgb, 1, 94, 251), 0.35);
+}
+
+.relay-pulse-dot {
+  width: 6px;
+  height: 6px;
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+  background-color: var(--themeColor, #015EFB);
+  box-shadow: 0 0 8px var(--themeColor, #015EFB);
+  flex-shrink: 0;
+  animation: relayPulse 2s infinite ease-in-out;
+}
+
+@keyframes relayPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+.relay-badge-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.2s ease;
+}
+
+.relay-badge-btn:hover svg {
+  transform: translateX(3px);
+}
+
+.friends-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+/* 📱 响应式与竖屏适配 */
+@media (max-width: 768px) {
+  .friends-viewport { padding-top: 6.5rem !important; }
+  .friends-viewport .main-title { font-size: 2.2rem !important; }
+  .subtitle-row { flex-direction: column; align-items: flex-start; }
+  .friends-grid { grid-template-columns: 1fr; }
+}
+
+/* ☀️ 明亮模式 */
+html.light-mode .friends-viewport .main-title {
+  background: linear-gradient(180deg, #1d1d1f 60%, #6e6e73 100%);
+  -webkit-background-clip: text;
+}
+
+html.light-mode .relay-badge-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1d1d1f;
+}
+
+/* ⚡ 降级模式适配 */
+html.perf-degraded .friends-viewport .main-title,
+html.perf-degraded .friends-viewport .subtitle-row,
+html.perf-degraded .friends-viewport .friends-grid > *,
+html.perf-degraded .friends-viewport #site-info-panel {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ⚡ 系统减弱动效适配 */
+@media (prefers-reduced-motion: reduce) {
+  .friends-viewport .main-title,
+  .friends-viewport .subtitle-row,
+  .friends-viewport .friends-grid > *,
+  .friends-viewport #site-info-panel {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

@@ -88,6 +88,18 @@ const initPostDetailEngine = () => {
       link.addEventListener('click', closeDrawer);
     });
   }
+
+  // --- 4. 🌟 a11y 修复：为 Markdown 自动生成的 GFM 任务复选框等 input 自动补全无障碍标签 ---
+  const markdownInputs = document.querySelectorAll('.markdown-body input, .main-article-content input');
+  markdownInputs.forEach((input) => {
+    if (!input.hasAttribute('aria-label') && (!input.labels || input.labels.length === 0)) {
+      if (input.type === 'checkbox') {
+        input.setAttribute('aria-label', '任务选项复选框');
+      } else {
+        input.setAttribute('aria-label', '文章表单输入框');
+      }
+    }
+  });
 };
 
 document.addEventListener('astro:page-load', initPostDetailEngine);

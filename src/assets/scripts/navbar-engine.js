@@ -1,7 +1,38 @@
 // src/assets/scripts/navbar-engine.js
 
+// ⚡ 全局 ClientRouter 路由切换转圈状态控制
+if (typeof window !== 'undefined' && !window.__QUASAR_ROUTE_PROGRESS_BOUND__) {
+  window.__QUASAR_ROUTE_PROGRESS_BOUND__ = true;
+
+  document.addEventListener('astro:before-preparation', () => {
+    const navbar = document.getElementById('quasar-navbar-element');
+    if (navbar) navbar.classList.add('is-routing');
+  });
+
+  document.addEventListener('astro:page-load', () => {
+    const navbar = document.getElementById('quasar-navbar-element');
+    
+    // 🌟 1. 先同步恢复 perf-degraded 状态，确保图标预准备好
+    const savedPerf = localStorage.getItem('quasar-perf');
+    const isDegraded = savedPerf === 'degraded';
+    document.documentElement.classList.toggle('perf-degraded', isDegraded);
+    if (navbar) navbar.classList.toggle('perf-degraded', isDegraded);
+
+    // 🌟 2. 状态同步完毕后，再移除转圈 class，直接平滑变为对应状态图标
+    if (navbar) navbar.classList.remove('is-routing');
+  });
+}
+
 export function initNavbarEngine() {
   if (typeof document === 'undefined') return;
+
+  const navbarMain = document.getElementById('quasar-navbar-element');
+
+  // ⚡ 1. 修复：页面加载后自动同步恢复低性能模式状态
+  const savedPerf = localStorage.getItem('quasar-perf');
+  const isDegraded = savedPerf === 'degraded';
+  document.documentElement.classList.toggle('perf-degraded', isDegraded);
+  if (navbarMain) navbarMain.classList.toggle('perf-degraded', isDegraded);
 
   if (!window.gsap) {
     setTimeout(initNavbarEngine, 50);
@@ -25,12 +56,26 @@ export function initNavbarEngine() {
       window.dispatchEvent(new CustomEvent('nav-update-music-progress'));
     });
     audio.addEventListener('play', () => {
+      audio._pausedAt = null;
+      if (audio._hideTimer) {
+        clearTimeout(audio._hideTimer);
+        audio._hideTimer = null;
+      }
       window.dispatchEvent(new CustomEvent('nav-update-music-ui'));
     });
     audio.addEventListener('pause', () => {
+      if (!audio.ended && !audio._pausedAt) {
+        audio._pausedAt = Date.now();
+      }
       window.dispatchEvent(new CustomEvent('nav-update-music-ui'));
     });
     audio.addEventListener('ended', () => {
+      audio._pausedAt = null;
+      if (audio._hideTimer) {
+        clearTimeout(audio._hideTimer);
+        audio._hideTimer = null;
+      }
+      hideNavbarMusicControls();
       window.dispatchEvent(new CustomEvent('nav-update-music-ui'));
     });
   }
@@ -51,7 +96,6 @@ export function initNavbarEngine() {
   const navCenter = qId('nav-center');
   const themeBtn = qId('theme-toggle-btn');
   const mobileThemeBtn = qId('mobile-theme-btn');
-  const navbarMain = qId('quasar-navbar-element');
   const perfBtn = qId('perf-toggle-btn');
   const mobilePerfBtn = qId('mobile-perf-btn');
   const perfAlert = qId('nav-perf-alert');
@@ -166,10 +210,20 @@ export function initNavbarEngine() {
     if (navMusicInfo) navMusicInfo.classList.remove('active');
     syncNavLeftWidths();
 
+    if (audio._hideTimer) {
+      clearTimeout(audio._hideTimer);
+      audio._hideTimer = null;
+    }
+
     const pauseCountdownSvg = navPlayBtn?.querySelector('.pause-countdown-svg');
     if (pauseCountdownSvg) {
       window.gsap.killTweensOf(pauseCountdownSvg);
       window.gsap.set(pauseCountdownSvg, { opacity: 0 });
+    }
+
+    if (pauseCountdownBar) {
+      window.gsap.killTweensOf(pauseCountdownBar);
+      window.gsap.set(pauseCountdownBar, { opacity: 0, strokeDashoffset: 0 });
     }
 
     const els = [navMusicInfo, navPlayBtn, navLyricBtn, navVolumeWrapper].filter(Boolean);
@@ -180,6 +234,7 @@ export function initNavbarEngine() {
       if (degraded) {
         el.style.display = 'none';
         el.style.opacity = '0';
+        el.style.transform = 'scale(0.88)';
       } else {
         window.gsap.to(el, {
           opacity: 0, scale: 0.88, y: -2, duration: 0.2, ease: "power2.inOut", pointerEvents: 'none', force3D: true,
@@ -199,13 +254,12 @@ export function initNavbarEngine() {
     syncNavCenterVisibility(immediate);
   };
 
-let lastLyricChangeTime = 0; // 🌟 新增：切词冷却时间戳，防止多源冲突闪烁
+  let lastLyricChangeTime = 0;
 
   const setNavLyricText = (text) => {
     const matchText = text || '';
     if (matchText === currentNavLyricText) return;
 
-    // 🌟 防闪烁冷却锁：如果距离上次切词不到 300ms 且新歌词不为空，则直接拦截，防止 music.astro 与全局脚本互抢控制权
     const now = Date.now();
     if (now - lastLyricChangeTime < 300 && matchText !== '') return;
     lastLyricChangeTime = now;
@@ -218,7 +272,6 @@ let lastLyricChangeTime = 0; // 🌟 新增：切词冷却时间戳，防止多�
       if (checkDegraded()) {
         lyricTextEl.innerText = currentNavLyricText;
       } else {
-        // 适中的纯渐出渐入（淡出 0.12s，淡入 0.18s）
         window.gsap.to(lyricTextEl, {
           opacity: 0,
           duration: 0.12,
@@ -275,19 +328,23 @@ let lastLyricChangeTime = 0; // 🌟 新增：切词冷却时间戳，防止多�
       iconVolMute.style.display = isMuted ? 'block' : 'none';
     }
 
-    if (!hasSource) {
+    if (!hasSource || audio.ended) {
       if (pauseCountdownSvg) window.gsap.set(pauseCountdownSvg, { opacity: 0 });
       hideNavbarMusicControls();
       return;
     }
 
     if (!audio.paused) {
+      audio._pausedAt = null;
       if (audio._hideTimer) { clearTimeout(audio._hideTimer); audio._hideTimer = null; }
       if (pauseCountdownSvg) { window.gsap.killTweensOf(pauseCountdownSvg); window.gsap.set(pauseCountdownSvg, { opacity: 0 }); }
-      if (pauseCountdownBar) { window.gsap.killTweensOf(pauseCountdownBar); window.gsap.set(pauseCountdownBar, { opacity: 0 }); }
+      if (pauseCountdownBar) { window.gsap.killTweensOf(pauseCountdownBar); window.gsap.set(pauseCountdownBar, { opacity: 0, strokeDashoffset: 0 }); }
       showNavbarMusicControls(true);
     } else {
-      const pausedDuration = audio._pausedAt ? (Date.now() - audio._pausedAt) : 0;
+      if (!audio._pausedAt) {
+        audio._pausedAt = Date.now();
+      }
+      const pausedDuration = Date.now() - audio._pausedAt;
       if (pausedDuration < 10000) {
         showNavbarMusicControls(true);
         if (pauseCountdownSvg && pauseCountdownBar && !checkDegraded()) {
@@ -296,15 +353,28 @@ let lastLyricChangeTime = 0; // 🌟 新增：切词冷却时间戳，防止多�
           const remainingSecs = Math.max(0, (10000 - pausedDuration) / 1000);
           window.gsap.set(pauseCountdownSvg, { opacity: 1, force3D: true });
           window.gsap.set(pauseCountdownBar, { strokeDashoffset: initialOffset, opacity: 1, force3D: true });
-          window.gsap.to(pauseCountdownBar, { strokeDashoffset: 100.53, duration: remainingSecs, ease: "none", force3D: true });
+          
+          window.gsap.to(pauseCountdownBar, { 
+            strokeDashoffset: 100.53, 
+            duration: remainingSecs, 
+            ease: "none", 
+            force3D: true,
+            onComplete: () => {
+              if (audio.paused) {
+                hideNavbarMusicControls();
+              }
+            }
+          });
         } else if (pauseCountdownSvg) {
           window.gsap.set(pauseCountdownSvg, { opacity: 0 });
         }
 
         if (!audio._hideTimer) {
           audio._hideTimer = setTimeout(() => {
-            if (audio.paused) hideNavbarMusicControls();
             audio._hideTimer = null;
+            if (audio.paused) {
+              hideNavbarMusicControls();
+            }
           }, 10000 - pausedDuration);
         }
       } else {

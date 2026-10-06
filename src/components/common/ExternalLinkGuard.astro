@@ -105,10 +105,14 @@ const {
         overlay.style.transition = '';
         overlay.classList.add('active');
 
+        // 根据低性能模式动态调整跳转延迟（低性能模式下动画 350ms 即可完成，缩短等待时间）
+        const isDegraded = document.documentElement.classList.contains('perf-degraded');
+        const timeoutDuration = isDegraded ? 350 : 950;
+
         setTimeout(() => {
           window.open(pendingUrl, '_blank', 'noopener,noreferrer');
           closeModal();
-        }, 950);
+        }, timeoutDuration);
       };
     }
 
@@ -418,16 +422,16 @@ const {
     color: #000000;
   }
 
-  /* ⚡ 低性能降级 */
+  /* ⚡ 低性能模式：保持全屏铺满动画，但将展开速度提到 350ms，且关闭大开销毛玻璃 */
   :global(html.perf-degraded) .guard-transition-overlay {
-    transition: none !important;
+    transition: clip-path 0.35s linear !important;
   }
   :global(html.perf-degraded) .guard-backdrop {
     backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     background: rgba(3, 3, 5, 0.95) !important;
   }
   :global(html.perf-degraded) .guard-container {
-    transition: opacity 0.15s ease !important;
     transform: none !important;
   }
 

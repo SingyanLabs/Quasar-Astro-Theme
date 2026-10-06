@@ -1,5 +1,7 @@
 ---
 // src/pages/posts/[...slug].astro
+export const prerender = true;
+
 import { getCollection, render } from 'astro:content';
 import { SITE_CONFIG } from '../../config.ts';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -27,8 +29,14 @@ const hexToRgb = (hex) => {
 };
 const themeColor = SITE_CONFIG.themeColor || '#015EFB';
 const themeColorRgb = hexToRgb(themeColor);
+
+// 🌟 提取 Markdown 的 description，降级使用 subtitle，若均无则拼接标题与站点副标题
+const postDescription = data.description || data.subtitle || `${data.title}\n${SITE_CONFIG.subtitle}`;
 ---
-<BaseLayout title={`${data.title} | ${SITE_CONFIG.title}`}>
+<BaseLayout 
+  title={`${data.title} | ${SITE_CONFIG.title}`}
+  description={postDescription}
+>
   <div class="post-detail-viewport" style={`--themeColor: ${themeColor}; --themeColorRgb: ${themeColorRgb};`}>
     <div class="post-detail-container">
       

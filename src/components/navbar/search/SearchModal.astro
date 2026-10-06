@@ -1,8 +1,9 @@
 ---
 ---
-<div class="search-modal-overlay" id="search-modal-overlay" aria-hidden="true">
+<!-- 🌟 a11y 修复：添加 inert 属性，确保 aria-hidden="true" 时包含的按钮/链接不可聚焦 -->
+<div class="search-modal-overlay" id="search-modal-overlay" aria-hidden="true" inert>
   <div class="search-modal-backdrop" id="search-modal-backdrop"></div>
-  <div class="search-modal-container">
+  <div class="search-modal-container" role="dialog" aria-modal="true" aria-label="搜索结果">
     <div class="modal-search-header">
       <div class="modal-title-group">
         <svg viewBox="0 0 24 24" fill="none" class="modal-search-icon">
@@ -10,7 +11,8 @@
         </svg>
         <span class="modal-query-label" id="modal-query-label">全文检索结果</span>
       </div>
-      <button class="modal-close-chip" id="modal-close-chip" type="button">ESC</button>
+      <!-- 🌟 a11y 修复：为关闭按钮补齐 aria-label 无障碍说明 -->
+      <button class="modal-close-chip" id="modal-close-chip" type="button" aria-label="关闭搜索结果">ESC</button>
     </div>
 
     <div class="modal-results-body">
@@ -28,8 +30,9 @@
 </div>
 
 <style>
-  .search-modal-overlay { position: fixed; inset: 0; z-index: 90; display: flex; align-items: flex-start; justify-content: center; padding-top: 5.375rem; opacity: 0; pointer-events: none; transition: opacity 0.22s ease; }
-  .search-modal-overlay.active { opacity: 1; pointer-events: auto; }
+  /* 🌟 a11y 修复：增加了 visibility: hidden 防防御性控制，关闭状态下绝不占用焦点树 */
+  .search-modal-overlay { position: fixed; inset: 0; z-index: 90; display: flex; align-items: flex-start; justify-content: center; padding-top: 5.375rem; opacity: 0; pointer-events: none; visibility: hidden; transition: opacity 0.22s ease, visibility 0.22s ease; }
+  .search-modal-overlay.active { opacity: 1; pointer-events: auto; visibility: visible; }
   .search-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
   .search-modal-container { position: relative; width: 90vw; max-width: 38.75rem; background: rgba(22, 22, 30, 0.95); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 1.125rem; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7); overflow: hidden; display: flex; flex-direction: column; z-index: 2; }
   .modal-search-header { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1.125rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
@@ -55,6 +58,7 @@
   :global(.badge-文章) { color: #60a5fa !important; background: rgba(96, 165, 250, 0.15) !important; border: 1px solid rgba(96, 165, 250, 0.25) !important; }
   :global(.badge-时刻) { color: #34d399 !important; background: rgba(52, 211, 153, 0.15) !important; border: 1px solid rgba(52, 211, 153, 0.25) !important; }
   :global(.badge-音乐) { color: #f472b6 !important; background: rgba(244, 114, 182, 0.15) !important; border: 1px solid rgba(244, 114, 182, 0.25) !important; }
+  :global(.badge-语阁) { color: #a78bfa !important; background: rgba(167, 139, 250, 0.15) !important; border: 1px solid rgba(167, 139, 250, 0.25) !important; }
   :global(.result-card-snippet) { font-size: 0.8rem; color: rgba(255, 255, 255, 0.55) !important; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   .modal-footer-hints { display: flex; align-items: center; gap: 1rem; padding: 0.625rem 1.125rem; background: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.72rem; color: rgba(255, 255, 255, 0.45); }
