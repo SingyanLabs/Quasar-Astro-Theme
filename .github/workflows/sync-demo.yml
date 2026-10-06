@@ -1,0 +1,60 @@
+name: Sync Main to Demo
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Inject Vercel Adapter
+        run: |
+          pnpm add -D @astrojs/vercel
+
+          node -e '
+            const fs = require("fs");
+            let code = fs.readFileSync("astro.config.mjs", "utf8");
+
+            if (!code.includes("@astrojs/vercel")) {
+              code = "import vercel from \"@astrojs/vercel\";\n" + code;
+            }
+
+            if (/adapter:\s*[\w\.\(\)]+/.test(code)) {
+              code = code.replace(/adapter:\s*[\w\.\(\)]+/, "adapter: vercel()");
+            } else if (/defineConfig\(\{/.test(code)) {
+              code = code.replace(/defineConfig\(\{/, "defineConfig({\n  adapter: vercel(),");
+            }
+
+            fs.writeFileSync("astro.config.mjs", code);
+          '
+
+          echo "=================== Modified astro.config.mjs ==================="
+          cat astro.config.mjs
+          echo "================================================================="
+
+      - name: Push to demo branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -B demo
+          git add -A
+          git commit -m "chore(demo): auto sync from main and inject vercel adapter"
+          git push origin demo --force
