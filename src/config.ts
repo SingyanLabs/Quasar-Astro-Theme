@@ -164,8 +164,6 @@ relay: {
   },
 };
 
-=======
->>>>>>> parent of ddaaaf1 (Perf: optimize performance and energy efficiency)
 export const ABOUT_CONFIG = {
   name: "Quasar",
   manifesto: "记录技术、生活与思考的数字空间",
@@ -347,45 +345,3 @@ export const ABOUT_CONFIG = {
     { label: "联系方式", target: "5" }
   ]
 };
-<<<<<<< HEAD
-=======
-
-export const NOTES_CONFIG = {
-  tagline: 'REFLECTIONS & NOTES',
-  title: '📓 随想录',
-  subtitle: '字句里的灵光与感悟，给夜深时独自闪烁的灵魂。',
-};
-
-// 🌟 独立友链页面配置
-export const FRIENDS_CONFIG = {
-  tagline: 'CONNECT & RELAY',
-  title: '🧑🏻‍🤝‍🧑🏻 友情链接',
-  subtitle: '与志同道合的技术者与创作者相遇',
-
-relay: {
-    text: '开往 · 友链接力计划',
-    type: 'js' as 'js' | 'html', // 二选一：'js' 或 'html'
-    jsUrl: 'https://www.travellings.cn/assets/js/go.js', // js 模式：Quasar 中转页引入此 JS
-    htmlUrl: 'https://www.travellings.cn/go.html',       // html 模式：直接跳转此网址
-  // Relay 跳转页自定义文案
-    pageTitle: '正在跳转至下一个星系...',
-    pageSubtitle: '随机前往志同道合的技术与创作者小窝',
-  },
-
-  // 🌟 交换友链卡片
-  exchange: {
-    tag: '// EXCHANGE',
-    title: '交换友链？',
-    description: '如果你也有一个存放内容与自我的个人博客，欢迎随时与我联系交换链接。',
-    buttonText: '申请链接',
-    link: 'mailto:your-email@example.com',
-  },
-
-  // 🌟 本站信息面板
-  siteInfoTag: '// 本站信息',
-  siteInfo: {
-    url: 'www.example.com',
-    avatar: 'favicon.ico',
-  },
-};
->>>>>>> parent of ddaaaf1 (Perf: optimize performance and energy efficiency)
