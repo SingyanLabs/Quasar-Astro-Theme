@@ -71,7 +71,7 @@ Quasar/
 │   ├── posts/              # 动态博文路由 ([...slug].astro)
 │   └── index, about, music, moments, friends, notes... # 主频道入口
 ├── utils/                  # 通用函数链 (剪贴板 clipboard, 视区侦测 visibilityGuard 等)
-├── config.ts               # 🔴 站点的灵魂：全局变量、模块开关与基础信息配置
+├── config.ts               # 全局变量、模块开关与基础信息配置
 └── content.config.ts       # Astro Content 类型结构安全定义
 
 ```
@@ -145,13 +145,10 @@ Quasar 的数据高度分离，不依赖任何外部 CMS 数据库。所有的�
 
 ## 📜 许可证 (License)
 
-本项目采用 [MIT License](https://www.google.com/search?q=./LICENSE) 开源协议。
+本项目采用 [MIT License](https://www.google.com/search?q=MIT-LICENSE) 开源协议。
 允许自由二次开发与分发，惟请保留原仓库的版权声明。
 
 ---
 
-*Architected with ❤️ by [<MatChaLab>](https://github.com/matchalab).*
+*Architected with ❤️ by [SingyanLabs](https://github.com/singyanlabs).*
 
-```
-
-```
