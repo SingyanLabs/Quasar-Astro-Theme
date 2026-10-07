@@ -2,7 +2,7 @@
   <a title="中文" href="/README-CN.md">中文</a>
 </div>
 <div align="left">
-<img src="./.source/Quasar-logo.svg" height="200" alt="Quasar Logo" />
+<img src="./.source/Quasar-logo.svg" height="220" alt="Quasar Logo" />
 
 # 🌌 Quasar - A cosmic-inspired Astro theme
 
@@ -18,8 +18,8 @@ Leveraging Astro's Islands Architecture, Quasar squeezes every drop of frontend 
 
 ## 📸 Screenshots
 
-<img src="./.source/Screenshot-desktop.png" height="300" alt="Quasar Screenshot Desktop" />
-<img src="./.source/Screenshot-mobile.png" height="300" alt="Quasar Screenshot Mobile" />
+<img src="./.source/Screenshot-desktop.png" height="320" alt="Quasar Screenshot Desktop" />
+<img src="./.source/Screenshot-mobile.png" height="320" alt="Quasar Screenshot Mobile" />
 
 📢 **Demo**: [Quasar Official](https://demo.singyan.top/) | [Singyan Blog](https://singyan.top/)
 

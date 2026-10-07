@@ -2,7 +2,7 @@
   <a title="English" href="/README.md">English</a>
 </div>
 <div align="left">
-<img src="./.source/Quasar-logo.svg" height="60" alt="Quasar Logo" />
+<img src="./.source/Quasar-logo.svg" height="220" alt="Quasar Logo" />
 
 # 🌌 Quasar - A cosmic-inspired Astro theme
 
@@ -21,8 +21,8 @@ Quasar 不仅仅是一个博客，它是你的「数字分身」。
 
 ## 📸 截图预览 (Screenshots)
 
-<img src="./.source/Screenshot-desktop.png" height="300" alt="Quasar Screenshot Desktop" />
-<img src="./.source/Screenshot-mobile.png" height="300" alt="Quasar Screenshot Mobile" />
+<img src="./.source/Screenshot-desktop.png" height="320" alt="Quasar Screenshot Desktop" />
+<img src="./.source/Screenshot-mobile.png" height="320" alt="Quasar Screenshot Mobile" />
 
 📢 **Demo**: [Quasar Official](https://demo.singyan.top/) | [Singyan Blog](https://singyan.top/)
 
