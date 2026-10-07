@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@astrojs/node": "^11.1.6",
+    "@astrojs/vercel": "^11.0.12",
     "prismjs": "^1.30.0",
     "typescript": "^5.3.3",
     "wrangler": "^4.141.0"
