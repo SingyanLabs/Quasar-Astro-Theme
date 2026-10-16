@@ -164,7 +164,7 @@
         updateNavbarStatus(`已加载全部，共 ${cachePool.length} 张`, false);
       }
     } catch (e) {
-      if (e.name === 'AbortError' || window.location.pathname.replace(/\/$/, '') !== '/albums') return;
+      if (e.name === 'AbortError' || e.code === 20 || window.location.pathname.replace(/\/$/, '') !== '/albums') return;
       showSpinner(false);
       updateNavbarStatus('画廊同步暂缓！', false);
     } finally {
