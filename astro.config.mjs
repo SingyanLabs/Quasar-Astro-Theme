@@ -5,13 +5,29 @@ import node from '@astrojs/node';
 // https://astro.build/config
 export default defineConfig({
 
-  build: {
-    inlineStylesheets: 'always',
+    build: {
+        inlineStylesheets: 'auto',
   },
   
-  vite: {
-    build: {
-      cssTarget: ['chrome80', 'safari13.1', 'firefox78'],
-    },
-  },
+    prefetch: {
+      prefetchAll: true,
+       defaultStrategy: 'hover' },
+
+    vite: {
+      build: {
+        cssTarget: ['chrome80', 'safari13.1', 'firefox78'],
+        rollupOptions: {
+       output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/three')) {
+              return 'vendor-three';
+            }
+            if (id.includes('node_modules/gsap')) {
+              return 'vendor-gsap';
+            }
+          }
+        }
+      }
+    }
+},
 });
