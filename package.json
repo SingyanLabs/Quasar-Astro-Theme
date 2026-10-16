@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "license": "MIT",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "astro dev",
@@ -13,19 +13,17 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.3.3",
     "@astrojs/sitemap": "^3.7.4",
     "@astrojs/tailwind": "^6.0.2",
-    "astro": "^7.3.5",
-    "exifreader": "^4.44.0",
+    "astro": "^7.4.0",
+    "exifreader": "^4.50.0",
     "gsap": "^3.15.0",
-    "tailwindcss": "^3.4.1",
+    "tailwindcss": "^3.4.19",
     "three": "^0.185.1"
   },
   "devDependencies": {
-    "@astrojs/node": "^11.1.6",
+    "@astrojs/node": "^11.1.8",
     "prismjs": "^1.30.0",
-    "typescript": "^5.3.3",
-    "wrangler": "^4.141.0"
+    "typescript": "^5.9.3"
   }
 }
