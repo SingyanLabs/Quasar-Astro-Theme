@@ -8,9 +8,25 @@ import QuoteWidget from '../components/widgets/QuoteWidget.astro';
 import StudioWidget from '../components/widgets/StudioWidget.astro';
 import BioFooter from '../components/widgets/BioFooter.astro';
 import { SITE_CONFIG } from '../config.ts';
-import '../assets/styles/index.css'; // ⚡ 统一打包引入首页样式
+import '../assets/styles/index.css'; 
 ---
 <BaseLayout>
+  <!-- ⚡ 離線預加載與 DNS 預解析提示：僅在此首頁頂端宣告 -->
+  <Fragment slot="head">
+    <!-- 1. API 接口域名預連接 (加速 WeatherWidget 網路請求) -->
+    <link rel="preconnect" href="https://api.open-meteo.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.open-meteo.com" />
+    <link rel="preconnect" href="https://api.bigdatacloud.net" crossorigin />
+    <link rel="dns-prefetch" href="https://api.bigdatacloud.net" />
+    <link rel="preconnect" href="https://ipwho.is" crossorigin />
+    <link rel="dns-prefetch" href="https://ipwho.is" />
+
+    <!-- 2. 動態渲染依賴：Earth 3D 高畫質貼圖預加載 -->
+    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg" as="image" type="image/jpeg" crossorigin="anonymous" />
+    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-night.jpg" as="image" type="image/jpeg" crossorigin="anonymous" />
+    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-water.png" as="image" type="image/png" crossorigin="anonymous" />
+  </Fragment>
+
   <Intro />
 
   <div class="main-viewport">
