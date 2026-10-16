@@ -89,7 +89,7 @@ Quasar/
 
 ## 🚀 Getting Started
 
-Requires Node.js `v22.12.0` or higher. `pnpm` is recommended for faster dependency management.
+Requires Node.js `v24` or higher. `pnpm` is recommended for faster dependency management.
 
 **1. Clone the repository**
 
