@@ -45,6 +45,8 @@ const pureDescription = String(description)
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
     
+    <slot name="head" />
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;400;700;900&family=Noto+Serif+SC:wght@400;700;900&family=Plus+Jakarta+Sans:wght@300;700;900&display=swap" rel="stylesheet">
@@ -242,4 +244,3 @@ const pureDescription = String(description)
     window.addEventListener('scroll', handleScrollState, { passive: true });
   })();
 </script>
-
