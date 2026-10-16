@@ -122,17 +122,26 @@ const greetingsConfig = { ...defaultGreetings, ...((SITE_CONFIG as any).greeting
 
       const fetchWeatherData = async (lat, lon, cityName = '') => {
         try {
+          // 🌟 優化：將「城市名稱解析」與「天氣資料請求」封裝為獨立的 Promise，並行執行
+          let cityPromise = Promise.resolve(cityName);
+          
           if (!cityName) {
-            try {
-              const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=zh`);
-              if (geoRes.ok) cityName = (await geoRes.json()).city || '本地';
-            } catch { cityName = '本地'; }
+            cityPromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=zh`)
+              .then(res => res.ok ? res.json() : {})
+              .then(data => data.city || '本地')
+              .catch(() => '本地');
           }
-          if (locationEl) locationEl.innerText = cityName;
 
-          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,weathercode&forecast_days=2`);
-          if (!weatherRes.ok) throw new Error('API Error');
-          const data = await weatherRes.json();
+          const weatherPromise = fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,weathercode&forecast_days=2`)
+            .then(res => {
+              if (!res.ok) throw new Error('API Error');
+              return res.json();
+            });
+
+          // 🌟 核心：並行等待兩個請求完成
+          const [resolvedCityName, data] = await Promise.all([cityPromise, weatherPromise]);
+
+          if (locationEl) locationEl.innerText = resolvedCityName;
 
           const temp = Math.round(data.current_weather.temperature);
           const info = weatherIconMap[data.current_weather.weathercode] || { icon: '🌿', text: '宜出行 |' };
